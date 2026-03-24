@@ -19,6 +19,13 @@ For the target application, the selected SLM will be responsible for two main ta
 2. **SLM Benchmarking**: Utilize the open-source [lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness) to evaluate various SLMs against our custom financial SMS dataset.
 3. **Model Selection**: Compare models to find the perfect LLM/SLM that balances accuracy, speed, and efficiency for the financial SMS parsing use case.
 
+## Development Environment & Hardware
+- **OS**: WSL2 on Windows Gaming PC
+- **GPU**: 12 GB NVIDIA RTX 4070
+- **RAM**: 32 GB (potentially shared between WSL2 and Windows)
+- **Target Platform**: The final application is being developed for mobile devices.
+- **Goal**: Utilize this local rig to quickly prototype different Small Language Model (SLM) workflows and conclude on the optimal model that balances accuracy and efficiency for the target mobile platform.
+
 ## Current Data Processing Pipeline
 To prepare the raw SMS data for SLM evaluation, we currently apply a multi-stage heuristic filtering process (documented in `db_analysis.ipynb`) to separate likely financial transactions from noise. The pipeline consists of the following filtering stages:
 1. **Sender Filtering**: Exclude regular personal mobile numbers, keeping only commercial brands and numeric shortcodes.
