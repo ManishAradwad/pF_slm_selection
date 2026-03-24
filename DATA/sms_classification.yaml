@@ -4,11 +4,10 @@ dataset_kwargs:
   data_files:
     test: /home/tojinotzenin/pF_slm_selection/DATA/classification_ds.jsonl
 output_type: multiple_choice
-
-system_prompt: "You are an on-device privacy-first financial assistant. Classify the user's SMS as 'Transaction' only if it represents a successful debit or credit from an Indian bank account, credit card, or UPI."
+test_split: test
 
 # Updated prompt injecting sender and timestamp
-doc_to_text: "Analyze this SMS and determine if it is a financial transaction. Reply with exactly 'Transaction' or 'Non-Transaction'.\n\nSender: {{sender}}\nDate: {{timestamp}}\nSMS: {{sms}}\n\nClassification: "
+doc_to_text: "You are an on-device privacy-first financial assistant. Classify the user's SMS as 'Transaction' only if it represents a successful debit or credit from an Indian bank account, credit card, or UPI.\n\nAnalyze this SMS and determine if it is a financial transaction. Reply with exactly 'Transaction' or 'Non-Transaction'.\n\nSender: {{sender}}\nDate: {{timestamp}}\nSMS: {{sms}}\n\nClassification: "
 
 doc_to_target: "{{label}}"
 doc_to_choice: ["Transaction", "Non-Transaction"]
