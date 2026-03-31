@@ -2,7 +2,7 @@ task: sms_classification
 dataset_path: json
 dataset_kwargs:
   data_files:
-    test: /home/tojinotzenin/pF_slm_selection/DATA/classification_ds.jsonl
+    test: /workspaces/pF_slm_selection/DATA/classification_ds.jsonl
 output_type: multiple_choice
 test_split: test
 

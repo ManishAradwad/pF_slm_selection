@@ -6,3 +6,4 @@ RESULTS/
 .ipynb_checkpoints/
 *.db
 pf/
+pf_docker/
