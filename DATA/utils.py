@@ -125,6 +125,9 @@ def field_accuracy(references: list[str], predictions: list[str]) -> float:
     if ref is None or pred is None:
         return 0.0
 
+    if not isinstance(pred, dict) or not isinstance(ref, dict):
+        return 0.0
+
     fields = ["merchant", "date", "type", "account"]
     matches = 0
     total = 0
@@ -153,6 +156,9 @@ def amount_accuracy(references: list[str], predictions: list[str]) -> float:
     if ref is None and pred is None:
         return 1.0
     if ref is None or pred is None:
+        return 0.0
+
+    if not isinstance(pred, dict) or not isinstance(ref, dict):
         return 0.0
 
     try:
