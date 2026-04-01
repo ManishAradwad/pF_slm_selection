@@ -1,7 +1,7 @@
 # CLAUDE.md - SLM Evaluation for Financial SMS
 
 ## Project Overview
-Evaluation playground for selecting the optimal Small Language Model (SLM) to power a separate mobile financial helper app. The app will classify Indian financial SMS messages and extract structured transaction data (amount, merchant, date, type, account).
+Evaluation playground for selecting the optimal Small Language Model (SLM) to power a mobile financial helper app called **pocket-financer**. The app tracks the user's bank accounts and credit/debit cards, then uses an SLM to process transaction SMS alerts and maintain balance/spend data. Wallets (Simpl, slice, PayTM wallet) are out of scope — only direct bank account and card transactions.
 
 ## Quick Reference
 
@@ -13,12 +13,13 @@ Evaluation playground for selecting the optimal Small Language Model (SLM) to po
 
 ### Key Files
 - `copilot-instructions.md` — full project context and goals
-- `db_analysis.ipynb` — multi-stage SMS filtering pipeline (sender filter -> amount -> OTP exclusion -> promo exclusion -> request exclusion -> financial keywords)
+- `db_analysis.ipynb` — original (v1) SMS filtering pipeline (sender filter -> amount -> OTP exclusion -> promo exclusion -> request exclusion -> financial keywords)
+- `new_pipeline.py` — current (v2) SMS filtering pipeline using positive filtering: sender filter -> amount -> masked account/card number -> transaction verb -> OTP exclusion -> collect request exclusion. Produces 1,032 clean bank/card transactions from 11,659 commercial messages.
 - `build_datasets.py` — heuristic financial SMS classifier, outputs `candidates_financial.json` / `candidates_non_financial.json`
 - `find_sms_db.py` — extracts `sms.db` from an iPhone iTunes backup
 - `DATA/sms_classification.yaml` — lm-evaluation-harness task config for classification
 - `DATA/classification_ds.jsonl` — current evaluation dataset (20 samples, all labeled Non-Transaction so far)
-- `RESULTS/` — evaluation outputs; one run exists for Qwen3-0.6B (0% accuracy — task config likely needs tuning)
+- `RESULTS/` — old v1 pipeline outputs in root, v2 pipeline outputs in `RESULTS/new_pipeline/`
 
 ### Data Sources (gitignored)
 - `sms.db` — raw iPhone SMS SQLite database
@@ -38,6 +39,8 @@ Evaluation playground for selecting the optimal Small Language Model (SLM) to po
 - Focus on evaluation/benchmarking code, not app development
 
 ## Current State & Known Issues
+- v2 pipeline (`new_pipeline.py`) is the current filtering approach — uses positive filters (require masked account/card number + transaction verb) instead of v1's negative filters (exclude promos/requests). Much fewer false negatives on real bank transactions.
 - The classification dataset has only 20 samples and lacks "Transaction" positive examples
 - Qwen3-0.6B evaluation returned 0% accuracy — likely a prompt/config issue rather than model failure
 - The `pf` venv (WSL2) has all dependencies; `pf_docker` venv (Docker) has torch, transformers, accelerate, lm-eval installed and GPU-verified
+- SMS data covers 2021–2026 but tapers off after 2024 (only 66 messages in 2026, none transactional)
