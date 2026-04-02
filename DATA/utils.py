@@ -9,22 +9,44 @@ import re
 
 # ── Prompt ──────────────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = (
-    "You are an on-device financial assistant. "
-    "Given an SMS, extract transaction details as JSON with these fields: "
-    "amount (number), merchant (string or null), date (DD-MM-YYYY or null), "
-    "type (\"debit\", \"credit\", or \"refund\"), account (string). "
-    "If the SMS is NOT a real bank/card transaction (e.g. spam, promo, "
-    "balance info), respond with exactly: null"
-)
+SYSTEM_PROMPT = """\
+Given the sender ID and SMS body, extract transaction details from an Indian bank/card SMS as a JSON object.
+
+Rules:
+- amount: number (e.g. 150.0). Parse "Rs.1,500" as 1500.0.
+- merchant: the person, shop, or UPI ID that money was sent to or received from. This is NOT the bank name. If no recipient/sender is mentioned, use null.
+- date: always DD-MM-YYYY with numeric month (e.g. 01-03-2024). Convert "01Mar24" to "01-03-2024", "2024-03-01" to "01-03-2024". If no date in the SMS, use null.
+- type: "debit" if money left your account, "credit" if money came in.
+- account: the masked account or card number exactly as shown in the SMS (e.g. "A/c X6254", "Credit Card XX3782", "Card 0816"). Do NOT use the bank name here.
+
+If the SMS is NOT a real bank/card transaction output exactly: null
+Reject these: promotional offers, cashback ads, wallet top-ups, balance reports, investment summaries, account-opening ads, game/spin rewards.
+Hint: legitimate bank senders typically contain the bank name (e.g. SBIUPI, HDFCBK, IDFCFB, MAHABK)."""
 
 FEW_SHOT_EXAMPLES = [
     {
+        "sender": "AX-SBIUPI",
         "sms": "Rs.150 debited from A/c XX1234 on 01Mar24 to Zomato. UPI Ref 123456789.",
         "answer": '{"amount": 150.0, "merchant": "Zomato", "date": "01-03-2024", "type": "debit", "account": "A/c XX1234"}',
     },
     {
+        "sender": "BW-SBIUPI",
+        "sms": "Dear SBI UPI User, ur A/cX6254 credited by Rs296.25 on 05Sep23 by (Ref no 324835400880)",
+        "answer": '{"amount": 296.25, "merchant": null, "date": "05-09-2023", "type": "credit", "account": "A/c X6254"}',
+    },
+    {
+        "sender": "AD-HDFCBK",
+        "sms": "Transaction Reversed!On HDFC Bank CREDIT Card xx6719 Amt: Rs.50 By CAFE MOCHA On 2024-03-17:01:17:08",
+        "answer": '{"amount": 50.0, "merchant": "CAFE MOCHA", "date": "17-03-2024", "type": "refund", "account": "Credit Card xx6719"}',
+    },
+    {
+        "sender": "VM-OFFERZ",
         "sms": "Get 50% cashback up to Rs.200 on your next recharge! Use code SAVE50. T&C apply.",
+        "answer": "null",
+    },
+    {
+        "sender": "VK-GMERMY",
+        "sms": "Dear Customer, Your A/c XXXX921 is Credited With Rs.10,000 withdraw directly in your wallet a/c. Check Now: http://example.com RUM G",
         "answer": "null",
     },
 ]
@@ -35,10 +57,12 @@ def doc_to_text(doc: dict) -> str:
     parts = [SYSTEM_PROMPT, ""]
 
     for ex in FEW_SHOT_EXAMPLES:
+        parts.append(f"Sender: {ex['sender']}")
         parts.append(f"SMS: {ex['sms']}")
         parts.append(f"Output: {ex['answer']}")
         parts.append("")
 
+    parts.append(f"Sender: {doc['sender']}")
     parts.append(f"SMS: {doc['sms']}")
     parts.append("Output: ")
 
