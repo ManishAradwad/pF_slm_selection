@@ -10,7 +10,16 @@ import pandas as pd
 
 # ── Load & prep ──────────────────────────────────────────────────────────────
 sms_db = pd.read_csv("./all_sms.csv")
-sms_db['date'] = pd.to_datetime(sms_db['date'], unit='s')
+sms_db['date'] = pd.to_datetime(sms_db['date'], format='ISO8601')
+
+# Strip characters illegal in XML 1.0 (openpyxl/lxml reject them when writing Excel).
+# Legal XML 1.0 chars: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+_ILLEGAL_XML_RE = re.compile('[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\U00010000-\U0010FFFF]')
+
+for col in sms_db.select_dtypes(include=['object', 'string']).columns:
+    sms_db[col] = sms_db[col].apply(
+        lambda v: _ILLEGAL_XML_RE.sub('', v) if isinstance(v, str) else v
+    )
 
 inbox_df = sms_db[sms_db['sender'] != 'me'].copy()
 
