@@ -15,6 +15,7 @@ generation_kwargs:
     - "</s>"
     - "<|im_end|>"
     - "<|endoftext|>"
+    - "<end_of_turn>"
   do_sample: false
   temperature: 0.0
   max_gen_toks: 256
