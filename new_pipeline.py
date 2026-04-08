@@ -77,12 +77,32 @@ s2_count = commercial_df['2_has_acct'].sum()
 print(f"STAGE 2 (has account/card): {s2_count} retained, {s1_count - s2_count} dropped")
 
 # ── STAGE 3: REQUIRE TRANSACTION ACTION VERB ─────────────────────────────────
-# Must contain a verb indicating an actual completed debit/credit event.
+# Must contain a verb/phrase indicating an actual completed debit/credit event.
 # Filters out promos that mention an account (e.g. "EasyEMI on Card xx6719").
 txn_verb_pattern = re.compile(
-    r'\b(debited|credited|deducted|spent|paid|received|transferred|sent|reversed|refunded|used|withdrawn)\b|'
-    r'\b(money\s+transfer|amt\s+sent|amt\s+received)\b|'
-    r"you've\s+hand-?picked",    # OneCard spend notifications
+    # Core verbs — use lookahead instead of \b at end to handle non-ASCII
+    # chars immediately after the word (e.g. "debitedàSBI")
+    r'\b(?:debited|credited|deducted|spent|paid|received|transferred|sent|'
+    r'reversed|refunded|used|withdrawn|deposited)(?=[^a-zA-Z]|$)|'
+    # HDFC "Txn Rs." short-form transaction alerts
+    r'\btxn\b|'
+    # SBI "has a debit by transfer/NACH" and "has credit for"
+    r'\bhas\s+(?:a\s+)?debit\s+by\b|'
+    r'\bhas\s+credit\s+for\b|'
+    # Card transactions done without OTP/PIN
+    r'\bwithout\s+OTP\b|'
+    # Auto-debit / NACH mandate payments
+    r'\bauto.?debit\b|'
+    # CDSL stock debit notifications
+    r'\bDebit\s+in\s+a/c\b|'
+    # INB txn (SBI internet banking)
+    r'\btxn\s+of\s+Rs\b|'
+    # Mutual fund redemption payouts
+    r'\bRedemption\s+payout\b|'
+    # Multi-word phrases
+    r'\b(?:money\s+transfer|amt\s+sent|amt\s+received)\b|'
+    # OneCard spend notifications
+    r"you've\s+hand-?picked",
     re.IGNORECASE
 )
 
