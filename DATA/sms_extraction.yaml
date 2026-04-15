@@ -28,6 +28,7 @@ filter_list:
       - function: "take_first"
 
 metric_list:
+  # ── Existing (kept for backward-compat with prior runs) ──
   - metric: !function utils.json_validity
     aggregation: mean
     higher_is_better: true
@@ -40,3 +41,30 @@ metric_list:
   - metric: !function utils.amount_accuracy
     aggregation: mean
     higher_is_better: true
+  # ── Tier 1: per-field + end-to-end ──────────────────────
+  - metric: !function utils.type_accuracy
+    aggregation: mean
+    higher_is_better: true
+  - metric: !function utils.account_accuracy
+    aggregation: mean
+    higher_is_better: true
+  - metric: !function utils.full_match_accuracy
+    aggregation: mean
+    higher_is_better: true
+  - metric: !function utils.ghost_transaction_rate
+    aggregation: mean
+    higher_is_better: false
+  # ── Tier 2: diagnostics ──────────────────────────────────
+  - metric: !function utils.missed_transaction_rate
+    aggregation: mean
+    higher_is_better: false
+  - metric: !function utils.date_accuracy
+    aggregation: mean
+    higher_is_better: true
+  - metric: !function utils.merchant_accuracy
+    aggregation: mean
+    higher_is_better: true
+  # ── Tier 3: hallucination detector ──────────────────────
+  - metric: !function utils.few_shot_leakage_rate
+    aggregation: mean
+    higher_is_better: false
