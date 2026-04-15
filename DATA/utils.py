@@ -11,43 +11,75 @@ import sys
 # ── Prompt ──────────────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """\
-Given the sender ID and SMS body, extract transaction details from an Indian bank/card SMS as a JSON object.
+You are extracting transaction details from an Indian bank/card SMS. Output either a single JSON object or the literal word null. Nothing else — no prose, no markdown fences, no explanations.
 
-Rules:
-- amount: number (e.g. 150.0). Parse "Rs.1,500" as 1500.0.
-- merchant: the person, shop, or UPI ID that money was sent to or received from. This is NOT the bank name. If no recipient/sender is mentioned, use null.
-- date: always DD-MM-YYYY with numeric month (e.g. 01-03-2024). Convert "01Mar24" to "01-03-2024", "2024-03-01" to "01-03-2024". If no date in the SMS, use null.
-- type: "debit" if money left your account, "credit" if money came in.
-- account: the masked account or card number exactly as shown in the SMS (e.g. "A/c X6254", "Credit Card XX3782", "Card 0816"). Do NOT use the bank name here.
+STEP 1 — Is this a real bank/card transaction?
+A real transaction means money actually moved in or out of the user's bank account or card RIGHT NOW. If yes, go to STEP 2. If no, output: null
 
-If the SMS is NOT a real bank/card transaction output exactly: null
-Reject these: promotional offers, cashback ads, wallet top-ups, balance reports, investment summaries, account-opening ads, game/spin rewards.
-Hint: legitimate bank senders typically contain the bank name (e.g. SBIUPI, HDFCBK, IDFCFB, MAHABK)."""
+Output null for:
+- Recharge offers, plan promos, "Recharge with Rs.X" messages
+- Cashback ads, discount offers, "Get Rs.X off" messages
+- Wallet top-up promos, referral bonuses, spin/game rewards
+- Balance reports, mini-statements, investment summaries
+- Account-opening ads, loan offers, credit card marketing
+- Booking confirmations with "pay after" / "pay later" language
+- Any message whose main purpose is to get the user to click a link or take an action, even if it mentions an amount
+
+Hint: legitimate bank senders usually contain a bank code (SBIINB, HDFCBK, IDFCFB, MAHABK, AXISBK, ICICIB). Senders like JK-620016, VM-OFFERZ, VK-GOIBIB, VM-NOBRKR are almost always promotional.
+
+STEP 2 — Extract fields from the CURRENT SMS only
+Never copy values from the few-shot examples below. Every field must come from the SMS you are given right now.
+
+- amount: number from the SMS (e.g. 150.0). Parse "Rs.1,500" as 1500.0.
+- type: use the verb in the SMS.
+    debit  ← spent, debited, withdrawn, paid, sent, used, purchase, drawn
+    credit ← credited, received, refunded, deposited, reversal, added
+- merchant: who the user paid or got paid by. Look for these phrases:
+    "at <MERCHANT>"              → e.g. "at MIDAS DAILY"
+    "To <NAME>"                  → e.g. "To AJAY KUMAR YADAV"
+    "by <NAME/COMPANY>"          → e.g. "by MULTIPL FINTECH SOLUTIONS"
+    "from VPA <handle>"          → e.g. "from VPA user@okhdfc"
+    "linked to VPA <handle>"     → the VPA is the merchant
+    "by a/c linked to mobile X"  → the mobile/APIBANKING ID is the merchant
+  This is NEVER the bank name. If the SMS genuinely has no counterparty, use null — but try hard first.
+- date: always DD-MM-YYYY with numeric month.
+    "01Mar24"      → "01-03-2024"
+    "2024-03-01"   → "01-03-2024"
+    "10-FEB-2024"  → "10-02-2024"   (JAN=01, FEB=02, ..., DEC=12)
+  If the SMS has no date, use null. If the SMS only has day-month with no year anywhere, also use null. Never invent a placeholder date.
+- account: the masked account or card label exactly as written in the SMS. Keep any "A/c", "Card", "Credit Card", "Debit Card" prefix. Do NOT use the bank name. Examples: "A/c XX6254", "Credit Card XX3782", "Debit Card xx4955"."""
 
 FEW_SHOT_EXAMPLES = [
+    # --- Transactions ---
     {
-        "sender": "AX-SBIUPI",
-        "sms": "Rs.150 debited from A/c XX1234 on 01Mar24 to Zomato. UPI Ref 123456789.",
-        "answer": '{"amount": 150.0, "merchant": "Zomato", "date": "01-03-2024", "type": "debit", "account": "A/c XX1234"}',
+        "sender": "AX-HDFCBK",
+        "sms": "HDFC Bank: Rs.500.00 credited to a/c XXXXXX0000 on 01-01-20 by a/c linked to VPA demouser000@examplebank (UPI Ref No 000000000000).",
+        "answer": '{"amount": 500.0, "merchant": "demouser000@examplebank", "date": "01-01-2020", "type": "credit", "account": "a/c XXXXXX0000"}',
     },
     {
-        "sender": "BW-SBIUPI",
-        "sms": "Dear SBI UPI User, ur A/cX6254 credited by Rs296.25 on 05Sep23 by (Ref no 324835400880)",
-        "answer": '{"amount": 296.25, "merchant": null, "date": "05-09-2023", "type": "credit", "account": "A/c X6254"}',
+        "sender": "VM-HDFCBK",
+        "sms": "Amt Sent Rs.75.00\nFrom HDFC Bank A/C *0000\nTo EXAMPLE DEMO USER\nOn 02-01\nRef 000000000000\nNot You? Call 18002586161",
+        "answer": '{"amount": 75.0, "merchant": "EXAMPLE DEMO USER", "date": null, "type": "debit", "account": "A/C *0000"}',
     },
     {
-        "sender": "AD-HDFCBK",
-        "sms": "Transaction Reversed!On HDFC Bank CREDIT Card xx6719 Amt: Rs.50 By CAFE MOCHA On 2024-03-17:01:17:08",
-        "answer": '{"amount": 50.0, "merchant": "CAFE MOCHA", "date": "17-03-2024", "type": "refund", "account": "Credit Card xx6719"}',
+        "sender": "VD-IDFCFB",
+        "sms": "Transaction Successful! INR 23.00 spent on your IDFC FIRST Bank Credit Card ending XX0000 at DEMO SHOP DAILY on 03-JAN-2020 at 07:01 PM. Avbl limit: Rs.10000.00.",
+        "answer": '{"amount": 23.0, "merchant": "DEMO SHOP DAILY", "date": "03-01-2020", "type": "debit", "account": "Credit Card ending XX0000"}',
     },
+    # --- Rejections ---
     {
-        "sender": "VM-OFFERZ",
-        "sms": "Get 50% cashback up to Rs.200 on your next recharge! Use code SAVE50. T&C apply.",
+        "sender": "JK-000000",
+        "sms": "Hurry! Recharge your number on ExampleApp & get rewards upto Rs.400. Recharge with Rs.239 plan. T&CA. Click https://example.app/xx",
         "answer": "null",
     },
     {
-        "sender": "VK-GMERMY",
-        "sms": "Dear Customer, Your A/c XXXX921 is Credited With Rs.10,000 withdraw directly in your wallet a/c. Check Now: http://example.com RUM G",
+        "sender": "VM-OFFERZ",
+        "sms": "CRICKET MANIA OFFER! Get Rs.75 OFF on Rs.3099 recharge! Enjoy 2GB/Day + more. 365 Days https://example.link/promo",
+        "answer": "null",
+    },
+    {
+        "sender": "VK-GOIBIB",
+        "sms": "Dear Customer, we have reserved a cab for your pickup from Mumbai Airport starting @ just Rs.515. Pay after trip. Show OTP at kiosk. https://example.bo/abc",
         "answer": "null",
     },
 ]
@@ -75,12 +107,16 @@ def doc_to_text(doc: dict) -> str:
 def extract_json_filter(
     resps: list[list[str]], docs: list[dict]
 ) -> list[list[str]]:
-    """Extract the first JSON object or 'null' from each model response."""
+    """Extract the first JSON object or 'null' from each model response.
+    Strips <think>...</think> blocks produced by chain-of-thought models (e.g. Qwen3)
+    before searching for the answer."""
     results = []
     for resp_list in resps:
         filtered = []
         for resp in resp_list:
             resp = resp.strip()
+            # Strip chain-of-thought thinking blocks (Qwen3 and similar models)
+            resp = re.sub(r"<think>.*?</think>", "", resp, flags=re.DOTALL).strip()
             # Check for null first
             if resp.lower().startswith("null"):
                 filtered.append("null")
@@ -544,14 +580,14 @@ if __name__ == "__main__":
     _check("missed: null gold + null pred → 0.0",missed_transaction_rate(null_gold, null_pred),0.0)
 
     print("\n=== few_shot_leakage_rate ===")
-    zomato_leakage = ['{"amount": 150.0, "merchant": "Zomato", "date": "01-03-2024", "type": "debit", "account": "A/c XX1234"}']
-    diff_pred      = ['{"amount": 999.0, "merchant": "Foo", "date": "01-01-2024", "type": "debit", "account": "A/c XX9999"}']
+    vpa_leakage = ['{"amount": 500.0, "merchant": "demouser000@examplebank", "date": "01-01-2020", "type": "credit", "account": "a/c XXXXXX0000"}']
+    diff_pred   = ['{"amount": 999.0, "merchant": "Foo", "date": "01-01-2024", "type": "debit", "account": "A/c XX9999"}']
     _check("leakage: null gold + few-shot answer → 1.0",
-           few_shot_leakage_rate(null_gold, zomato_leakage), 1.0)
+           few_shot_leakage_rate(null_gold, vpa_leakage), 1.0)
     _check("no leakage: null gold + different pred → 0.0",
            few_shot_leakage_rate(null_gold, diff_pred), 0.0)
     _check("no check: txn gold + few-shot answer → 0.0 (only null gold counts)",
-           few_shot_leakage_rate(txn_gold, zomato_leakage), 0.0)
+           few_shot_leakage_rate(txn_gold, vpa_leakage), 0.0)
 
     print("\n=== full_match_accuracy ===")
     ref1 = ['{"amount": 5000.0, "merchant": null, "date": "02-05-2022", "type": "debit", "account": "a/c no. XXXXXXXX6254"}']
