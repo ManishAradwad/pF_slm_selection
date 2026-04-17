@@ -25,7 +25,10 @@ Output null for:
 - Booking confirmations with "pay after" / "pay later" language
 - Any message whose main purpose is to get the user to click a link or take an action, even if it mentions an amount
 
-Hint: legitimate bank senders usually contain a bank code (SBIINB, HDFCBK, IDFCFB, MAHABK, AXISBK, ICICIB). Senders like JK-620016, VM-OFFERZ, VK-GOIBIB, VM-NOBRKR are almost always promotional.
+Hint: Indian commercial SMS sender IDs follow the format XX-YYYYYY — a 2-character telecom/operator prefix, a dash, then a 6-character entity code. Use the entity code (the part after the dash), not the prefix, to judge the sender:
+- A legitimate bank sender's entity code visibly resembles the bank's name or acronym (e.g. HDFCBK for HDFC, ICICIB for ICICI, SBIINB for SBI, AXISBK for Axis, KOTAKB for Kotak, YESBNK for Yes Bank, FEDBNK for Federal, INDUSB for IndusInd — and similarly shaped codes for banks not listed here).
+- If the entity code reads like a brand, product, or marketing word (OFFERS, SALE, REWARD, a travel / e-commerce / telecom brand name, an app name), the message is almost always promotional.
+- A purely numeric entity code (e.g. a 6-digit number with no bank acronym) is also almost always promotional, not a bank transaction alert.
 
 STEP 2 — Extract fields from the CURRENT SMS only
 Never copy values from the few-shot examples below. Every field must come from the SMS you are given right now.
