@@ -34,7 +34,7 @@ Evaluation playground for selecting the optimal Small Language Model (SLM) to po
 ## Conventions
 - Install all dependencies into the appropriate venv (`pf_docker` in Docker, `pf` on WSL2), not globally
 - Keep evaluation datasets in `DATA/`, results in `RESULTS/`
-- The `lm-evaluation-harness/` directory is an upstream clone — don't modify it
+- The `lm-evaluation-harness/` directory is an upstream clone. Prefer out-of-tree extensions — custom tasks via `--include_path`, custom models via `@register_model` in a module outside the clone — so upstream stays rebasable. Modifying files inside `lm-evaluation-harness/` is allowed when the extension point genuinely doesn't exist (e.g. the built-in `gguf` adapter doesn't forward `grammar`), but should be a conscious choice, not the default.
 - Data files (csv, json, db, xlsx) are gitignored — never commit them
 - Focus on evaluation/benchmarking code, not app development
 

@@ -7,3 +7,5 @@ RESULTS/
 *.db
 pf/
 pf_docker/
+MODELS/
+*.gguf

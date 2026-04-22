@@ -1,160 +1,207 @@
-# Next Session — Constrained Decoding via GBNF Grammar
+# Next Session — Switch dev eval from `hf` to `llama.cpp`, add GBNF grammar
 
 ## Why this doc exists
-This is a handoff from the 2026-04-17 session. We started on *Priority 1* from the previous handoff (replace two hardcoded sender lists in `SYSTEM_PROMPT` with pattern-based descriptions) and it **regressed hard** against Gemma-4-E2B-it. Diagnosing the regression surfaced a deeper issue: the SLM is doing two jobs in one forward pass (binary classification AND 5-field extraction), and the output contract (`JSON object OR literal "null"`) is fragile on a 2B model. Instead of iterating further on prompt wording, the plan now is to **fix the output contract structurally via grammar-constrained decoding in llama.cpp**, which is exactly what the production runtime (`llama.rn`) supports natively.
+Handoff from the 2026-04-21 session. We diagnosed the exact shape of the `llama.cpp` / lm-eval gap and settled on the architecture for fixing it (out-of-tree `@register_model("llamacpp")` adapter using `llama-cpp-python`). Nothing has been coded yet. This session implements that.
 
-Previous plans for reference:
+Prior plan docs, for lineage:
 - `/home/vscode/.claude/plans/snappy-beaming-mountain.md` — prompt rewrite (2026-04-15)
 - `/home/vscode/.claude/plans/buzzing-watching-ullman.md` — Priority 1 attempt (2026-04-17, regressed)
 
-## Current state of the working tree (READ FIRST)
+## The core problem
 
-**Uncommitted changes in `DATA/utils.py`:** the `SYSTEM_PROMPT` hint line (line 28) was replaced with a 5-line pattern-based description during the 2026-04-17 attempt. Under the HF-transformers / no-grammar path, this caused a measurable Gemma regression:
+### 1. We're evaluating with the wrong backend
+Every current SLM eval runs through lm-eval's `hf` backend (HuggingFace `transformers`). That is **not** the runtime the app will use. `pocket-financer` ships the SLM on Android via **`llama.rn`** — a React Native binding over **`llama.cpp`**. `transformers.generate(...)` and `llama.cpp`'s sampler differ in tokenization edge cases, quantization (HF = fp16/bf16 on GPU; `llama.rn` = Q4_K_M on-device), and sampling plumbing. Dev metrics obtained via `hf` do not honestly predict how the model behaves on a user's phone.
 
-- `full_match_accuracy`: 0.704 → 0.458 (−0.246)
-- `rejection_accuracy`: 0.793 → 0.596 (−0.197)
-- `ghost_transaction_rate`: 0.187 → 0.404 (**+0.217 — worse**)
+The fix is to move dev eval to **`llama-cpp-python`** — the Python binding over the *same* `llama.cpp` engine that `llama.rn` wraps. Anything that works in `llama-cpp-python` maps 1:1 to what the app will do on-device.
 
-**Decision: keep the current (more general) prompt, don't revert.** Reasoning: of the 82 ghost cases in the new run, **23 are "all-null dict" + 48 are "partial-null dict" = 71 are shape-compliance failures**, not classification failures. The model knew it was a non-transaction; it just emitted `{"amount": null, ...}` instead of the literal `null`. Grammar-constrained decoding makes that output shape literally unreachable, so those 71 cases should recover for free. Only 11 were genuine hallucinations.
+### 2. We need GBNF grammar-constrained decoding
+From the 2026-04-17 Gemma-4-E2B-it regression analysis, **71 of the 82 ghost cases were shape-compliance failures**, not classification failures:
+- 23 cases: model emitted `{"amount": null, "merchant": null, "date": null, "type": null, "account": null}` instead of the literal `null`.
+- 48 cases: model emitted partial JSON with most fields null.
+- Only 11: genuine hallucinations.
 
-The bet: keep the generalized prompt + add grammar → recover or beat the 0.704 baseline. If the grammar run still underperforms the 0.704 number meaningfully, *then* revert the prompt and isolate whether grammar alone fixes it.
+A prompt rewrite can only nudge token probabilities. A **grammar** makes invalid output shapes *literally unreachable* at generation time — the sampler masks out every token that would lead to a non-parseable output. `llama.cpp` supports this natively (GBNF via `grammar` arg); `llama.rn` exposes it on-device; so the same GBNF we validate at dev time is deployable without modification.
 
-So there are now **two HF baselines to compare against** in the grammar run:
-- `results_2026-04-15T17-36-26.264874.json` (old prompt, HF, no grammar) — `full_match_accuracy` 0.704
-- `results_2026-04-17T08-41-23.435467.json` (new prompt, HF, no grammar) — `full_match_accuracy` 0.458
+### 3. lm-eval's `gguf` adapter doesn't help
+`lm-evaluation-harness/lm_eval/models/gguf.py:52-62`:
+```python
+request = {
+    "prompt": prompt,
+    "logprobs": self.logprobs,
+    "temperature": self.temperature,
+}
+if continuation: ...
+if stop is not None: request["stop"] = stop
+response = requests.post(f"{self.base_url}/v1/completions", json=request)
+```
+- HTTP-only: POSTs to a separate `llama-server` process. Not in-process.
+- Body carries `prompt`, `logprobs`, `temperature`, optional `stop`/`max_tokens`/`echo`. **No `grammar` field.**
+- `llama-server` *does* accept `grammar` per-request, but lm-eval never sends one.
+- Upstream: last commit on `main` is 2026-04-08 (checked 2026-04-21). No open work visible on this. Not a path we can wait for.
 
-Expected under grammar: the new-prompt run should move a lot closer to 0.704. If it does, the generalization win stands.
+## The approach
 
-Other state:
-- `lm-evaluation-harness/` cloned (upstream; do not modify).
-- Qwen3.5-0.8B, Qwen3-0.6B, LFM2.5-1.2B-Instruct have never been re-run against the current prompt and definitely haven't been run under grammar.
-- Nothing committed.
+**Write an out-of-tree lm-eval model adapter named `llamacpp`**, registered via the public `@register_model` decorator, that runs `llama-cpp-python` in-process and passes a GBNF grammar directly to `Llama.create_completion(...)`.
 
-## The core insight driving this session
+### Why this, not the alternatives
+Three options were considered end-to-end:
 
-### Why the dual-role output contract is fragile
+| | (A) Fork `gguf.py` | (B) Standalone harness | (C) Plug-in `@register_model` adapter |
+|---|---|---|---|
+| Comparable to existing HF baselines | yes | drift risk | **yes** |
+| In-process (no server) | no | yes | **yes** |
+| Modifies upstream | yes | no | **no** |
+| Reuses lm-eval pipeline | full | reimplements | **full** |
 
-The eval has 89 null-gold samples out of 203 (44% null). With the pattern-based hint, Gemma's failure mode was not "can't reject promos" — it was **can't commit to a rejection output shape**:
-- 23 cases: model emits `{"amount": null, "merchant": null, "date": null, "type": null, "account": null}` instead of the literal `null`. Classification reasoning is right; output shape is wrong; metric counts it as a ghost.
-- 48 cases: model emits partial JSON (e.g. `amount: 75, type: "debit"`, rest null). Classification is wavering; model hedges with half-extracted shape.
-- 11 cases: genuine hallucinations (some are few-shot value leakage — `merchant: "DEMO SHOP DAILY"`, `account: "XX0000"` copied verbatim from sentinel examples).
+(C) is the only option where every run — HF-baseline, GGUF-no-grammar, GGUF-with-grammar, across every SLM we benchmark later — goes through the **identical** lm-eval pipeline: same `doc_to_text`, same `extract_json_filter`, same 11 metric functions, same output-JSON schema. The only thing that varies is which adapter lm-eval dispatches to. For cross-model selection that's the gold standard.
 
-A prompt rewrite can only influence tokens through the attention mechanism. A **grammar rewrite** makes invalid output shapes *literally unreachable* at generation time.
+`CLAUDE.md` was updated 2026-04-21 to reflect this convention: prefer out-of-tree extensions via `--include_path` (tasks) and `@register_model` (models); in-tree edits to `lm-evaluation-harness/` are allowed but a conscious choice, not the default.
 
-### Production path supports this for free
+### Registry plumbing (verified against upstream source this session)
+- `lm_eval/api/registry.py:465-488` — `register_model(*names)` is a plain decorator, no "must live under `lm_eval/models/`" constraint.
+- `lm_eval/models/__init__.py:25-57` — pre-populates lazy placeholders for built-in models; any alias not in `MODEL_MAPPING` is fair game for out-of-tree registration.
+- `lm_eval/api/model.py:25-128` — `LM` abstract class requires `loglikelihood`, `loglikelihood_rolling`, `generate_until`. Our `sms_extraction.yaml` has `output_type: generate_until`, so only `generate_until` needs a real implementation; the other two can raise `NotImplementedError`.
+- `apply_chat_template` + `tokenizer_name` must also be implemented because we pass `--apply_chat_template`.
 
-`pocket-financer` deploys the model via **`llama.rn`**, which is a React Native wrapper around **`llama.cpp`**. GBNF grammar-constrained decoding is a first-class llama.cpp feature — you pass a `grammar` string alongside the prompt and the engine masks logits each step so only tokens that keep the output valid against the grammar can be sampled.
+### Adapter shape (~100 lines)
 
-Critical consequence: the same GBNF grammar used on-device in `llama.rn` can be used at dev-eval time via `llama-cpp-python` (Python bindings of the same engine). **Dev metrics will then actually reflect production behaviour** — which is not true today (HF transformers path has different generation semantics from the llama.cpp path the app uses).
+```
+DATA/llamacpp_model.py
+  from lm_eval.api.model import LM
+  from lm_eval.api.registry import register_model
 
-### Methodological note — eval distribution
+  @register_model("llamacpp")
+  class LlamaCppLM(LM):
+      def __init__(self, path, tokenizer, grammar_file=None,
+                   n_ctx=4096, n_gpu_layers=-1, max_tokens=512):
+          # llama_cpp.Llama(model_path=path, n_gpu_layers=..., n_ctx=...)
+          # AutoTokenizer.from_pretrained(tokenizer)  # HF tokenizer for chat template
+          # LlamaGrammar.from_file(grammar_file) if provided else None
 
-The 203-sample eval has 44% null-gold, but the production flow runs `new_pipeline.py` as a pre-filter (11,659 → 1,032 survivors, mostly real transactions). The SLM in the app probably sees a ~5–15% residual null rate, not 44%. Today's ghost numbers overstate real-world hurt. Worth keeping in mind when interpreting any future metric deltas.
+      def generate_until(self, requests, disable_tqdm=False):
+          # for each Instance(args=(ctx, gen_kwargs)):
+          #     self.llm.create_completion(
+          #         prompt=ctx, grammar=self.grammar,
+          #         temperature=0, max_tokens=self.max_tokens,
+          #         stop=gen_kwargs["until"])
+          # returns list[str]
 
-## Priorities for this session
+      def apply_chat_template(self, chat_history, add_generation_prompt=True):
+          return self.hf_tokenizer.apply_chat_template(
+              chat_history, tokenize=False,
+              add_generation_prompt=add_generation_prompt)
 
-### Priority 1 — Stand up a llama-cpp-python eval path alongside the HF one
-Goal: ability to run the 203-sample eval through `llama-cpp-python` (same engine as `llama.rn`) so we can pass a grammar.
+      @property
+      def tokenizer_name(self):
+          return self._tokenizer_name
 
-Concrete sub-steps:
-1. `pip install llama-cpp-python` into the `pf_docker` venv. (Target CUDA build: `CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python --no-cache-dir --force-reinstall --upgrade`.)
-2. Pull GGUF-quantized versions of the target models from HF (Q4_K_M or Q5_K_M — quantization matches what `llama.rn` ships on-device, so metrics are more honest). Candidate repos:
-   - `google/gemma-4-E2B-it` → check for a GGUF mirror or re-quantize via `llama.cpp/convert_hf_to_gguf.py`
-   - Same for Qwen3.5-0.8B, Qwen3-0.6B, LFM2.5-1.2B-Instruct
-3. Write an lm-eval `--model` adapter (or a standalone Python eval harness that consumes `DATA/extraction_ds.jsonl` + `DATA/utils.py`'s `doc_to_text` / metrics). lm-evaluation-harness does have a `gguf` model type — worth trying first before rolling our own.
-4. Sanity-check: run without a grammar first, confirm metrics are within noise of the HF baseline for Gemma. That rules out "HF vs llama.cpp path differences" as a confound.
+      # loglikelihood / loglikelihood_rolling → NotImplementedError
+```
 
-### Priority 2 — Write the GBNF grammar
-Draft (iterate in session):
+```
+DATA/run_gguf_eval.py          (~30 lines)
+  import DATA.llamacpp_model        # side effect: @register_model("llamacpp")
+  import lm_eval
+  lm_eval.simple_evaluate(
+      model="llamacpp",
+      model_args="path=MODELS/gemma-4-E2B-it-Q4_K_M.gguf,"
+                 "tokenizer=google/gemma-4-E2B-it,"
+                 "grammar_file=DATA/sms_extraction.gbnf",
+      tasks=["sms_extraction"],
+      task_manager=lm_eval.tasks.TaskManager(include_path="DATA"),
+      log_samples=True,
+      apply_chat_template=True,
+      output_path="./RESULTS/llamacpp",
+  )
+```
+
+### Design choices already settled
+- **Chat template via HF `AutoTokenizer.apply_chat_template`, not GGUF-embedded.** Exact parity with existing HF runs; zero divergence risk. Cost: one extra model_arg (`tokenizer=<hf_repo_id>`).
+- **Quantization: Q4_K_M.** Matches what `llama.rn` actually ships on-device. Honest metric beats ceiling metric.
+- **GGUF source: verify at run time.** bartowski or lmstudio-community mirror for Gemma-4-E2B-it; pick the most-downloaded reputable repo.
+- **Field order pinned in grammar**: `amount, merchant, date, type, account`. Verified 100 % consistent across all 114 txn-gold rows and all 3 few-shot examples.
+- **Nullability per field** (dataset-verified, reconciled with prompt wording):
+  | field | nullable? | evidence |
+  |---|---|---|
+  | `amount` | no | 0/114 null in gold |
+  | `merchant` | **yes** | 18/114 (15.8 %) null; prompt explicitly allows |
+  | `date` | **yes** | 0/114 in gold, but prompt says "no date → null" and "no year → null" — match prompt, not dataset, or we force the model to invent dates |
+  | `type` | no, strict enum | prompt pins verbs to `debit`/`credit` |
+  | `account` | no | 0/114 null |
+- **Output-JSON shape**: controlled by lm-eval, identical to existing HF runs. Only the output directory differs (`RESULTS/llamacpp/` vs `RESULTS/new_pipeline/`).
+
+## Draft GBNF grammar
+
 ```gbnf
 root        ::= "null" | transaction
 transaction ::= "{" ws
-                "\"amount\":"   ws amount       "," ws
-                "\"merchant\":" ws maybe-string "," ws
-                "\"date\":"     ws maybe-string "," ws
-                "\"type\":"     ws type-enum    "," ws
-                "\"account\":"  ws maybe-string ws
+                "\"amount\""   ws ":" ws amount        ws "," ws
+                "\"merchant\"" ws ":" ws maybe-string  ws "," ws
+                "\"date\""     ws ":" ws maybe-string  ws "," ws
+                "\"type\""     ws ":" ws type-enum     ws "," ws
+                "\"account\""  ws ":" ws string        ws
                 "}"
 amount       ::= [0-9]+ ("." [0-9]+)?
 type-enum    ::= "\"debit\"" | "\"credit\""
 maybe-string ::= "null" | string
 string       ::= "\"" char* "\""
-char         ::= [^"\\] | "\\" ["\\/bfnrt] | "\\u" [0-9a-fA-F]{4}
-ws           ::= [ \t\n]*
+char         ::= [^"\\] | "\\" (["\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F])
+ws           ::= [ \t\n\r]*
 ```
 
-Design notes to sort out:
-- Should `amount` also allow `null`? Currently the schema assumes amount is always populated when not rejecting. Check the eval dataset — are there any non-null cases with missing amount?
-- Should we pin `type` to the enum even when the field is absent? Grammar says always present; the dataset might have cases where gold has no `type`. Verify.
-- Field ordering in the grammar is strict. The model must emit in this order. Current few-shot examples use a specific order — align the grammar with it.
-- Whitespace: allow any amount of whitespace between tokens so the model can emit pretty-printed or compact JSON.
+GBNF has no `{n}` quantifier — the unicode escape must be unrolled to 4 explicit hex chars. (An earlier draft of this doc had this wrong.)
 
-### Priority 3 — Simplify the prompt
-With the grammar enforcing output shape, a lot of `SYSTEM_PROMPT`'s defensive prose becomes redundant:
-- Drop: "Output either a single JSON object or the literal word null. Nothing else — no prose, no markdown fences, no explanations." (grammar enforces it)
-- Drop: the STEP 2 per-field format notes that exist purely to get the model to emit the right shape (e.g. parsing Rs.1,500 as 1500.0 — grammar forces numeric, but the normalization still matters; keep that)
-- Keep: everything about *what* to extract (STEP 1 rejection list, verb→type map, merchant phrase patterns, date normalization rules, account label rules).
+## Prior-session context that's still load-bearing
 
-This is a second-order win: fewer tokens → faster inference on-device + less for the model to get wrong.
+- **Uncommitted prompt change in `DATA/utils.py`** (lines 28–31 region): the single sender-ID hint was replaced with a 5-line pattern-based description. Under HF-no-grammar this regressed Gemma (`full_match_accuracy` 0.704 → 0.458, `ghost_transaction_rate` 0.187 → 0.404). **Keep the change; do not revert.** The bet is that 71 of the 82 new ghosts are shape-compliance failures that grammar structurally eliminates. If the grammar run still comes in meaningfully below 0.704, *then* revert and isolate whether grammar alone closes the gap.
+- **Two HF baselines to compare against**, both Gemma-4-E2B-it:
+  - `RESULTS/new_pipeline/google__gemma-4-E2B-it/results_2026-04-15T17-36-26.264874.json` — old prompt, HF, `full_match_accuracy` **0.704**
+  - `RESULTS/new_pipeline/google__gemma-4-E2B-it/results_2026-04-17T08-41-23.435467.json` — current prompt, HF, `full_match_accuracy` **0.458**
+- **Eval distribution caveat**: 203 samples, 89 null-gold (44 %). Production's `new_pipeline.py` pre-filter (11,659 → 1,032 survivors) removes most non-transactions upstream of the SLM, so the app's real residual null rate is probably 5–15 %, not 44 %. Current ghost metrics overstate real-world hurt — keep in mind when interpreting deltas.
 
-### Priority 4 — Re-run all four target models under grammar
-Only after Priorities 1–3 are stable. Models to benchmark:
-- `google/gemma-4-E2B-it` (our current leader, `full_match_accuracy` 0.704 HF-baseline)
-- `Qwen/Qwen3-0.6B` (append `/no_think` to the prompt to skip CoT — see memory)
-- `Qwen/Qwen3.5-0.8B`
-- `LiquidAI/LFM2.5-1.2B-Instruct`
+## Concrete first moves
 
-For each, log: HF-transformers-no-grammar result, llama.cpp-no-grammar result, llama.cpp-with-grammar result. This gives us a clean ablation: path effect vs grammar effect vs model effect.
+1. **Verify `llama-cpp-python` CUDA build.** `llama_cpp` 0.3.19 is already installed in `pf_docker`, but likely CPU-only (default pip wheel). Load a small GGUF with `n_gpu_layers=-1` and watch `nvidia-smi`. If no VRAM usage → `CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python --no-cache-dir --force-reinstall --upgrade`.
+2. **Pull Gemma-4-E2B-it Q4_K_M GGUF** from HF (bartowski / lmstudio-community; pick at run time). Store under `MODELS/` (gitignored).
+3. **Write `DATA/llamacpp_model.py`** with the `LlamaCppLM` adapter above.
+4. **Write `DATA/run_gguf_eval.py`** wrapper (~30 lines).
+5. **Write `DATA/sms_extraction.gbnf`** using the grammar drafted above.
+6. **Smoke test, no grammar, 10 samples.** Confirm outputs are in the same ballpark as the HF current-prompt 0.458 baseline. If wildly off, chat-template or tokenization is the first suspect — fix before adding grammar.
+7. **Full 203-sample runs on Gemma-4-E2B-it, in this order:**
+   - (a) llama.cpp-no-grammar — isolates the "path effect" (HF → llama.cpp).
+   - (b) llama.cpp-with-grammar — isolates the "grammar effect" on top of the path.
+8. **Decide whether the generalized prompt survives under grammar.** Compare run (b) against both HF baselines. If (b) ≥ 0.704, the generalized prompt is vindicated and we ship it. If (b) < 0.704 meaningfully, revert the prompt, re-run, and isolate.
 
-### Priority 5 — Re-open the generalization question
-The original concern that started all this (prompt overfits to one inbox) is still live. The *current* hint line is already a first pass at generalizing (pattern-based, not inbox-specific) — if it holds up under grammar, great. If not, further iteration is safer once format variance is off the board. No additional prompt-generalization work happens before grammar lands.
-
-## Deferred (from the prior handoff — still on the roadmap, but not this session)
-
-- **Held-out test split** (prior Priority 2). Still worth doing before any prompt iteration. Once grammar is in, tune/test split becomes useful for all the *semantic* prompt work we deferred.
-- **External data from friends/family with different banks** (prior Priority 3).
-- **Public Indian SMS corpora search** (prior Priority 4).
-- **Synthetic stress-test SMS for untested types** — EMI auto-debit, SI debit, BBPS, international spend, ATM-with-location, NACH, reversals (prior Priority 5).
+## Non-goals this session
+- Running Qwen3.5-0.8B / Qwen3-0.6B / LFM2.5-1.2B-Instruct. They come after the Gemma flow is proven.
+- Simplifying `SYSTEM_PROMPT` (removing defensive "output either JSON or null" prose now that grammar enforces it). Worth doing once grammar lands, but not this session.
+- Held-out test split, external friends/family data, public Indian SMS corpora, synthetic stress-test SMS.
+- Any code edits to `lm-evaluation-harness/`.
 
 ## Key file paths
+- `DATA/utils.py` — `SYSTEM_PROMPT` (13–53), `FEW_SHOT_EXAMPLES` (55–88), `doc_to_text`, `extract_json_filter`, 11 metric functions, sanity tests. **No edits needed** — the adapter reuses this unchanged via lm-eval.
+- `DATA/sms_extraction.yaml` — task config. **No edits needed.**
+- `DATA/extraction_ds.jsonl` — 203 samples. Unchanged.
+- `DATA/llamacpp_model.py` — **new**, the adapter.
+- `DATA/run_gguf_eval.py` — **new**, entry script.
+- `DATA/sms_extraction.gbnf` — **new**, the grammar.
+- `MODELS/` — **new (gitignored)**, GGUF files.
+- `RESULTS/new_pipeline/google__gemma-4-E2B-it/` — existing HF baselines to beat.
+- `RESULTS/llamacpp/google__gemma-4-E2B-it/` — new output target.
+- `CLAUDE.md` — convention updated 2026-04-21 for out-of-tree extensions.
 
-- `DATA/utils.py` — lines 13-50 `SYSTEM_PROMPT`, lines 52-85 `FEW_SHOT_EXAMPLES`, lines 513-591 sanity tests, filters + metrics in between. **Needs revert before anything else**.
-- `DATA/sms_extraction.yaml` — lm-eval task config; may need a sibling `.yaml` once we add the llama-cpp path (e.g. `sms_extraction_gguf.yaml`)
-- `DATA/extraction_ds.jsonl` — 203 labeled samples (unchanged)
-- `new_pipeline.py` — rule-based pre-filter; produces 1,032 transaction-shaped SMS from 11,659 commercial messages. Relevant because it shapes the production input distribution the SLM actually sees.
-- `RESULTS/new_pipeline/google__gemma-4-E2B-it/results_2026-04-15T17-36-26.264874.json` — **the baseline to beat**. Every grammar run should compare against this.
-- `RESULTS/new_pipeline/google__gemma-4-E2B-it/results_2026-04-17T08-41-23.435467.json` — the regressed run (Priority-1 attempt). Keep it; useful as a negative reference for failure-mode analysis.
-- `CLAUDE.md` — project overview + conventions
+## Useful reference
+- `llama.rn` = React Native binding over `llama.cpp`. Exposes `grammar` in its completion API.
+- `llama-cpp-python` = Python binding over `llama.cpp`. Same engine. `LlamaGrammar.from_file(...)` + `Llama.create_completion(..., grammar=...)`.
+- GBNF spec: `github.com/ggerganov/llama.cpp/blob/master/grammars/README.md`. Reference grammars in `llama.cpp/grammars/` (e.g. `json.gbnf`).
+- `@register_model` lives in `lm_eval.api.registry`. Apply to an `LM` subclass; import the module before calling `lm_eval.simple_evaluate` so the decorator runs.
 
-## Useful context for the new session
-
-- `llama.rn` = React Native binding for `llama.cpp`. Inherits all llama.cpp features. Exposes `grammar` param in its completion API.
-- `llama-cpp-python` is the Python binding over the same engine. Also exposes `grammar`. Use this for dev-time eval.
-- **GBNF spec**: `lm-evaluation-harness/` is NOT the right reference — look at `github.com/ggerganov/llama.cpp/blob/master/grammars/README.md` for GBNF syntax. Reference grammars (like `json.gbnf`) live in `llama.cpp/grammars/`.
-- Structured-output libraries worth knowing exist but aren't relevant here because llama.cpp has native support: Outlines, XGrammar, LM Format Enforcer, Guidance. If `llama-cpp-python` grammar support ever proves insufficient we can fall back to these.
-
-## Conventions to keep in mind
-
+## Conventions
 - Dev container venv: `source pf_docker/bin/activate`
-- HF lm-eval command template (current):
+- HF lm-eval command template (unchanged, for future HF comparison runs):
   ```
   lm_eval --model hf --model_args pretrained=<MODEL_ID> --tasks sms_extraction --include_path DATA/ --device cuda:0 --log_samples --output_path ./RESULTS/new_pipeline --apply_chat_template
   ```
-- llama.cpp lm-eval command template (to establish this session, draft):
-  ```
-  lm_eval --model gguf --model_args model=<PATH_TO_GGUF>,grammar_file=<PATH_TO_GBNF> --tasks sms_extraction --include_path DATA/ --log_samples --output_path ./RESULTS/llamacpp
-  ```
-  (verify arg names against lm-eval's actual gguf adapter)
-- Do not modify anything under `lm-evaluation-harness/`
-- Never commit data files (csv / json / db / xlsx / jsonl in DATA)
-- When running Qwen3-0.6B, append `/no_think` to skip CoT
-
-## Recommended first move in the new session
-
-1. **Confirm sanity baseline.** `python DATA/utils.py` → 41/41 PASS. (The uncommitted prompt change doesn't affect sanity tests; this is a 30-second check, not a revert.)
-2. **Install `llama-cpp-python` (CUDA build) and get a single GGUF** (Gemma-4-E2B-it Q4_K_M). Verify it loads and generates.
-3. **No-grammar smoke test**: run ~10 samples through llama-cpp-python without any grammar, confirm outputs look sane and are in the same ballpark as the HF run on the same inputs. This de-risks the new eval path before we layer grammar on top.
-4. Only then draft the grammar and wire it in.
-5. Compare the grammar run against both HF baselines (0.704 old-prompt and 0.458 current-prompt). If grammar + current prompt is meaningfully below 0.704, revert the prompt and re-run to isolate where the deficit comes from.
-
-Don't try to land all four models + grammar + simplified prompt in one session. The right beat for this session is: new eval path standing → Gemma under grammar → decision on whether the generalized prompt survives. Everything else is a follow-up.
+- llama.cpp path is invoked via `python DATA/run_gguf_eval.py` (not via `lm_eval` CLI — the out-of-tree adapter has to be imported before the model registry is queried).
+- Do NOT commit data files (csv / json / db / xlsx / jsonl in DATA).
+- Qwen3-0.6B: append `/no_think` to skip CoT (applies when we get to Qwen later).
