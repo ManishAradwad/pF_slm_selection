@@ -1,12 +1,6 @@
 root         ::= "null" | transaction
 
-transaction  ::= "{" ws
-                 "\"amount\""   ws ":" ws amount        ws "," ws
-                 "\"merchant\"" ws ":" ws maybe-string  ws "," ws
-                 "\"date\""     ws ":" ws maybe-string  ws "," ws
-                 "\"type\""     ws ":" ws type-enum     ws "," ws
-                 "\"account\""  ws ":" ws string        ws
-                 "}"
+transaction  ::= "{" ws "\"amount\"" ws ":" ws amount ws "," ws "\"merchant\"" ws ":" ws maybe-string ws "," ws "\"date\"" ws ":" ws maybe-string ws "," ws "\"type\"" ws ":" ws type-enum ws "," ws "\"account\"" ws ":" ws string ws "}"
 
 amount       ::= [0-9]+ ("." [0-9]+)?
 
