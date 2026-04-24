@@ -9,3 +9,4 @@ pf/
 pf_docker/
 MODELS/
 *.gguf
+logs/
