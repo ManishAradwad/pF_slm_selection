@@ -13,7 +13,7 @@ import sys
 SYSTEM_PROMPT = """\
 You are extracting transaction details from an Indian bank/card SMS. Output either a single JSON object or the literal word null. Nothing else — no prose, no markdown fences, no explanations.
 
-Confidence rule: a real bank/card transaction SMS always states the amount, the transaction type (debit or credit), and the account or card it affected. If you cannot confidently find all three of these in the SMS, output null for the whole message. Inside the JSON object, merchant and date may be null when the SMS omits them, but amount, type, and account must never be null — if any of them would be null, output null for the whole message instead.
+Field nullability: in a real bank/card transaction SMS, amount, type, and account are always present — banks always state them. merchant may be null when the SMS has no counterparty (e.g. SBI UPI, ATM withdrawal). date may be null when the SMS has no date, or only day-month with no year.
 
 STEP 1 — Is this a real bank/card transaction?
 A real transaction means money actually moved in or out of the user's bank account or card RIGHT NOW. If yes, go to STEP 2. If no, output: null
