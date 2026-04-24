@@ -362,11 +362,28 @@ def _amount_match(ref: dict, pred: dict) -> bool:
 
 
 def _merchant_match(ref_m, pred_m) -> bool:
+    """Case/whitespace-insensitive, allows substring either direction.
+
+    Why loose: bank SMS wrap the same entity in varying boilerplate
+    ("VPA x@y", "mobile 9XXXXXXX123-APIBANKING", "UPI-<ref>-Compass", trailing
+    city names on gateway descriptors). Requiring byte-equal match punishes the
+    model for cosmetic wrapping it has no way to strip.
+    Stays strict on None vs non-None (over-extraction is still an error).
+    3-char floor on the shorter side avoids pathological substrings.
+    """
     if ref_m is None and pred_m is None:
         return True
     if ref_m is None or pred_m is None:
         return False
-    return str(ref_m).lower().strip() == str(pred_m).lower().strip()
+    r = re.sub(r"\s+", " ", str(ref_m).strip().lower())
+    p = re.sub(r"\s+", " ", str(pred_m).strip().lower())
+    if r == p:
+        return True
+    shorter = r if len(r) <= len(p) else p
+    longer = p if shorter is r else r
+    if len(shorter) < 3:
+        return False
+    return shorter in longer
 
 
 # Pre-compute few-shot signatures used by few_shot_leakage_rate.
@@ -608,6 +625,21 @@ if __name__ == "__main__":
            _dates_match(None, None), True)
     _check("one None",
            _dates_match(None, _normalize_date("01-10-2024")), False)
+
+    print("\n=== _merchant_match (loose) ===")
+    _check("exact",                          _merchant_match("Zomato", "Zomato"), True)
+    _check("case-insensitive",               _merchant_match("Zomato", "ZOMATO"), True)
+    _check("double vs single space",         _merchant_match("OMA  RAM", "OMA RAM"), True)
+    _check("prefix VPA ",                    _merchant_match("manisharadwad@oksbi", "VPA manisharadwad@oksbi"), True)
+    _check("prefix mobile ",                 _merchant_match("1XXXXXX890-APIBANKING", "mobile 1XXXXXX890-APIBANKING"), True)
+    _check("suffix UPI-ref",                 _merchant_match("Compass", "UPI-640971125815-Compass"), True)
+    _check("trailing city noise",            _merchant_match("GOOGLEPLAY MUMBAI MAH", "GOOGLEPLAY"), True)
+    _check("both None",                      _merchant_match(None, None), True)
+    _check("gold None, pred set → mismatch", _merchant_match(None, "SBI UPI"), False)
+    _check("gold set, pred None → mismatch", _merchant_match("Saanvi Star", None), False)
+    _check("different VPA digit",            _merchant_match("q36252344@ybl", "q362523441@ybl"), False)
+    _check("typo in VPA",                    _merchant_match("manisharadwadoksbi", "manishardwadoksbi"), False)
+    _check("substring < 3 chars guard",      _merchant_match("A", "ABC Corp"), False)
 
     print("\n=== ghost_transaction_rate / missed_transaction_rate ===")
     null_gold = ["null"]
