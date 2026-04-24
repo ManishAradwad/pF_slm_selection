@@ -13,6 +13,8 @@ import sys
 SYSTEM_PROMPT = """\
 You are extracting transaction details from an Indian bank/card SMS. Output either a single JSON object or the literal word null. Nothing else — no prose, no markdown fences, no explanations.
 
+Confidence rule: a real bank/card transaction SMS always states the amount, the transaction type (debit or credit), and the account or card it affected. If you cannot confidently find all three of these in the SMS, output null for the whole message. Inside the JSON object, merchant and date may be null when the SMS omits them, but amount, type, and account must never be null — if any of them would be null, output null for the whole message instead.
+
 STEP 1 — Is this a real bank/card transaction?
 A real transaction means money actually moved in or out of the user's bank account or card RIGHT NOW. If yes, go to STEP 2. If no, output: null
 
@@ -131,6 +133,44 @@ def extract_json_filter(
             else:
                 filtered.append(resp)
         results.append(filtered)
+    return results
+
+
+# Matches the grammar: amount/type/account must always be non-null in a real
+# txn; merchant and date may be null (merchant is absent in SBI UPI, ATM,
+# and gateway SMS; date is resolved from SMS arrival timestamp on-device).
+_REQUIRED_NONNULL_FIELDS = ("amount", "type", "account")
+
+
+def _is_null_ish(v) -> bool:
+    """True if v is JSON null or the literal 4-char string 'null'
+    (grammar-constrained outputs can't emit real null on non-nullable fields
+    and fall back to the string)."""
+    if v is None:
+        return True
+    if isinstance(v, str) and v.strip().lower() == "null":
+        return True
+    return False
+
+
+def extract_json_nonnull_filter(
+    resps: list[list[str]], docs: list[dict]
+) -> list[list[str]]:
+    """Same as extract_json_filter, but rejects any dict whose required fields
+    (see _REQUIRED_NONNULL_FIELDS) contain null — the model's uncertainty signal."""
+    results = extract_json_filter(resps, docs)
+    for i, resp_list in enumerate(results):
+        for j, resp in enumerate(resp_list):
+            if resp.strip().lower() == "null":
+                continue
+            try:
+                obj = json.loads(resp)
+            except (json.JSONDecodeError, TypeError):
+                continue
+            if not isinstance(obj, dict):
+                continue
+            if any(_is_null_ish(obj.get(f)) for f in _REQUIRED_NONNULL_FIELDS):
+                results[i][j] = "null"
     return results
 
 

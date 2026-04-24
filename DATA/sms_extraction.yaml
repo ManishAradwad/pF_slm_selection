@@ -26,6 +26,12 @@ filter_list:
         filter_fn: !function utils.extract_json_filter
       - function: "take_first"
 
+  - name: "extract_json_nonnull"
+    filter:
+      - function: "custom"
+        filter_fn: !function utils.extract_json_nonnull_filter
+      - function: "take_first"
+      
 metric_list:
   # ── Existing (kept for backward-compat with prior runs) ──
   - metric: !function utils.json_validity
