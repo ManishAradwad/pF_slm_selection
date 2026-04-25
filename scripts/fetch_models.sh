@@ -47,6 +47,10 @@ dl unsloth/LFM2.5-1.2B-Instruct-GGUF \
    LFM2.5-1.2B-Instruct-Q4_K_M.gguf \
    LFM2.5-1.2B-Instruct-Q4_K_M.gguf
 
+dl unsloth/Qwen3-1.7B-GGUF \
+   Qwen3-1.7B-Q4_K_M.gguf \
+   Qwen3-1.7B-Q4_K_M.gguf
+
 dl prism-ml/Bonsai-1.7B-gguf \
    Bonsai-1.7B-Q1_0.gguf \
    Bonsai-1.7B-Q1_0.gguf

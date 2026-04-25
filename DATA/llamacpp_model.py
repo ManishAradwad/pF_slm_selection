@@ -99,13 +99,14 @@ class LlamaCppLM(LM):
                 or self.max_tokens
             )
 
-            # HF chat-template output starts with "<bos>" (recorded in samples log
-            # for parity with the hf-backend baseline). llama-cpp tokenizes strings
-            # with add_bos=True by default, which would duplicate it and hurt
-            # quality. Strip here so the model sees exactly one BOS.
+            # HF chat-template prepends the model's BOS token as text. llama-cpp
+            # adds its own BOS during tokenization, so strip the text copy here
+            # to avoid a duplicate. Use bos_token dynamically so this works for
+            # any model (Gemma: "<bos>", LFM2.5: "<|startoftext|>", etc.).
             prompt = context
-            if prompt.startswith("<bos>"):
-                prompt = prompt[len("<bos>"):]
+            bos = self.hf_tokenizer.bos_token
+            if bos and prompt.startswith(bos):
+                prompt = prompt[len(bos):]
 
             call_kwargs = dict(
                 prompt=prompt,

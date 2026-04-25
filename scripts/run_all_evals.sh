@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Run full eval (203 samples, grammar-constrained) for all candidate models.
+# Gemma is excluded — it has existing full runs in RESULTS/llamacpp/.
+# Bonsai models use the upstream Qwen3 tokenizer (same vocab/template, no
+# tokenizer files in the prism-ml GGUF repos).
+#
+# Usage: bash scripts/run_all_evals.sh [--limit N]
+#   --limit N   cap samples per model (smoke test, e.g. --limit 5)
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+source pf_docker/bin/activate
+
+GRAMMAR="DATA/sms_extraction.gbnf"
+N_CTX=4096
+LIMIT_ARGS="${@}"   # pass through any --limit flag as-is
+
+run() {
+  local model="$1"
+  local gguf="$2"
+  echo ""
+  echo "================================================================"
+  echo "[run_all_evals] START: $model"
+  echo "================================================================"
+  if [ ! -f "$gguf" ]; then
+    echo "[run_all_evals] SKIP — GGUF not found: $gguf"
+    return
+  fi
+  python run_gguf_eval.py \
+    --model "$model" \
+    --gguf  "$gguf" \
+    --grammar "$GRAMMAR" \
+    --n-ctx "$N_CTX" \
+    $LIMIT_ARGS
+  echo "[run_all_evals] DONE: $model"
+}
+
+run Qwen/Qwen3-0.6B           MODELS/Qwen3-0.6B-Q4_K_M.gguf
+run Qwen/Qwen3.5-0.8B         MODELS/Qwen3.5-0.8B-Q4_K_M.gguf
+run LiquidAI/LFM2.5-1.2B-Instruct MODELS/LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+run Qwen/Qwen3-1.7B           MODELS/Qwen3-1.7B-Q4_K_M.gguf
+run arcee-ai/arcee-lite        MODELS/arcee-lite-Q4_K_M.gguf
+run Qwen/Qwen3-1.7B           MODELS/Bonsai-1.7B-Q1_0.gguf
+run Qwen/Qwen3-4B             MODELS/Bonsai-4B-Q1_0.gguf
+
+echo ""
+echo "================================================================"
+echo "[run_all_evals] ALL DONE"
+echo "================================================================"

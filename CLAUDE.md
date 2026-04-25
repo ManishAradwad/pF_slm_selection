@@ -28,6 +28,7 @@ Slate to compare for `pocket-financer` deployment. The goal is to find the best 
 | Qwen3-0.6B | 2025 | 0.6B | Q4_K_M | `unsloth/Qwen3-0.6B-GGUF` |
 | Qwen3.5-0.8B | 2026 | 0.8B | Q4_K_M | `unsloth/Qwen3.5-0.8B-GGUF` |
 | LFM2.5-1.2B-Instruct | 2025 | 1.2B | Q4_K_M | `unsloth/LFM2.5-1.2B-Instruct-GGUF` |
+| Qwen3-1.7B | 2025 | 1.7B | Q4_K_M | `unsloth/Qwen3-1.7B-GGUF` |
 | Bonsai-1.7B | 2026 | 1.7B | Q1_0 | `prism-ml/Bonsai-1.7B-gguf` |
 | Bonsai-4B | 2026 | 4B | Q1_0 | `prism-ml/Bonsai-4B-gguf` |
 | arcee-lite | 2024 | 2B | Q4_K_M | `arcee-ai/arcee-lite-GGUF` |
