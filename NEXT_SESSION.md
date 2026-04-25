@@ -1,4 +1,81 @@
-# Next Session — Switch dev eval from `hf` to `llama.cpp`, add GBNF grammar
+# 2026-04-25 — CUDA-backed llama.cpp container bootstrap
+
+## Why this doc exists (this section)
+The prior session (2026-04-21, archived below) implemented the out-of-tree `@register_model("llamacpp")` lm-eval adapter and shipped grammar-constrained Gemma-4-E2B-it evaluation. That work landed and is committed. The current limitation is throughput: `llama-cpp-python` was running CPU-only because the original `python:3.11-bullseye`-based dev container shipped glibc 2.31 — too old for prebuilt CUDA wheels (which need glibc ≥ 2.32 and GLIBCXX_3.4.29/30) and we couldn't easily build from source either (no CUDA toolkit in the image).
+
+## Why this matters (purpose / background)
+A full 203-sample eval takes ~10 min on CPU — tolerable for one model. But the project has four SLMs to benchmark (Gemma-4-E2B-it, Qwen3.5-0.8B, Qwen3-0.6B, LFM2.5-1.2B-Instruct), each in at least two configurations (no-grammar vs with-grammar), plus prompt-ablation runs ("does the generalized prompt survive under grammar?" — see "Prior-session context" below). On CPU that's hours of serial wall-clock per iteration cycle. With GPU offload via `n_gpu_layers=-1` we expect 5-10× speedup, bringing a full sweep to ~10-15 min — short enough to iterate on the prompt, the grammar, and few-shot examples without being gated by the eval loop.
+
+On 2026-04-24 the dev container was rebuilt on `nvidia/cuda:12.1.1-devel-ubuntu22.04`. That base image gives us:
+- glibc 2.35 (Ubuntu 22.04) — prebuilt CUDA wheels work out of the box.
+- nvcc 12.1 + CUDA development headers in the image — `llama-cpp-python` can be built from source with `-DGGML_CUDA=on` directly during `docker build`, no host toolchain needed.
+- Existing GPU passthrough (`runArgs: ["--gpus", "all"]`) continues to work — `nvidia-smi` sees the RTX 4070 (12 GB) inside the container.
+
+But the rebuild left bootstrapping incomplete — the new image is missing pip deps that previously lived in the per-developer venv, and the on-disk `pf_docker/` venv is stale (points to a Python interpreter that no longer exists in the new image). This session captures everything in the Dockerfile + `devcontainer.json` so the next rebuild Just Works without manual fixup.
+
+## Diagnosis (state at start of this session)
+1. **`llama-cpp-python` not installed in the rebuilt container.** The Dockerfile sets `CMAKE_ARGS="-DGGML_CUDA=on"` and runs `pip install "lm_eval[gguf]"`, but the `[gguf]` extras only pull `requests` — upstream's gguf adapter is an HTTP client to `llama-server` (see "lm-eval's `gguf` adapter doesn't help" in the prior section). The CUDA build env is set up but nothing ever consumes it. `pip show llama-cpp-python` → not found.
+2. **`transformers`, `torch`, `accelerate` missing.** `DATA/llamacpp_model.py:52` imports `AutoTokenizer` for chat-template rendering; nothing in the image satisfies the import.
+3. **Stale `pf_docker/` venv.** Created in the prior bullseye container. `pyvenv.cfg` references `/usr/local/bin/python3.11`, which doesn't exist in the new Ubuntu 22.04 image (only `/usr/bin/python3.11`). `source pf_docker/bin/activate` silently no-ops — `python` keeps resolving to system Python and `sys.path` doesn't include the venv's `site-packages`. That's why `import llama_cpp` raised `ModuleNotFoundError` even after activation. The activation looked successful but wasn't.
+
+GPU + CUDA toolkit themselves are healthy: `nvidia-smi` shows the 4070, `nvcc --version` reports 12.1.105, and the adapter at `DATA/llamacpp_model.py:69` already passes `n_gpu_layers=-1` (offload all layers). Everything downstream of "deps installed" is ready.
+
+## Plan
+
+### `requirements.txt` (new, version-pinned)
+Single source of truth for pip deps. Referenced from the Dockerfile.
+- `torch` (CUDA 12.1 wheel from PyTorch's index)
+- `transformers`, `accelerate`, `huggingface_hub`
+- `llama-cpp-python` (built from source with `-DGGML_CUDA=on`)
+- lm-evaluation-harness pinned to a specific commit (currently `git+https://...` grabs HEAD — silent version drift between rebuilds is a real footgun)
+
+### Dockerfile (`.devcontainer/Dockerfile`)
+- Keep the `nvidia/cuda:12.1.1-devel-ubuntu22.04` base.
+- Keep the Python 3.11 install via deadsnakes PPA.
+- After `update-alternatives`, `pip install -r requirements.txt` — but `llama-cpp-python` line uses `--no-binary=llama-cpp-python` to force from-source build with `CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1`. Without `--no-binary`, pip can grab a prebuilt CPU wheel and silently miss CUDA — same trap that bit the prior container.
+
+### `devcontainer.json`
+- `containerEnv: {"HF_TOKEN": "${localEnv:HF_TOKEN}"}` — forward host HF token (set once in `~/.bashrc` on WSL).
+- `HF_HOME=/workspaces/pF_slm_selection/.hf_cache` — persistent tokenizer/model cache survives rebuilds (saves redownload of gated Gemma tokenizer every rebuild).
+- `postCreateCommand` extended: install Claude Code (existing) → create `pf_docker/` venv with `--system-site-packages` (thin shim, inherits heavy deps from system Python — no double-install on rebuild) → run `scripts/verify_gpu.py` so a broken build fails loudly at container creation rather than every eval silently falling back to CPU.
+
+### Helper scripts (new, `scripts/`)
+- `scripts/verify_gpu.py` — load the smallest available GGUF with `n_gpu_layers=-1, verbose=True`; assert `ggml_cuda_init: found 1 CUDA devices` appears in stderr. Exits non-zero if missing.
+- `scripts/fetch_models.sh` — `huggingface-cli download` lines for each of the four SLMs into `MODELS/`. Reproducible model directory without baking 8+ GB of weights into the image.
+
+### Cleanup
+- Delete `pf/` (legacy WSL2-bare venv with hardcoded paths — never used inside the container).
+- Delete the stale `pf_docker/` directory.
+- Recreate `pf_docker/` via the new `postCreateCommand` path.
+
+### CLAUDE.md updates
+- Replace "**`llama-cpp-python` is CPU-only in the Docker container.**" paragraph with the new CUDA-enabled reality (and the trapdoor: if a future rebuild silently regresses to CPU, `--no-binary=llama-cpp-python` is the line to check).
+- Add `HF_TOKEN` requirement note + where to set it.
+- Note `scripts/` directory and what each script does.
+
+## Concrete first moves (in order)
+
+1. **Host-side prereq (user action):** ensure `HF_TOKEN` is exported in WSL `~/.bashrc`. Without it, gated Gemma tokenizer download fails — independent of GPU.
+2. Write `requirements.txt`.
+3. Rewrite `.devcontainer/Dockerfile` against the requirements file.
+4. Update `.devcontainer/devcontainer.json` (containerEnv, HF_HOME, extended postCreateCommand).
+5. Add `scripts/verify_gpu.py` and `scripts/fetch_models.sh`.
+6. Update `.gitignore` for `.hf_cache/` and `scripts/__pycache__/`.
+7. **In the running container** (no rebuild yet): pip-install the same deps into system Python, create the new `pf_docker/` venv with `--system-site-packages`, run `verify_gpu.py`. Confirm `ggml_cuda_init` shows in stderr and `nvidia-smi` reports VRAM allocated during a smoke load.
+8. Delete old `pf/` and stale `pf_docker/` — **only after** step 7 verifies the replacement works.
+9. Update `CLAUDE.md`.
+10. **One container rebuild** (user-driven) to validate the chain reproduces from a clean image.
+11. **Smoke eval, GPU, 10 samples**, confirm metrics within noise of the prior CPU-grammar run. If they diverge, kernel-level numerical differences are a known quirk of CUDA vs CPU llama.cpp; investigate before scaling up.
+
+## Non-goals this session
+- Running the full SLM eval sweep on GPU. That's the next session — this one ends when `verify_gpu.py` passes and a 10-sample smoke run completes with `nvidia-smi` showing GPU utilization.
+- Multi-GPU support (we have one 4070; not worth the complexity).
+- Quantization sweep beyond Q4_K_M. Q4_K_M is what `llama.rn` ships on-device — metric honesty beats ceiling metrics. See CLAUDE.md "Evaluation approach".
+- Replacing the Dockerfile base with a slimmer image (`-runtime` instead of `-devel`). `-devel` is needed because we build `llama-cpp-python` from source; the alternative is a separate builder stage, premature complexity for a single-developer project.
+
+---
+
+# 2026-04-21 — Switch dev eval from `hf` to `llama.cpp`, add GBNF grammar (archived)
 
 ## Why this doc exists
 Handoff from the 2026-04-21 session. We diagnosed the exact shape of the `llama.cpp` / lm-eval gap and settled on the architecture for fixing it (out-of-tree `@register_model("llamacpp")` adapter using `llama-cpp-python`). Nothing has been coded yet. This session implements that.

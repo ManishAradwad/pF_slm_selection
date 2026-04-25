@@ -10,3 +10,4 @@ pf_docker/
 MODELS/
 *.gguf
 logs/
+.hf_cache/

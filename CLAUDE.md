@@ -50,14 +50,23 @@ Outputs land in `RESULTS/llamacpp/<model_slug>/`. Omit `--grammar` to compare gr
 - `RESULTS/llamacpp/<model_slug>/` — per-run output (`results_<ts>.json` + `samples_<task>_<ts>.jsonl`).
 - `RESULTS/new_pipeline/` — legacy HF-backend baselines; kept for reference but not the current source of truth.
 
+### Bootstrap (Dockerfile + scripts)
+- `.devcontainer/Dockerfile` — `nvidia/cuda:12.6.3-devel-ubuntu22.04` + Python 3.11 (deadsnakes) + heavy deps from `requirements.txt` + from-source CUDA build of `llama-cpp-python`.
+- `.devcontainer/devcontainer.json` — forwards `HF_TOKEN` from host, sets `HF_HOME=/workspaces/.../.hf_cache`, runs `.devcontainer/post-create.sh`.
+- `.devcontainer/post-create.sh` — runs once on container creation. Installs Claude Code, (re)creates `pf_docker/` venv if stale, runs `verify_gpu.py`.
+- `requirements.txt` — pinned versions for transformers / accelerate / huggingface_hub / lm_eval. torch and llama-cpp-python are NOT here (different install paths — see comments in the file).
+- `scripts/verify_gpu.py` — asserts `torch.cuda.is_available()` and that `llama-cpp-python` loads a GGUF with GPU offload. Run after each container creation by post-create.sh.
+- `scripts/fetch_models.sh` — `hf download` calls for the Q4_K_M GGUFs the eval compares. Idempotent.
+
 ## Environment
-- **Docker dev container**: `pf_docker/` — `source pf_docker/bin/activate`. Python 3.11 (bullseye), Node 20, GPU passthrough works for torch / HF.
-- **WSL2 bare**: `pf/` — separate venv with hardcoded paths; not usable inside Docker.
-- **Hardware**: WSL2, NVIDIA RTX 4070 (12 GB VRAM), 32 GB RAM.
-- **`llama-cpp-python` is CPU-only in the Docker container.** Prebuilt CUDA wheels need glibc ≥ 2.32 and GLIBCXX_3.4.29/3.4.30; Debian bullseye ships glibc 2.31. GPU support would require installing the CUDA toolkit in the container and rebuilding from source. CPU completes a full 203-sample run in ~10 min, which is fine for iteration.
+- **Docker dev container**: built from `nvidia/cuda:12.6.3-devel-ubuntu22.04`. Python 3.11 (deadsnakes), Node 20 (devcontainer feature), GPU passthrough via `runArgs: ["--gpus", "all"]`. Activate the workflow venv with `source pf_docker/bin/activate`.
+- **Hardware**: WSL2, NVIDIA RTX 4070 (12 GB VRAM), 32 GB RAM. Host driver 591.74 / max CUDA 13.1.
+- **`pf_docker/` is a `--system-site-packages` shim venv** created by `.devcontainer/post-create.sh`. Heavy deps (torch, transformers, llama-cpp-python, lm-eval) live in the image's system Python; the venv just inherits them and provides the activation entry point. Means rebuilds reconstruct it in seconds.
+- **GPU-backed `llama-cpp-python`**: the Dockerfile builds it from source with `CMAKE_ARGS="-DGGML_CUDA=on"` and `pip install --no-binary=llama-cpp-python`. The `--no-binary` is load-bearing — without it, pip silently grabs a CPU-only PyPI wheel and every eval falls back to CPU (the failure mode that bit the prior bullseye container). If a future rebuild silently regresses to CPU, that line in `.devcontainer/Dockerfile` is the first thing to check.
+- **`HF_TOKEN` is required** for the gated Gemma tokenizer. Set on the WSL host (`echo 'export HF_TOKEN=hf_...' >> ~/.bashrc`); `devcontainer.json` forwards it via `containerEnv: {"HF_TOKEN": "${localEnv:HF_TOKEN}"}`. Tokenizer/model cache lives at `.hf_cache/` (gitignored, persisted across rebuilds via the workspace bind mount).
 
 ## Conventions
-- Install dependencies into the active venv, not globally.
+- Pin every heavy dep in `requirements.txt` + the Dockerfile, not via ad-hoc `pip install` in the running container — manual installs don't survive rebuild.
 - Evaluation datasets in `DATA/`, results in `RESULTS/`, GGUF weights in `MODELS/` (gitignored).
 - **`lm-evaluation-harness/` is an upstream clone.** Prefer out-of-tree extensions — custom tasks via `--include_path`, custom models via `@register_model` in a module outside the clone — so it stays rebasable. Edit inside the clone only when the extension point genuinely doesn't exist.
 - Data files (csv, json, db, xlsx, gguf) are gitignored — never commit them.
@@ -65,7 +74,7 @@ Outputs land in `RESULTS/llamacpp/<model_slug>/`. Omit `--grammar` to compare gr
 - Keep the eval pipeline model-agnostic: filters and rules should express properties of the domain (bank SMS always contain amount/type/account), not properties of any specific SLM.
 
 ## Known state
-- Evaluation pipeline is clean and operational for Gemma-4-E2B-it Q4_K_M.
-- SLMs still to benchmark with the same pipeline: Qwen3.5-0.8B, Qwen3-0.6B, LFM2.5-1.2B-Instruct.
+- Evaluation pipeline is clean and operational for Gemma-4-E2B-it Q4_K_M, with full-layer GPU offload via `n_gpu_layers=-1` (default in `DATA/llamacpp_model.py`).
+- SLMs still to benchmark: Qwen3.5-0.8B, Qwen3-0.6B, LFM2.5-1.2B-Instruct. Add their Q4_K_M repos to `scripts/fetch_models.sh` once verified.
 - SMS data covers 2021–2026 with coverage tapering after 2024.
-- `pf_docker` has torch, transformers, accelerate, lm-eval, llama-cpp-python 0.3.20 (CPU build).
+- Container deps (system Python): torch 2.7.0 (cu126), transformers 4.57.6, accelerate 1.13.0, huggingface_hub 1.12.0, lm-eval pinned to commit `c1c4bea3`, llama-cpp-python 0.3.20 (built from source with `-DGGML_CUDA=on`).

@@ -1,0 +1,28 @@
+# Pinned deps for the SLM-eval container. Single source of truth — referenced
+# from .devcontainer/Dockerfile so rebuilds are deterministic.
+#
+# Versions verified 2026-04-25 against official upstream docs:
+#   transformers — huggingface.co/docs/transformers/installation
+#                  (4.57.6 = latest 4.x stable; 5.x not yet adapter-tested)
+#   accelerate   — pypi.org/project/accelerate
+#   huggingface_hub — pypi.org/project/huggingface-hub (1.x ships the new `hf` CLI)
+#   lm_eval      — github.com/EleutherAI/lm-evaluation-harness
+#                  (latest PyPI tag is v0.4.11 from Feb 2025; we pin to a
+#                  later main commit because the existing adapter at
+#                  DATA/llamacpp_model.py was developed against it)
+#
+# torch is NOT in this file. PyTorch's official install pattern uses
+#   pip install torch --index-url https://download.pytorch.org/whl/cu126
+# which restricts pip to *only* PyTorch's wheel index. Mixing it via
+# --extra-index-url risks pip picking the wrong wheel for a sibling package.
+# The Dockerfile installs torch in a separate layer for this reason.
+#
+# llama-cpp-python is also NOT here. abetlen ships prebuilt CUDA wheels for
+# cu121-cu125 only — none for our cu126 base. The Dockerfile builds it from
+# source with CMAKE_ARGS=-DGGML_CUDA=on and --no-binary so it actually links
+# against the GPU instead of pip silently grabbing a CPU-only wheel.
+
+transformers==4.57.6
+accelerate==1.13.0
+huggingface_hub==1.12.0
+lm_eval @ git+https://github.com/EleutherAI/lm-evaluation-harness.git@c1c4bea3777f73e188395264083adcf454913344
