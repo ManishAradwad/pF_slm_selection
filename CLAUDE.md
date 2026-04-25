@@ -24,6 +24,7 @@ Slate to compare for `pocket-financer` deployment. The goal is to find the best 
 
 | Model | Released | Params | Quant | GGUF source |
 |---|---|---|---|---|
+| Gemma-3-270M-it | 2025 | 270M | Q4_K_M | `unsloth/gemma-3-270m-it-GGUF` |
 | Gemma-4-E2B-it | 2026 | ~2B | Q4_K_M | `unsloth/gemma-4-E2B-it-GGUF` |
 | Qwen3-0.6B | 2025 | 0.6B | Q4_K_M | `unsloth/Qwen3-0.6B-GGUF` |
 | Qwen3.5-0.8B | 2026 | 0.8B | Q4_K_M | `unsloth/Qwen3.5-0.8B-GGUF` |

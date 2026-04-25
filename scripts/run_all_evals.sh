@@ -42,6 +42,7 @@ run() {
   fi
 }
 
+run google/gemma-3-270m-it     MODELS/gemma-3-270m-it-Q4_K_M.gguf
 run Qwen/Qwen3-0.6B           MODELS/Qwen3-0.6B-Q4_K_M.gguf
 run Qwen/Qwen3.5-0.8B         MODELS/Qwen3.5-0.8B-Q4_K_M.gguf
 run LiquidAI/LFM2.5-1.2B-Instruct MODELS/LFM2.5-1.2B-Instruct-Q4_K_M.gguf

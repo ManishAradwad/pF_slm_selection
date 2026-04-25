@@ -31,6 +31,10 @@ dl() {
   fi
 }
 
+dl unsloth/gemma-3-270m-it-GGUF \
+   gemma-3-270m-it-Q4_K_M.gguf \
+   gemma-3-270m-it-Q4_K_M.gguf
+
 dl unsloth/gemma-4-E2B-it-GGUF \
    gemma-4-E2B-it-Q4_K_M.gguf \
    gemma-4-E2B-it-Q4_K_M.gguf
