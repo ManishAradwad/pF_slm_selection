@@ -46,7 +46,7 @@ def main() -> int:
         help="Path to a GBNF grammar file. Omit for unconstrained generation.",
     )
     parser.add_argument("--limit", type=int, default=None, help="Cap eval samples (smoke tests).")
-    parser.add_argument("--n-ctx", type=int, default=4096)
+    parser.add_argument("--n-ctx", type=int, default=131072)
     parser.add_argument("--n-gpu-layers", type=int, default=-1)
     parser.add_argument("--max-tokens", type=int, default=512)
     parser.add_argument(

@@ -38,7 +38,7 @@ class LlamaCppLM(LM):
         path: str,
         tokenizer: str,
         grammar_file: str | None = None,
-        n_ctx: int = 4096,
+        n_ctx: int = 131072,
         n_gpu_layers: int = -1,
         max_tokens: int = 512,
         verbose: bool = False,
