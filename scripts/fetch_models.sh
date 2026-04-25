@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Download GGUFs for the SLMs the eval is meant to compare.
-# Q4_K_M only — matches what `llama.rn` ships on-device (see CLAUDE.md).
+# Download GGUFs for the candidate SLM slate (see CLAUDE.md § Candidate models).
+# Quantization choice is open — Q4_K_M is just a reasonable starting point per
+# model. Final pick depends on what scores best inside the device size budget.
+# Bonsai is at Q1_0 because that's the only form prism-ml publishes.
 #
 # Idempotent: skips files already present.
 # Requires HF_TOKEN in env for gated repos (Gemma is gated).
@@ -29,13 +31,33 @@ dl() {
   fi
 }
 
-# Gemma-4-E2B-it — only repo currently confirmed. Verify others before adding.
-dl bartowski/google_gemma-4-E2B-it-GGUF \
-   google_gemma-4-E2B-it-Q4_K_M.gguf \
-   google_gemma-4-E2B-it-Q4_K_M.gguf
+dl unsloth/gemma-4-E2B-it-GGUF \
+   gemma-4-E2B-it-Q4_K_M.gguf \
+   gemma-4-E2B-it-Q4_K_M.gguf
 
-# TODO: add Qwen3.5-0.8B, Qwen3-0.6B, LFM2.5-1.2B-Instruct once Q4_K_M GGUF
-# repos are confirmed (see CLAUDE.md "SLMs still to benchmark").
+dl unsloth/Qwen3-0.6B-GGUF \
+   Qwen3-0.6B-Q4_K_M.gguf \
+   Qwen3-0.6B-Q4_K_M.gguf
+
+dl unsloth/Qwen3.5-0.8B-GGUF \
+   Qwen3.5-0.8B-Q4_K_M.gguf \
+   Qwen3.5-0.8B-Q4_K_M.gguf
+
+dl unsloth/LFM2.5-1.2B-Instruct-GGUF \
+   LFM2.5-1.2B-Instruct-Q4_K_M.gguf \
+   LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+
+dl prism-ml/Bonsai-1.7B-gguf \
+   Bonsai-1.7B-Q1_0.gguf \
+   Bonsai-1.7B-Q1_0.gguf
+
+dl prism-ml/Bonsai-4B-gguf \
+   Bonsai-4B-Q1_0.gguf \
+   Bonsai-4B-Q1_0.gguf
+
+dl arcee-ai/arcee-lite-GGUF \
+   arcee-lite-Q4_K_M.gguf \
+   arcee-lite-Q4_K_M.gguf
 
 echo "[fetch_models] done. MODELS/:"
 ls -lh MODELS/*.gguf 2>/dev/null || echo "(empty)"

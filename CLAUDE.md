@@ -18,16 +18,32 @@ Every metric appears twice in results files with `,extract_json` and `,extract_j
 
 **Merchant match is intentionally loose** — case-insensitive + whitespace-collapsed + substring either direction (3-char floor). Bank SMS wrap the same entity in cosmetic boilerplate (`VPA x@y`, `mobile 9XXX-APIBANKING`, `UPI-<ref>-Compass`, trailing city names) and the model shouldn't be punished for failing to strip it. `None` vs non-`None` stays strict — over-extraction is still an error. See `_merchant_match` in `DATA/utils.py`.
 
+## Candidate models
+
+Slate to compare for `pocket-financer` deployment. The goal is to find the best model+quantization combination for the user's phone — nothing here is locked in. Q4_K_M is a reasonable starting quant for most candidates (good size/quality balance, widely available), but if a model wins at Q5_K_M, Q3_K_M, or even Q8_0 within the device budget, that's the one we pick. Bonsai is shown at Q1_0 because that's the only form prism-ml publishes.
+
+| Model | Released | Params | Quant | GGUF source |
+|---|---|---|---|---|
+| Gemma-4-E2B-it | 2026 | ~2B | Q4_K_M | `unsloth/gemma-4-E2B-it-GGUF` |
+| Qwen3-0.6B | 2025 | 0.6B | Q4_K_M | `unsloth/Qwen3-0.6B-GGUF` |
+| Qwen3.5-0.8B | 2026 | 0.8B | Q4_K_M | `unsloth/Qwen3.5-0.8B-GGUF` |
+| LFM2.5-1.2B-Instruct | 2025 | 1.2B | Q4_K_M | `unsloth/LFM2.5-1.2B-Instruct-GGUF` |
+| Bonsai-1.7B | 2026 | 1.7B | Q1_0 | `prism-ml/Bonsai-1.7B-gguf` |
+| Bonsai-4B | 2026 | 4B | Q1_0 | `prism-ml/Bonsai-4B-gguf` |
+| arcee-lite | 2024 | 2B | Q4_K_M | `arcee-ai/arcee-lite-GGUF` |
+
+Expect per-model tuning. Structured-JSON extraction stresses each model's chat-template handling, BOS/EOS behavior, sampler defaults, and grammar compatibility differently — a config that's good for Gemma may need adjustment for Qwen3 (thinking-mode tokens), LFM2 (Liquid's hybrid arch), or Bonsai (1-bit quant has unusual sampler dynamics). Treat the eval as per-model: tune, then compare.
+
 ## Entry point
 ```bash
 source pf_docker/bin/activate
 python run_gguf_eval.py \
   --model google/gemma-4-E2B-it \
-  --gguf MODELS/google_gemma-4-E2B-it-Q4_K_M.gguf \
+  --gguf MODELS/gemma-4-E2B-it-Q4_K_M.gguf \
   --grammar DATA/sms_extraction.gbnf \
   [--limit 10]    # smoke test
 ```
-Outputs land in `RESULTS/llamacpp/<model_slug>/`. Omit `--grammar` to compare grammar-free behavior.
+Outputs land in `RESULTS/llamacpp/<model_slug>/`. Omit `--grammar` to compare grammar-free behavior. `--model` is the HF repo id (used for tokenizer + chat template); `--gguf` is the local quantized weights file fetched by `scripts/fetch_models.sh`.
 
 ## Key files
 
@@ -46,7 +62,7 @@ Outputs land in `RESULTS/llamacpp/<model_slug>/`. Omit `--grammar` to compare gr
 - `copilot-instructions.md` — full original project context and goals.
 
 ### Models and results
-- `MODELS/` — GGUF weights (gitignored). Use Q4_K_M to match what `llama.rn` ships on-device.
+- `MODELS/` — GGUF weights (gitignored). Quantization choice is open per model — Q4_K_M is a reasonable starting point, but the right pick is whichever scores best inside the device size budget.
 - `RESULTS/llamacpp/<model_slug>/` — per-run output (`results_<ts>.json` + `samples_<task>_<ts>.jsonl`).
 - `RESULTS/new_pipeline/` — legacy HF-backend baselines; kept for reference but not the current source of truth.
 
@@ -56,7 +72,7 @@ Outputs land in `RESULTS/llamacpp/<model_slug>/`. Omit `--grammar` to compare gr
 - `.devcontainer/post-create.sh` — runs once on container creation. Installs Claude Code, (re)creates `pf_docker/` venv if stale, runs `verify_gpu.py`.
 - `requirements.txt` — pinned versions for transformers / accelerate / huggingface_hub / lm_eval. torch and llama-cpp-python are NOT here (different install paths — see comments in the file).
 - `scripts/verify_gpu.py` — asserts `torch.cuda.is_available()` and that `llama-cpp-python` loads a GGUF with GPU offload. Run after each container creation by post-create.sh.
-- `scripts/fetch_models.sh` — `hf download` calls for the Q4_K_M GGUFs the eval compares. Idempotent.
+- `scripts/fetch_models.sh` — `hf download` calls for the candidate-slate GGUFs (starting quant per model, mostly Q4_K_M). Idempotent.
 
 ## Environment
 - **Docker dev container**: built from `nvidia/cuda:12.6.3-devel-ubuntu22.04`. Python 3.11 (deadsnakes), Node 20 (devcontainer feature), GPU passthrough via `runArgs: ["--gpus", "all"]`. Activate the workflow venv with `source pf_docker/bin/activate`.
@@ -74,7 +90,7 @@ Outputs land in `RESULTS/llamacpp/<model_slug>/`. Omit `--grammar` to compare gr
 - Keep the eval pipeline model-agnostic: filters and rules should express properties of the domain (bank SMS always contain amount/type/account), not properties of any specific SLM.
 
 ## Known state
-- Evaluation pipeline is clean and operational for Gemma-4-E2B-it Q4_K_M, with full-layer GPU offload via `n_gpu_layers=-1` (default in `DATA/llamacpp_model.py`).
-- SLMs still to benchmark: Qwen3.5-0.8B, Qwen3-0.6B, LFM2.5-1.2B-Instruct. Add their Q4_K_M repos to `scripts/fetch_models.sh` once verified.
+- Evaluation pipeline is clean and operational for Gemma-4-E2B-it Q4_K_M, with full-layer GPU offload via `n_gpu_layers=-1` (default in `DATA/llamacpp_model.py`) and full 131072 ctx (default in `run_gguf_eval.py`).
+- See § Candidate models for the rest of the slate to evaluate.
 - SMS data covers 2021–2026 with coverage tapering after 2024.
 - Container deps (system Python): torch 2.7.0 (cu126), transformers 4.57.6, accelerate 1.13.0, huggingface_hub 1.12.0, lm-eval pinned to commit `c1c4bea3`, llama-cpp-python 0.3.20 (built from source with `-DGGML_CUDA=on`).
