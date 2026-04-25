@@ -7,7 +7,7 @@
 # Usage: bash scripts/run_all_evals.sh [--limit N]
 #   --limit N   cap samples per model (smoke test, e.g. --limit 5)
 
-set -euo pipefail
+set -uo pipefail
 cd "$(dirname "$0")/.."
 
 source pf_docker/bin/activate
@@ -16,24 +16,30 @@ GRAMMAR="DATA/sms_extraction.gbnf"
 N_CTX=4096
 LIMIT_ARGS="${@}"   # pass through any --limit flag as-is
 
+FAILED=()
+
 run() {
   local model="$1"
   local gguf="$2"
   echo ""
   echo "================================================================"
-  echo "[run_all_evals] START: $model"
+  echo "[run_all_evals] START: $model  (gguf=$(basename $gguf))"
   echo "================================================================"
   if [ ! -f "$gguf" ]; then
     echo "[run_all_evals] SKIP — GGUF not found: $gguf"
     return
   fi
-  python run_gguf_eval.py \
-    --model "$model" \
-    --gguf  "$gguf" \
-    --grammar "$GRAMMAR" \
-    --n-ctx "$N_CTX" \
-    $LIMIT_ARGS
-  echo "[run_all_evals] DONE: $model"
+  if python run_gguf_eval.py \
+       --model "$model" \
+       --gguf  "$gguf" \
+       --grammar "$GRAMMAR" \
+       --n-ctx "$N_CTX" \
+       $LIMIT_ARGS; then
+    echo "[run_all_evals] DONE: $model"
+  else
+    echo "[run_all_evals] FAILED: $model — continuing with next model"
+    FAILED+=("$model ($(basename $gguf))")
+  fi
 }
 
 run Qwen/Qwen3-0.6B           MODELS/Qwen3-0.6B-Q4_K_M.gguf
@@ -47,4 +53,10 @@ run Qwen/Qwen3-4B             MODELS/Bonsai-4B-Q1_0.gguf
 echo ""
 echo "================================================================"
 echo "[run_all_evals] ALL DONE"
+if [ ${#FAILED[@]} -gt 0 ]; then
+  echo "[run_all_evals] FAILED models:"
+  for f in "${FAILED[@]}"; do echo "  - $f"; done
+else
+  echo "[run_all_evals] All models completed successfully."
+fi
 echo "================================================================"
