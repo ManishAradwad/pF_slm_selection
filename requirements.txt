@@ -22,7 +22,7 @@
 # source with CMAKE_ARGS=-DGGML_CUDA=on and --no-binary so it actually links
 # against the GPU instead of pip silently grabbing a CPU-only wheel.
 
-transformers==4.57.6
-accelerate==1.13.0
-huggingface_hub==1.12.0
-lm_eval @ git+https://github.com/EleutherAI/lm-evaluation-harness.git@c1c4bea3777f73e188395264083adcf454913344
+transformers>=4.57.6
+accelerate>=1.13.0
+huggingface_hub>=1.12.0
+lm_eval[gguf] @ git+https://github.com/EleutherAI/lm-evaluation-harness.git@c1c4bea3777f73e188395264083adcf454913344
