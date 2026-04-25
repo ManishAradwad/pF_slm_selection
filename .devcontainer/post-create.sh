@@ -4,11 +4,13 @@
 
 set -euo pipefail
 
-REPO=/workspaces/pF_slm_selection
+# DYNAMIC PATH: Grabs the current working directory automatically
+REPO=$(pwd)
 
-# 1. Claude Code CLI (was the prior postCreateCommand's only job).
+# 1. Claude Code CLI (Installed globally via NPM to bypass PATH issues)
 if ! command -v claude &>/dev/null; then
-  curl -fsSL https://claude.ai/install.sh | bash
+  echo "[post-create] Installing Claude Code CLI globally..."
+  npm install -g @anthropic-ai/claude-code
 fi
 
 # 2. (Re)create the pf_docker shim venv.
@@ -28,6 +30,5 @@ else
   echo "[post-create] $VENV looks healthy — leaving as-is"
 fi
 
-# 3. GPU sanity check. Fails loudly if llama-cpp-python lost CUDA — better
-# than every eval silently falling back to CPU.
+# 3. GPU sanity check. 
 "$VENV/bin/python" "$REPO/scripts/verify_gpu.py"
