@@ -13,7 +13,6 @@ cd "$(dirname "$0")/.."
 source pf_docker/bin/activate
 
 GRAMMAR="DATA/sms_extraction.gbnf"
-N_CTX=4096
 LIMIT_ARGS="${@}"   # pass through any --limit flag as-is
 
 FAILED=()
@@ -33,7 +32,6 @@ run() {
        --model "$model" \
        --gguf  "$gguf" \
        --grammar "$GRAMMAR" \
-       --n-ctx "$N_CTX" \
        $LIMIT_ARGS; then
     echo "[run_all_evals] DONE: $model"
   else
