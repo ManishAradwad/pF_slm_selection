@@ -1,4 +1,3 @@
-# Downgraded to 12.4 to allow pre-built wheels
 FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -26,7 +25,7 @@ WORKDIR /workspace
 
 RUN python3 -m pip install --upgrade pip
 
-# PyTorch CUDA 12.4 (Changed from cu126 to cu124)
+# PyTorch — cu124 wheel matches the CUDA 12.4 base image.
 RUN pip install --no-cache-dir torch==2.6.0 \
         --index-url https://download.pytorch.org/whl/cu124
 
@@ -34,6 +33,6 @@ RUN pip install --no-cache-dir torch==2.6.0 \
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Install the pre-built wheel directly (No compiling, no C++ hacks needed!)
+# Pre-built CUDA 12.4 wheel — fastest install path, GPU-enabled out of the box.
 RUN pip install --no-cache-dir llama-cpp-python==0.3.20 \
     --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124

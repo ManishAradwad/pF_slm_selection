@@ -51,7 +51,7 @@ Outputs land in `RESULTS/llamacpp/<model_slug>/`. Omit `--grammar` to compare gr
 
 ### Evaluation pipeline
 - `run_gguf_eval.py` — entry script; registers the adapter and calls `lm_eval.simple_evaluate`.
-- `DATA/llamacpp_model.py` — out-of-tree `@register_model("llamacpp")` adapter over `llama-cpp-python`. Accepts `grammar_file=...` via `model_args`, passes `grammar=...` into `Llama.create_completion`. Uses HF `AutoTokenizer` (via `--model <hf_id>`) for chat-template rendering so prompts are byte-compatible with prior HF runs. Strips a leading `<bos>` from the rendered template because `llama-cpp-python` adds its own BOS and a duplicate hurts quality.
+- `DATA/llamacpp_model.py` — out-of-tree `@register_model("llamacpp")` adapter over `llama-cpp-python`. Accepts `grammar_file=...` via `model_args`, passes `grammar=...` into `Llama.create_completion`. Uses HF `AutoTokenizer` (via `--model <hf_id>`) for chat-template rendering so prompts are byte-compatible with prior HF runs. Strips the model's `bos_token` from the rendered template (using `hf_tokenizer.bos_token` dynamically) because `llama-cpp-python` adds its own BOS and a duplicate hurts quality. Auto-detects `n_ctx` from GGUF metadata at load time (capped at 32768 for our GPU).
 - `DATA/sms_extraction.yaml` — task config. `output_type: generate_until`, two parallel filter pipelines, ~11 metrics per filter.
 - `DATA/sms_extraction.gbnf` — GBNF grammar for JSON output.
 - `DATA/utils.py` — `SYSTEM_PROMPT`, `FEW_SHOT_EXAMPLES`, `doc_to_text`, `extract_json_filter`, `extract_json_nonnull_filter`, metric functions (full_match, ghost_rate, missed_rate, per-field accuracy, few-shot leakage). Has a `__main__` self-test suite — run `python DATA/utils.py` after any metric/normalizer edit.
@@ -69,7 +69,7 @@ Outputs land in `RESULTS/llamacpp/<model_slug>/`. Omit `--grammar` to compare gr
 - `RESULTS/new_pipeline/` — legacy HF-backend baselines; kept for reference but not the current source of truth.
 
 ### Bootstrap (Dockerfile + scripts)
-- `.devcontainer/Dockerfile` — `nvidia/cuda:12.6.3-devel-ubuntu22.04` + Python 3.11 (deadsnakes) + heavy deps from `requirements.txt` + from-source CUDA build of `llama-cpp-python`.
+- `.devcontainer/Dockerfile` — `nvidia/cuda:12.4.1-devel-ubuntu22.04` + Python 3.11 (deadsnakes) + heavy deps from `requirements.txt` + from-source CUDA build of `llama-cpp-python` (GitHub main branch — see Environment note).
 - `.devcontainer/devcontainer.json` — forwards `HF_TOKEN` from host, sets `HF_HOME=/workspaces/.../.hf_cache`, runs `.devcontainer/post-create.sh`.
 - `.devcontainer/post-create.sh` — runs once on container creation. Installs Claude Code, (re)creates `pf_docker/` venv if stale, runs `verify_gpu.py`.
 - `requirements.txt` — pinned versions for transformers / accelerate / huggingface_hub / lm_eval. torch and llama-cpp-python are NOT here (different install paths — see comments in the file).
@@ -77,10 +77,10 @@ Outputs land in `RESULTS/llamacpp/<model_slug>/`. Omit `--grammar` to compare gr
 - `scripts/fetch_models.sh` — `hf download` calls for the candidate-slate GGUFs (starting quant per model, mostly Q4_K_M). Idempotent.
 
 ## Environment
-- **Docker dev container**: built from `nvidia/cuda:12.6.3-devel-ubuntu22.04`. Python 3.11 (deadsnakes), Node 20 (devcontainer feature), GPU passthrough via `runArgs: ["--gpus", "all"]`. Activate the workflow venv with `source pf_docker/bin/activate`.
+- **Docker dev container**: built from `nvidia/cuda:12.4.1-devel-ubuntu22.04`. Python 3.11 (deadsnakes), Node 20 (devcontainer feature), GPU passthrough via `runArgs: ["--gpus", "all"]`. Activate the workflow venv with `source pf_docker/bin/activate`.
 - **Hardware**: WSL2, NVIDIA RTX 4070 (12 GB VRAM), 32 GB RAM. Host driver 591.74 / max CUDA 13.1.
 - **`pf_docker/` is a `--system-site-packages` shim venv** created by `.devcontainer/post-create.sh`. Heavy deps (torch, transformers, llama-cpp-python, lm-eval) live in the image's system Python; the venv just inherits them and provides the activation entry point. Means rebuilds reconstruct it in seconds.
-- **GPU-backed `llama-cpp-python`**: the Dockerfile builds it from source with `CMAKE_ARGS="-DGGML_CUDA=on"` and `pip install --no-binary=llama-cpp-python`. The `--no-binary` is load-bearing — without it, pip silently grabs a CPU-only PyPI wheel and every eval falls back to CPU (the failure mode that bit the prior bullseye container). If a future rebuild silently regresses to CPU, that line in `.devcontainer/Dockerfile` is the first thing to check.
+- **GPU-backed `llama-cpp-python`**: the Dockerfile installs a pre-built CUDA 12.4 wheel (`llama-cpp-python==0.3.20` from `abetlen.github.io/llama-cpp-python/whl/cu124`). If a future rebuild silently regresses to CPU, verify the `--extra-index-url` in `.devcontainer/Dockerfile` still points to the correct CUDA wheel index.
 - **`HF_TOKEN` is required** for the gated Gemma tokenizer. Set on the WSL host (`echo 'export HF_TOKEN=hf_...' >> ~/.bashrc`); `devcontainer.json` forwards it via `containerEnv: {"HF_TOKEN": "${localEnv:HF_TOKEN}"}`. Tokenizer/model cache lives at `.hf_cache/` (gitignored, persisted across rebuilds via the workspace bind mount).
 
 ## Conventions
