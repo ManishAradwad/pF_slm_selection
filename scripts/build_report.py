@@ -80,7 +80,7 @@ HEADLINE_METRICS = [
 
 @dataclass
 class RunRecord:
-    """One eval run = one (model, quant, timestamp) tuple."""
+    """One eval run = one (model, quant, thinking_budget, timestamp) tuple."""
     timestamp: str
     model_id: str       # HF id, e.g. "Qwen/Qwen3-1.7B"
     model_slug: str     # e.g. "Qwen__Qwen3-1.7B"
@@ -88,6 +88,8 @@ class RunRecord:
     quant: str          # e.g. "Q4_K_M"
     n_ctx: int
     n_samples: int
+    thinking: bool          # True if two-phase thinking was used
+    thinking_budget: int    # max thinking tokens (0 if thinking off)
     metrics: dict       # nonnull-filtered headline metrics
     raw_metrics: dict   # extract_json (raw filter) headline metrics
     samples_path: str   # full path to samples jsonl
@@ -134,14 +136,27 @@ def _walk_results(roots: list[Path]) -> list[RunRecord]:
                            for k, *_ in [m for m in HEADLINE_METRICS]}
                 raw_metrics = {k: results.get(f"{k},extract_json", 0.0)
                                for k, *_ in [m for m in HEADLINE_METRICS]}
+                ma = cfg.get("model_args", {})
+                # Detect whether thinking was on for this run by inspecting
+                # the saved samples — `<think>` in raw_resps means phase-1 ran.
+                thinking_on = False
+                try:
+                    with open(samples_path) as sf:
+                        first = json.loads(sf.readline())
+                    raw0 = first.get("resps", [[""]])[0][0]
+                    thinking_on = "<think>" in raw0
+                except Exception:
+                    pass
                 runs.append(RunRecord(
                     timestamp=ts,
                     model_id=model_id,
                     model_slug=slug_dir.name,
                     gguf_path=gguf,
                     quant=quant,
-                    n_ctx=int(cfg.get("model_args", {}).get("n_ctx") or 0),
+                    n_ctx=int(ma.get("n_ctx") or 0),
                     n_samples=int(results.get("sample_len", 0)),
+                    thinking=thinking_on,
+                    thinking_budget=int(ma.get("thinking_max_tokens") or 0) if thinking_on else 0,
                     metrics=metrics,
                     raw_metrics=raw_metrics,
                     samples_path=str(samples_path),
@@ -150,10 +165,10 @@ def _walk_results(roots: list[Path]) -> list[RunRecord]:
 
 
 def _latest_per_pair(runs: list[RunRecord]) -> list[RunRecord]:
-    """For each (model_id, quant) keep only the most recent run."""
-    by_pair: dict[tuple[str, str], RunRecord] = {}
+    """For each (model_id, quant, thinking_budget) keep only the most recent run."""
+    by_pair: dict[tuple[str, str, int], RunRecord] = {}
     for r in sorted(runs, key=lambda r: r.timestamp):
-        by_pair[(r.model_id, r.quant)] = r
+        by_pair[(r.model_id, r.quant, r.thinking_budget)] = r
     return list(by_pair.values())
 
 
@@ -279,6 +294,7 @@ def _render_metrics_table(runs: list[RunRecord]) -> str:
     for r in sorted_runs:
         size_mb = _file_size_mb(r.gguf_path)
         badges = " ".join(f'<span class="badge badge-{b}">{b}</span>' for b in _classify(r.metrics))
+        budget_cell = f"{r.thinking_budget}" if r.thinking else "—"
         cells = []
         for name, _, higher in HEADLINE_METRICS:
             v = r.metrics.get(name, 0.0)
@@ -287,6 +303,7 @@ def _render_metrics_table(runs: list[RunRecord]) -> str:
             f'<tr><td class="left">{html.escape(r.model_id)}</td>'
             f'<td class="left">{html.escape(r.quant)}</td>'
             f'<td class="left"><span class="size-hint">{size_mb:,.0f} MB</span></td>'
+            f'<td class="left">{budget_cell}</td>'
             f'<td class="left">{badges}</td>'
             + "".join(cells)
             + f'<td class="left"><span class="size-hint">{r.n_samples} samples</span></td></tr>'
@@ -296,7 +313,9 @@ def _render_metrics_table(runs: list[RunRecord]) -> str:
     return (
         '<table><thead><tr>'
         '<th class="left">Model</th><th class="left">Quant</th>'
-        '<th class="left">Size</th><th class="left">Mode</th>'
+        '<th class="left">Size</th>'
+        '<th class="left" title="Thinking-token budget; — for non-thinking models">Think</th>'
+        '<th class="left">Mode</th>'
         + headers +
         '<th class="left">N</th></tr></thead><tbody>'
         + "".join(rows)
@@ -316,9 +335,20 @@ def _render_viewer(runs: list[RunRecord], doc_ids: list[int]) -> str:
     if not runs or not doc_ids:
         return "<p>(no runs)</p>"
 
-    # Pick one quant per HF model — Q4_K_M preferred, else first available.
+    # Pick one column per HF model. Preference order:
+    #   1. Q4_K_M over other quants (matches likely on-device choice)
+    #   2. Higher thinking budget over lower (gives the model more reasoning)
+    #   3. Best full_match score among the rest
     by_model: dict[str, RunRecord] = {}
-    for r in sorted(runs, key=lambda r: (r.model_id, r.quant != "Q4_K_M", r.quant)):
+    for r in sorted(
+        runs,
+        key=lambda r: (
+            r.model_id,
+            r.quant != "Q4_K_M",
+            -r.thinking_budget,
+            -r.metrics.get("full_match_accuracy", 0.0),
+        ),
+    ):
         by_model.setdefault(r.model_id, r)
 
     samples_by_model: dict[str, dict[int, dict]] = {}
@@ -356,7 +386,7 @@ def _render_viewer(runs: list[RunRecord], doc_ids: list[int]) -> str:
                 cells.append('<div class="resp">(no sample)</div>')
                 continue
             raw = s.get("resps", [[""]])[0][0]
-            think, after = _strip_thinking(raw)
+            think, _ = _strip_thinking(raw)
             filtered = (s.get("filtered_resps") or [""])[0]
             full_match = bool(s.get("full_match_accuracy", 0.0) >= 0.999)
             cls = "match" if full_match else "miss"
@@ -369,7 +399,6 @@ def _render_viewer(runs: list[RunRecord], doc_ids: list[int]) -> str:
         rows_html.append("".join(cells))
 
     body = "".join(rows_html)
-    n_cols = len(cols) + 1
     return f'<div class="viewer" style="--cols: {len(cols)}">{head}{body}</div>'
 
 
