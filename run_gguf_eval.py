@@ -51,6 +51,26 @@ def main() -> int:
     parser.add_argument("--n-gpu-layers", type=int, default=-1)
     parser.add_argument("--max-tokens", type=int, default=512)
     parser.add_argument(
+        "--thinking",
+        choices=["auto", "on", "off"],
+        default="auto",
+        help="Thinking-mode generation. 'auto' detects from chat template; "
+             "'on' forces two-phase (think → JSON); 'off' disables.",
+    )
+    parser.add_argument(
+        "--thinking-max-tokens",
+        type=int,
+        default=4096,
+        help="Token budget for the thinking phase (phase 1).",
+    )
+    parser.add_argument(
+        "--thinking-repeat-penalty",
+        type=float,
+        default=1.1,
+        help="repeat_penalty for the thinking phase. 1.0 = off; 1.1 breaks "
+             "small-model verbatim loops without perturbing reasoning.",
+    )
+    parser.add_argument(
         "--output-path",
         default=str(REPO_ROOT / "RESULTS" / "llamacpp"),
         help="Base directory for lm-eval output.",
@@ -74,6 +94,9 @@ def main() -> int:
         "n_ctx": args.n_ctx,
         "n_gpu_layers": args.n_gpu_layers,
         "max_tokens": args.max_tokens,
+        "thinking": args.thinking,
+        "thinking_max_tokens": args.thinking_max_tokens,
+        "thinking_repeat_penalty": args.thinking_repeat_penalty,
         "verbose": args.verbose,
     }
     if grammar_path is not None:
@@ -84,7 +107,8 @@ def main() -> int:
     tracker = EvaluationTracker(output_path=args.output_path)
 
     print(f"[run_gguf_eval] model={args.model} gguf={gguf_path.name} "
-          f"grammar={'yes' if grammar_path else 'no'} limit={args.limit}")
+          f"grammar={'yes' if grammar_path else 'no'} thinking={args.thinking} "
+          f"limit={args.limit}")
 
     results = lm_eval.simple_evaluate(
         model="llamacpp",

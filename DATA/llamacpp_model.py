@@ -102,9 +102,13 @@ class LlamaCppLM(LM):
         max_tokens: int = 512,
         verbose: bool = False,
         seed: int = 0,
+        thinking: str = "auto",
+        thinking_max_tokens: int = 4096,
+        thinking_repeat_penalty: float = 1.1,
         **kwargs,
     ):
         super().__init__()
+        del kwargs  # forward-compat absorber for unrecognised model_args keys
 
         # Defer heavy imports so `import llamacpp_model` stays fast for registration-only use.
         from llama_cpp import Llama, LlamaGrammar
@@ -118,6 +122,9 @@ class LlamaCppLM(LM):
         max_tokens = int(max_tokens)
         verbose = _to_bool(verbose)
         seed = int(seed)
+        thinking = str(thinking).strip().lower()
+        thinking_max_tokens = int(thinking_max_tokens)
+        thinking_repeat_penalty = float(thinking_repeat_penalty)
 
         if not Path(path).exists():
             raise FileNotFoundError(f"GGUF not found: {path}")
@@ -154,7 +161,66 @@ class LlamaCppLM(LM):
         self._tokenizer_name = tokenizer_id
         self.max_tokens = max_tokens
 
+        # Thinking-mode detection. A model is considered a thinking model if its
+        # chat template references `</think>` as a literal close tag — Qwen3 and
+        # Qwen3.5 hit this; Gemma/arcee/LFM2.5 do not (LFM2.5 mentions thinking
+        # only as a no-op past-message stripper). When on, we run two-phase
+        # generation: phase 1 reasons freely up to `</think>`, phase 2 emits
+        # grammar-constrained JSON. Without phase 1, the grammar suppresses any
+        # reasoning tokens and Qwen3 collapses into copying the few-shot answers.
+        chat_tmpl = (self.hf_tokenizer.chat_template or "")
+        auto_think = ("</think>" in chat_tmpl) and self._template_lets_model_emit_think()
+        if thinking == "auto":
+            self.thinking = auto_think
+        elif thinking in ("on", "true", "1", "yes", "y"):
+            self.thinking = True
+        else:
+            self.thinking = False
+        self.thinking_max_tokens = thinking_max_tokens
+        self.thinking_repeat_penalty = thinking_repeat_penalty
+        if self.thinking:
+            print(f"[llamacpp] thinking: ON (budget={thinking_max_tokens} tokens, "
+                  f"repeat_penalty={thinking_repeat_penalty}, "
+                  f"phase 1 ungrammared, stop=</think>)")
+        elif thinking == "auto" and "</think>" in chat_tmpl:
+            print(f"[llamacpp] thinking: OFF (template mentions </think> but "
+                  f"doesn't expect the model to emit one — likely a past-turn "
+                  f"stripper rule, not real thinking)")
+
     # ── Required abstracts ──────────────────────────────────────────────────
+
+    def _template_lets_model_emit_think(self) -> bool:
+        """Detect a true thinking model.
+
+        A model is thinking-aware iff its chat template actually responds to
+        `enable_thinking` — i.e. `apply_chat_template(..., enable_thinking=True)`
+        and `enable_thinking=False` produce *different* renderings. Qwen3 and
+        Qwen3.5 satisfy this; LFM2.5 and Gemma do not (their templates mention
+        `</think>` only as a no-op past-message stripper, with no thinking flag
+        in the conditional).
+
+        Additionally, the True-rendering must NOT pre-inject a closing
+        `</think>` tag — otherwise the model is being told "thinking is over,
+        just answer", which is the False semantics anyway.
+        """
+        msgs = [{"role": "user", "content": "X"}]
+        kwargs = dict(tokenize=False, add_generation_prompt=True)
+        try:
+            r_true = self.hf_tokenizer.apply_chat_template(
+                msgs, enable_thinking=True, **kwargs
+            )
+            r_false = self.hf_tokenizer.apply_chat_template(
+                msgs, enable_thinking=False, **kwargs
+            )
+        except TypeError:
+            return False
+        # Template ignored the flag → not a real thinking model.
+        if r_true == r_false:
+            return False
+        # Even with the flag respected, if the True render still contains
+        # `</think>`, the template is closing the block for us — model is
+        # not expected to emit thinking.
+        return "</think>" not in r_true
 
     def generate_until(self, requests, disable_tqdm: bool = False):
         outputs: list[str] = []
@@ -185,29 +251,94 @@ class LlamaCppLM(LM):
             if bos and prompt.startswith(bos):
                 prompt = prompt[len(bos):]
 
-            call_kwargs = dict(
-                prompt=prompt,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stop=until,
-                echo=False,
-            )
-            if self.grammar is not None:
-                call_kwargs["grammar"] = self.grammar
+            if self.thinking:
+                text = self._generate_with_thinking(
+                    prompt=prompt,
+                    until=until,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+            else:
+                call_kwargs = dict(
+                    prompt=prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stop=until,
+                    echo=False,
+                )
+                if self.grammar is not None:
+                    call_kwargs["grammar"] = self.grammar
+                out = self.llm.create_completion(**call_kwargs)
+                text = out["choices"][0]["text"]
 
-            out = self.llm.create_completion(**call_kwargs)
-            text = out["choices"][0]["text"]
             outputs.append(text)
 
         return outputs
 
-    def loglikelihood(self, requests, disable_tqdm: bool = False):
+    def _generate_with_thinking(
+        self,
+        prompt: str,
+        until,
+        temperature: float,
+        max_tokens: int,
+    ) -> str:
+        """Two-phase generation for thinking models.
+
+        Phase 1: no grammar, stop at `</think>`. The model produces a free-form
+        reasoning trace. We always force the prompt to start with `<think>\\n`
+        so we can rely on the close tag as a stop boundary even for templates
+        that don't auto-open the block.
+
+        Phase 2: prompt += phase1 + `</think>\\n`. Grammar applied. The model
+        emits the JSON answer.
+
+        We return the full string `<think>{trace}</think>\\n{json}` so the
+        downstream filter (which strips `<think>...</think>`) sees the same
+        shape regardless of phase boundary.
+        """
+        # Phase 1 — open the think block ourselves and let the model fill it.
+        # Mild `repeat_penalty` breaks the verbatim-loop failure mode small
+        # thinking models hit at greedy temperature (Qwen3.5-0.8B repeats
+        # phrases until it eats the budget). 1.1 is the conservative default
+        # — high enough to break loops, low enough not to perturb reasoning.
+        phase1_prompt = prompt + "<think>\n"
+        phase1_out = self.llm.create_completion(
+            prompt=phase1_prompt,
+            temperature=temperature,
+            max_tokens=self.thinking_max_tokens,
+            stop=["</think>"],
+            echo=False,
+            repeat_penalty=self.thinking_repeat_penalty,
+        )
+        thinking_text = phase1_out["choices"][0]["text"]
+
+        # Phase 2 — close the block and constrain to JSON via grammar.
+        phase2_prompt = (
+            phase1_prompt + thinking_text + "</think>\n"
+        )
+        call_kwargs = dict(
+            prompt=phase2_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stop=until,
+            echo=False,
+        )
+        if self.grammar is not None:
+            call_kwargs["grammar"] = self.grammar
+        phase2_out = self.llm.create_completion(**call_kwargs)
+        json_text = phase2_out["choices"][0]["text"]
+
+        return f"<think>\n{thinking_text}</think>\n{json_text}"
+
+    def loglikelihood(self, *args, **kwargs):
+        del args, kwargs
         raise NotImplementedError(
             "loglikelihood not supported by the llamacpp adapter "
             "(only generate_until tasks are supported)."
         )
 
-    def loglikelihood_rolling(self, requests, disable_tqdm: bool = False):
+    def loglikelihood_rolling(self, *args, **kwargs):
+        del args, kwargs
         raise NotImplementedError(
             "loglikelihood_rolling not supported by the llamacpp adapter."
         )
@@ -215,11 +346,23 @@ class LlamaCppLM(LM):
     # ── Chat template + tokenizer metadata ──────────────────────────────────
 
     def apply_chat_template(self, chat_history, add_generation_prompt: bool = True):
-        return self.hf_tokenizer.apply_chat_template(
-            chat_history,
+        kwargs = dict(
             tokenize=False,
             add_generation_prompt=add_generation_prompt,
         )
+        # Forward `enable_thinking` only if the template understands it. We
+        # explicitly pass False when self.thinking is False so Qwen3's default
+        # (which is True) doesn't leak in. When self.thinking is True we let
+        # the template render in thinking-on mode, then phase 1 of
+        # `_generate_with_thinking` opens the `<think>` block on top of that.
+        try:
+            return self.hf_tokenizer.apply_chat_template(
+                chat_history,
+                enable_thinking=self.thinking,
+                **kwargs,
+            )
+        except TypeError:
+            return self.hf_tokenizer.apply_chat_template(chat_history, **kwargs)
 
     @property
     def tokenizer_name(self) -> str:

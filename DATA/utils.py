@@ -91,15 +91,28 @@ FEW_SHOT_EXAMPLES = [
 
 
 def doc_to_text(doc: dict) -> str:
-    """Build the full prompt with system instruction, few-shot examples, and query."""
+    """Build the full prompt with system instruction, few-shot examples, and query.
+
+    Demos are wrapped in an explicit `### EXAMPLES` block and the actual query
+    in `### YOUR TASK`. Without that delimiter, thinking-style models (Qwen3)
+    treat the few-shot demos as in-flight chat turns and end up answering one
+    of those instead of the real query — observed in practice on Qwen3-1.7B,
+    where it produced the first few-shot answer verbatim for unrelated SMS.
+    The delimiter is a domain-level fix (any model benefits), not a per-model
+    workaround.
+    """
     parts = [SYSTEM_PROMPT, ""]
 
+    parts.append("### EXAMPLES (already labeled — for reference only, do NOT answer these)")
+    parts.append("")
     for ex in FEW_SHOT_EXAMPLES:
         parts.append(f"Sender: {ex['sender']}")
         parts.append(f"SMS: {ex['sms']}")
         parts.append(f"Output: {ex['answer']}")
         parts.append("")
 
+    parts.append("### YOUR TASK (answer this one SMS only — output JSON or null, nothing else)")
+    parts.append("")
     parts.append(f"Sender: {doc['sender']}")
     parts.append(f"SMS: {doc['sms']}")
     parts.append("Output: ")

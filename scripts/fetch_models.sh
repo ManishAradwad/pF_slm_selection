@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 # Download GGUFs for the candidate SLM slate (see CLAUDE.md § Candidate models).
-# Quantization choice is open — Q4_K_M is just a reasonable starting point per
-# model. Final pick depends on what scores best inside the device size budget.
-# Bonsai is at Q1_0 because that's the only form prism-ml publishes.
+# Per user direction we now sweep multiple quantizations per model so each
+# candidate's quality/size tradeoff curve can be measured directly. Bonsai is
+# excluded — Bonsai is published only at Q1_0 and the run currently fails for
+# it.
+#
+# Quant sweep per model: Q3_K_M, Q4_K_M, Q5_K_M, Q6_K, Q8_0
+#   (covers the meaningful range; finer-grained variants like Q3_K_S, IQ4_XS
+#    are still pulled for Gemma-4-E2B since they're already on disk and
+#    historically informative for a 2B-class model.)
 #
 # Idempotent: skips files already present.
 # Requires HF_TOKEN in env for gated repos (Gemma is gated).
-# Uses the `hf` CLI from huggingface_hub >= 1.0 (the older `huggingface-cli`
-# entry point is deprecated; see hf.co/docs/huggingface_hub/guides/cli).
 
-set -euo pipefail
+set -uo pipefail
 
 cd "$(dirname "$0")/.."
 mkdir -p MODELS
@@ -20,52 +24,44 @@ dl() {
   local out="MODELS/$3"
   if [ -s "$out" ]; then
     echo "[fetch_models] $3 already present — skipping"
-    return
+    return 0
   fi
   echo "[fetch_models] $repo / $file"
-  hf download "$repo" "$file" --local-dir MODELS
-  # `hf download` writes the file at MODELS/<repo-internal-path>; flatten
-  # if the in-repo name differs from the desired output name.
-  if [ "MODELS/$file" != "$out" ] && [ -s "MODELS/$file" ]; then
-    mv "MODELS/$file" "$out"
+  if hf download "$repo" "$file" --local-dir MODELS 2>&1 | tail -3; then
+    if [ "MODELS/$file" != "$out" ] && [ -s "MODELS/$file" ]; then
+      mv "MODELS/$file" "$out"
+    fi
+  else
+    echo "[fetch_models] WARN: failed to download $repo/$file — skipping"
+    return 0
   fi
 }
 
-dl unsloth/gemma-3-270m-it-GGUF \
-   gemma-3-270m-it-Q4_K_M.gguf \
-   gemma-3-270m-it-Q4_K_M.gguf
+# Standard 5-point quant sweep applied to each candidate model.
+# Each entry: <repo> <basename-prefix> (file + out share the same name).
+sweep() {
+  local repo="$1"
+  local prefix="$2"
+  for q in Q3_K_M Q4_K_M Q5_K_M Q6_K Q8_0; do
+    dl "$repo" "${prefix}-${q}.gguf" "${prefix}-${q}.gguf"
+  done
+}
 
-dl unsloth/gemma-4-E2B-it-GGUF \
-   gemma-4-E2B-it-Q4_K_M.gguf \
-   gemma-4-E2B-it-Q4_K_M.gguf
+# ── Candidate models ────────────────────────────────────────────────────────────
 
-dl unsloth/Qwen3-0.6B-GGUF \
-   Qwen3-0.6B-Q4_K_M.gguf \
-   Qwen3-0.6B-Q4_K_M.gguf
+sweep unsloth/gemma-3-270m-it-GGUF        gemma-3-270m-it
+sweep unsloth/gemma-4-E2B-it-GGUF         gemma-4-E2B-it
+sweep unsloth/Qwen3-0.6B-GGUF             Qwen3-0.6B
+sweep unsloth/Qwen3.5-0.8B-GGUF           Qwen3.5-0.8B
+sweep unsloth/LFM2.5-1.2B-Instruct-GGUF   LFM2.5-1.2B-Instruct
+sweep unsloth/Qwen3-1.7B-GGUF             Qwen3-1.7B
+sweep arcee-ai/arcee-lite-GGUF            arcee-lite
 
-dl unsloth/Qwen3.5-0.8B-GGUF \
-   Qwen3.5-0.8B-Q4_K_M.gguf \
-   Qwen3.5-0.8B-Q4_K_M.gguf
+# ── Extra Gemma-4-E2B variants already on disk historically ────────────────────
+# Kept so re-running fetch is a no-op for the existing collection.
+dl unsloth/gemma-4-E2B-it-GGUF gemma-4-E2B-it-Q3_K_S.gguf gemma-4-E2B-it-Q3_K_S.gguf
+dl unsloth/gemma-4-E2B-it-GGUF gemma-4-E2B-it-IQ4_XS.gguf gemma-4-E2B-it-IQ4_XS.gguf
 
-dl unsloth/LFM2.5-1.2B-Instruct-GGUF \
-   LFM2.5-1.2B-Instruct-Q4_K_M.gguf \
-   LFM2.5-1.2B-Instruct-Q4_K_M.gguf
-
-dl unsloth/Qwen3-1.7B-GGUF \
-   Qwen3-1.7B-Q4_K_M.gguf \
-   Qwen3-1.7B-Q4_K_M.gguf
-
-dl prism-ml/Bonsai-1.7B-gguf \
-   Bonsai-1.7B-Q1_0.gguf \
-   Bonsai-1.7B-Q1_0.gguf
-
-dl prism-ml/Bonsai-4B-gguf \
-   Bonsai-4B-Q1_0.gguf \
-   Bonsai-4B-Q1_0.gguf
-
-dl arcee-ai/arcee-lite-GGUF \
-   arcee-lite-Q4_K_M.gguf \
-   arcee-lite-Q4_K_M.gguf
-
+echo ""
 echo "[fetch_models] done. MODELS/:"
 ls -lh MODELS/*.gguf 2>/dev/null || echo "(empty)"
