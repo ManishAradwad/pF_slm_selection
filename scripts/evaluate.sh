@@ -82,7 +82,7 @@ MODELS=(
 )
 
 run_one() {
-  local model="$1" prefix="$2" quant="$3" limit_arg="$4" tag="$5" budget="${6:-}"
+  local model="$1" prefix="$2" quant="$3" limit_arg="$4" tag="$5" budget="${6:-}" thinking_arg="${7:-$THINKING}"
   local gguf="MODELS/${prefix}-${quant}.gguf"
   local budget_label=""
   local budget_arg=()
@@ -102,7 +102,7 @@ run_one() {
        --model "$model" \
        --gguf  "$gguf" \
        --grammar "$GRAMMAR" \
-       --thinking "$THINKING" \
+       --thinking "$thinking_arg" \
        "${budget_arg[@]}" \
        $limit_arg; then
     echo "[${tag}] DONE: ${model} ${quant}${budget_label}"
@@ -132,13 +132,18 @@ run_pass() {
     local model="$1" prefix="$2"
     local is_thinking=0
     if [[ "$model" =~ $THINKING_MODELS_RE ]]; then is_thinking=1; fi
+    # Non-thinking models get --thinking off explicitly — THINKING_MODELS_RE is
+    # the authoritative list and we don't want auto-detection to silently flip
+    # a model into two-phase mode if its tokenizer changes upstream.
+    local model_thinking_arg="off"
+    if [ "$is_thinking" = "1" ]; then model_thinking_arg="$THINKING"; fi
     for q in "${quants_var[@]}"; do
       if [ "$is_thinking" = "1" ]; then
         for b in "${budgets_var[@]}"; do
-          run_one "$model" "$prefix" "$q" "$limit_arg" "$pass_kind" "$b"
+          run_one "$model" "$prefix" "$q" "$limit_arg" "$pass_kind" "$b" "$model_thinking_arg"
         done
       else
-        run_one "$model" "$prefix" "$q" "$limit_arg" "$pass_kind"
+        run_one "$model" "$prefix" "$q" "$limit_arg" "$pass_kind" "" "$model_thinking_arg"
       fi
     done
   done

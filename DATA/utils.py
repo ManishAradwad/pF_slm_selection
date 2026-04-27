@@ -16,21 +16,26 @@ You are extracting transaction details from an Indian bank/card SMS. Output eith
 Field nullability: in a real bank/card transaction SMS, amount, type, and account are always present — banks always state them. merchant may be null when the SMS has no counterparty (e.g. SBI UPI, ATM withdrawal). date may be null when the SMS has no date, or only day-month with no year.
 
 STEP 1 — Is this a real bank/card transaction?
-A real transaction means money actually moved in or out of the user's bank account or card RIGHT NOW. If yes, go to STEP 2. If no, output: null
+Qualifying: money actually moved in or out of the user's bank account (savings or current), credit card, or debit card RIGHT NOW.
+Not qualifying: mobile wallets (PayTM wallet, PhonePe wallet, Simpl, slice, or any similar wallet or BNPL service) — output null even if money genuinely moved inside a wallet.
 
-Output null for:
+Check the sender ID first — Indian commercial SMS use the format XX-YYYYYY (2-char operator prefix, dash, 6-char entity code). The entity code is the key signal:
+- A real bank sender's entity code visibly resembles the bank's name or acronym (e.g. HDFCBK, ICICIB, SBIINB, AXISBK, KOTAKB, YESBNK, FEDBNK, INDUSB — and similarly shaped codes for banks not listed here).
+- If the entity code reads like a brand, wallet provider, marketing word, travel/e-commerce/telecom name, or app name, the message is almost certainly not a bank/card transaction.
+- A purely numeric entity code (e.g. a 6-digit number) is almost always promotional, not a bank transaction alert.
+
+Then check the content — output null for:
+- Any wallet or BNPL message (PayTM wallet, PhonePe, Simpl, slice, etc.) — real transaction or promotional
 - Recharge offers, plan promos, "Recharge with Rs.X" messages
 - Cashback ads, discount offers, "Get Rs.X off" messages
-- Wallet top-up promos, referral bonuses, spin/game rewards
-- Balance reports, mini-statements, investment summaries
-- Account-opening ads, loan offers, credit card marketing
+- Referral bonuses, spin/game rewards
+- Balance alerts, mini-statements, account statements, investment summaries
+- Account-opening ads, loan offers, credit card marketing, insurance promos
 - Booking confirmations with "pay after" / "pay later" language
+- OTP, verification, or security alert messages
 - Any message whose main purpose is to get the user to click a link or take an action, even if it mentions an amount
 
-Hint: Indian commercial SMS sender IDs follow the format XX-YYYYYY — a 2-character telecom/operator prefix, a dash, then a 6-character entity code. Use the entity code (the part after the dash), not the prefix, to judge the sender:
-- A legitimate bank sender's entity code visibly resembles the bank's name or acronym (e.g. HDFCBK for HDFC, ICICIB for ICICI, SBIINB for SBI, AXISBK for Axis, KOTAKB for Kotak, YESBNK for Yes Bank, FEDBNK for Federal, INDUSB for IndusInd — and similarly shaped codes for banks not listed here).
-- If the entity code reads like a brand, product, or marketing word (OFFERS, SALE, REWARD, a travel / e-commerce / telecom brand name, an app name), the message is almost always promotional.
-- A purely numeric entity code (e.g. a 6-digit number with no bank acronym) is also almost always promotional, not a bank transaction alert.
+If the sender looks like a real bank AND the content confirms money moved in/out of a bank account or card right now → go to STEP 2. Otherwise → null.
 
 STEP 2 — Extract fields from the CURRENT SMS only
 Never copy values from the few-shot examples below. Every field must come from the SMS you are given right now.
