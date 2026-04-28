@@ -13,10 +13,10 @@ import sys
 SYSTEM_PROMPT = """\
 You are extracting transaction details from an Indian bank/card SMS. Output either a single JSON object or the literal word null. Nothing else — no prose, no markdown fences, no explanations.
 
-Field nullability: in a real bank/card transaction SMS, amount, type, and account are always present — banks always state them. merchant may be null when the SMS has no counterparty (e.g. SBI UPI, ATM withdrawal). date may be null when the SMS has no date, or only day-month with no year.
+Field nullability: in a real bank/card transaction SMS, amount, type, and account are always present — banks always state them. merchant may be null when the SMS has no counterparty (e.g. SBI UPI, ATM withdrawal).
 
-STEP 1 — Is this a real bank/card transaction?
-Qualifying: money actually moved in or out of the user's bank account (savings or current), credit card, or debit card RIGHT NOW.
+STEP 1 — Is this an actual user-initiated transaction that has just posted?
+Qualifying: a purchase, transfer, withdrawal, or deposit that has just moved money in or out of the user's bank account (savings or current), credit card, or debit card. The SMS must confirm money has already moved — not "about to move," not "due to move," not "received towards a future bill payment."
 Not qualifying: mobile wallets (PayTM wallet, PhonePe wallet, Simpl, slice, or any similar wallet or BNPL service) — output null even if money genuinely moved inside a wallet.
 
 Check the sender ID first — Indian commercial SMS use the format XX-YYYYYY (2-char operator prefix, dash, 6-char entity code). The entity code is the key signal:
@@ -32,10 +32,14 @@ Then check the content — output null for:
 - Balance alerts, mini-statements, account statements, investment summaries
 - Account-opening ads, loan offers, credit card marketing, insurance promos
 - Booking confirmations with "pay after" / "pay later" language
-- OTP, verification, or security alert messages
+- OTP, verification, pre-authorization, or security alert messages — money has not moved
+- Bill or payment-due reminders ("Amount Due Rs.X", "EMI due", "pay by DD-MM") — a reminder, not a transaction
+- Autopay or e-mandate success/confirmation notices — informational; the underlying bank-side debit reports the actual transaction separately
+- "Payment received towards your credit card" or similar credit-card-payment-received notices — informational; the bank-side debit on the funding account reports the actual transaction separately
+- Holds, blocks for debiting, pending or unauthorized transaction alerts — money has not moved yet
 - Any message whose main purpose is to get the user to click a link or take an action, even if it mentions an amount
 
-If the sender looks like a real bank AND the content confirms money moved in/out of a bank account or card right now → go to STEP 2. Otherwise → null.
+If the sender looks like a real bank AND the SMS confirms money has just actually moved in/out of a bank account or card → go to STEP 2. Otherwise → null.
 
 STEP 2 — Extract fields from the CURRENT SMS only
 Never copy values from the few-shot examples below. Every field must come from the SMS you are given right now.
@@ -52,11 +56,6 @@ Never copy values from the few-shot examples below. Every field must come from t
     "linked to VPA <handle>"     → the VPA is the merchant
     "by a/c linked to mobile X"  → the mobile/APIBANKING ID is the merchant
   This is NEVER the bank name. If the SMS genuinely has no counterparty, use null — but try hard first.
-- date: always DD-MM-YYYY with numeric month.
-    "01Mar24"      → "01-03-2024"
-    "2024-03-01"   → "01-03-2024"
-    "10-FEB-2024"  → "10-02-2024"   (JAN=01, FEB=02, ..., DEC=12)
-  If the SMS has no date, use null. If the SMS only has day-month with no year anywhere, also use null. Never invent a placeholder date.
 - account: the masked account or card label exactly as written in the SMS. Keep any "A/c", "Card", "Credit Card", "Debit Card" prefix. Do NOT use the bank name. Examples: "A/c XX6254", "Credit Card XX3782", "Debit Card xx4955"."""
 
 FEW_SHOT_EXAMPLES = [
@@ -64,17 +63,17 @@ FEW_SHOT_EXAMPLES = [
     {
         "sender": "AX-HDFCBK",
         "sms": "HDFC Bank: Rs.500.00 credited to a/c XXXXXX0000 on 01-01-20 by a/c linked to VPA demouser000@examplebank (UPI Ref No 000000000000).",
-        "answer": '{"amount": 500.0, "merchant": "demouser000@examplebank", "date": "01-01-2020", "type": "credit", "account": "a/c XXXXXX0000"}',
+        "answer": '{"amount": 500.0, "merchant": "demouser000@examplebank", "type": "credit", "account": "a/c XXXXXX0000"}',
     },
     {
         "sender": "VM-HDFCBK",
         "sms": "Amt Sent Rs.75.00\nFrom HDFC Bank A/C *0000\nTo EXAMPLE DEMO USER\nOn 02-01\nRef 000000000000\nNot You? Call 18002586161",
-        "answer": '{"amount": 75.0, "merchant": "EXAMPLE DEMO USER", "date": null, "type": "debit", "account": "A/C *0000"}',
+        "answer": '{"amount": 75.0, "merchant": "EXAMPLE DEMO USER", "type": "debit", "account": "A/C *0000"}',
     },
     {
         "sender": "VD-IDFCFB",
         "sms": "Transaction Successful! INR 23.00 spent on your IDFC FIRST Bank Credit Card ending XX0000 at DEMO SHOP DAILY on 03-JAN-2020 at 07:01 PM. Avbl limit: Rs.10000.00.",
-        "answer": '{"amount": 23.0, "merchant": "DEMO SHOP DAILY", "date": "03-01-2020", "type": "debit", "account": "Credit Card ending XX0000"}',
+        "answer": '{"amount": 23.0, "merchant": "DEMO SHOP DAILY", "type": "debit", "account": "Credit Card ending XX0000"}',
     },
     # --- Rejections ---
     {
