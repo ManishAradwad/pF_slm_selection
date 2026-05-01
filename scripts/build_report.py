@@ -73,7 +73,6 @@ HEADLINE_METRICS = [
     ("type_accuracy",             "Type",              True),
     ("account_accuracy",          "Account",           True),
     ("merchant_accuracy",         "Merchant",          True),
-    ("date_accuracy",             "Date",              True),
     ("json_validity",             "JSON valid",        True),
 ]
 

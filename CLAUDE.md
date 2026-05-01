@@ -4,11 +4,11 @@
 Evaluation playground for selecting the optimal Small Language Model (SLM) to power a mobile financial helper app called **pocket-financer**. The app tracks the user's bank accounts and credit/debit cards, then uses an SLM to process transaction SMS alerts and maintain balance/spend data. Wallets (Simpl, slice, PayTM wallet) are out of scope — only direct bank account and card transactions. Production runtime is **`llama.rn`** (React Native binding over `llama.cpp`) on Android.
 
 ## Evaluation approach
-The task is **structured JSON extraction**, not classification. Given an Indian bank/card SMS, the model outputs either the literal word `null` (not a real transaction) or a JSON object with 5 fields: `amount`, `merchant`, `date`, `type` (`debit`|`credit`), `account`. Pipeline is built out-of-tree on `lm-evaluation-harness`.
+The task is **structured JSON extraction**, not classification. Given an Indian bank/card SMS, the model outputs either the literal word `null` (not a real transaction) or a JSON object with 4 fields: `amount`, `merchant`, `type` (`debit`|`credit`), `account`. Pipeline is built out-of-tree on `lm-evaluation-harness`.
 
 **Backend**: `llama-cpp-python` — the same engine as production `llama.rn`. This is the whole reason to avoid the HF `transformers` backend: quantization, tokenization, and sampler match on-device, so dev metrics honestly predict production behavior.
 
-**Grammar-constrained decoding**: A GBNF grammar (`DATA/sms_extraction.gbnf`) enforces output shape. `amount`, `type`, `account` are non-nullable; `merchant`, `date` are nullable. The same grammar ships on-device.
+**Grammar-constrained decoding**: A GBNF grammar (`DATA/sms_extraction.gbnf`) enforces output shape. `amount`, `type`, `account` are non-nullable; `merchant` is nullable. The same grammar ships on-device.
 
 **Two-phase generation for thinking models** (Qwen3 family). When the tokenizer's chat template responds to `enable_thinking` (i.e. rendering with `True` differs from `False`), we run two passes per sample:
 1. **Phase 1** — render prompt with `enable_thinking=True`, force-open the block by appending `<think>\n`, generate freely with `repeat_penalty=1.1` (breaks Qwen3.5-class loops). Two stop conditions: `max_tokens=thinking_max_tokens` (the budget — default 4096) and `stop=["</think>"]`. Whichever fires first wins. If the budget hits first, we forcibly append `</think>\n` ourselves before phase 2 — i.e. the model gets cut off mid-thought.
