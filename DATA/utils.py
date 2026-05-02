@@ -13,7 +13,7 @@ import sys
 SYSTEM_PROMPT = """\
 You are extracting transaction details from an Indian bank/card SMS. Output either a single JSON object or the literal word null. Nothing else — no prose, no markdown fences, no explanations.
 
-Field nullability: in a real bank/card transaction SMS, amount, type, and account are always present — banks always state them. merchant may be null when the SMS has no counterparty (e.g. SBI UPI, ATM withdrawal).
+Field nullability: in a real bank/card transaction SMS, amount, type, and account are always present — banks always state them. counterparty may be null when the SMS has no counterparty (e.g. SBI UPI, ATM withdrawal).
 
 STEP 1 — Is this an actual user-initiated transaction that has just posted?
 Qualifying: a purchase, transfer, withdrawal, or deposit that has just moved money in or out of the user's bank account (savings or current), credit card, or debit card. The SMS must confirm money has already moved — not "about to move," not "due to move," not "received towards a future bill payment."
@@ -48,13 +48,13 @@ Never copy values from the few-shot examples below. Every field must come from t
 - type: use the verb in the SMS.
     debit  ← spent, debited, withdrawn, paid, sent, used, purchase, drawn
     credit ← credited, received, refunded, deposited, reversal, added
-- merchant: who the user paid or got paid by. Look for these phrases:
-    "at <MERCHANT>"              → e.g. "at MIDAS DAILY"
+- counterparty: who the user paid or got paid by. Look for these phrases:
+    "at <COUNTERPARTY>"              → e.g. "at MIDAS DAILY"
     "To <NAME>"                  → e.g. "To AJAY KUMAR YADAV"
     "by <NAME/COMPANY>"          → e.g. "by MULTIPL FINTECH SOLUTIONS"
     "from VPA <handle>"          → e.g. "from VPA user@okhdfc"
-    "linked to VPA <handle>"     → the VPA is the merchant
-    "by a/c linked to mobile X"  → the mobile/APIBANKING ID is the merchant
+    "linked to VPA <handle>"     → the VPA is the counterparty
+    "by a/c linked to mobile X"  → the mobile/APIBANKING ID is the counterparty
   This is NEVER the bank name. If the SMS genuinely has no counterparty, use null — but try hard first.
 - account: the masked account or card label exactly as written in the SMS. Keep any "A/c", "Card", "Credit Card", "Debit Card" prefix. Do NOT use the bank name. Examples: "A/c XX6254", "Credit Card XX3782", "Debit Card xx4955"."""
 
@@ -63,17 +63,22 @@ FEW_SHOT_EXAMPLES = [
     {
         "sender": "AX-HDFCBK",
         "sms": "HDFC Bank: Rs.500.00 credited to a/c XXXXXX0000 on 01-01-20 by a/c linked to VPA demouser000@examplebank (UPI Ref No 000000000000).",
-        "answer": '{"amount": 500.0, "merchant": "demouser000@examplebank", "type": "credit", "account": "a/c XXXXXX0000"}',
+        "answer": '{"amount": 500.0, "counterparty": "demouser000@examplebank", "type": "credit", "account": "a/c XXXXXX0000"}',
     },
     {
         "sender": "VM-HDFCBK",
-        "sms": "Amt Sent Rs.75.00\nFrom HDFC Bank A/C *0000\nTo EXAMPLE DEMO USER\nOn 02-01\nRef 000000000000\nNot You? Call 18002586161",
-        "answer": '{"amount": 75.0, "merchant": "EXAMPLE DEMO USER", "type": "debit", "account": "A/C *0000"}',
+        "sms": "Amt Sent Rs.17.10\nFrom HDFC Bank A/C *0000\nTo EXAMPLE DEMO USER\nOn 21-09\nRef 000000000000\nNot You? Call 18002586161/SMS BLOCK UPI to 7308080808",
+        "answer": '{"amount": 17.1, "counterparty": "EXAMPLE DEMO USER", "type": "debit", "account": "A/C *0000"}',
+    },
+    {
+        "sender": "AD-SBIINB",
+        "sms": "Dear Customer, INR 12,400.00 credited to your A/c No XX0000 on 29/04/2022 through NEFT with UTR RBI1202227788622 by EXAMPLE DEMO USER, INFO: -SBI",
+        "answer": '{"amount": 12400.0, "counterparty": "EXAMPLE DEMO USER", "type": "credit", "account": "A/c No XX0000"}',
     },
     {
         "sender": "VD-IDFCFB",
         "sms": "Transaction Successful! INR 23.00 spent on your IDFC FIRST Bank Credit Card ending XX0000 at DEMO SHOP DAILY on 03-JAN-2020 at 07:01 PM. Avbl limit: Rs.10000.00.",
-        "answer": '{"amount": 23.0, "merchant": "DEMO SHOP DAILY", "type": "debit", "account": "Credit Card ending XX0000"}',
+        "answer": '{"amount": 23.0, "counterparty": "DEMO SHOP DAILY", "type": "debit", "account": "Credit Card ending XX0000"}',
     },
     # --- Rejections ---
     {
@@ -154,7 +159,7 @@ def extract_json_filter(
 
 
 # Matches the grammar: amount/type/account must always be non-null in a real
-# txn; merchant may be null (merchant is absent in SBI UPI, ATM,
+# txn; counterparty may be null (counterparty is absent in SBI UPI, ATM,
 # and gateway SMS).
 _REQUIRED_NONNULL_FIELDS = ("amount", "type", "account")
 
@@ -231,7 +236,7 @@ def rejection_accuracy(references: list[str], predictions: list[str]) -> float:
 
 
 def field_accuracy(references: list[str], predictions: list[str]) -> float:
-    """Fraction of fields (merchant, type, account) that match exactly.
+    """Fraction of fields (counterparty, type, account) that match exactly.
     Returns 1.0 for correct null-vs-null, 0.0 for mismatched null/non-null."""
     ref = _parse(references[0])
     pred = _parse(predictions[0])
@@ -249,7 +254,7 @@ def field_accuracy(references: list[str], predictions: list[str]) -> float:
     if not isinstance(pred, dict) or not isinstance(ref, dict):
         return 0.0
 
-    fields = ["merchant", "type", "account"]
+    fields = ["counterparty", "type", "account"]
     matches = 0
     total = 0
     for f in fields:
@@ -320,7 +325,7 @@ def _amount_match(ref: dict, pred: dict) -> bool:
         return False
 
 
-def _merchant_match(ref_m, pred_m) -> bool:
+def _counterparty_match(ref_m, pred_m) -> bool:
     """Case/whitespace-insensitive, allows substring either direction.
 
     Why loose: bank SMS wrap the same entity in varying boilerplate
@@ -346,7 +351,7 @@ def _merchant_match(ref_m, pred_m) -> bool:
 
 
 # Pre-compute few-shot signatures used by few_shot_leakage_rate.
-# Signature = (amount, merchant_lower, normalized_account).
+# Signature = (amount, counterparty_lower, normalized_account).
 _FEW_SHOT_SIGNATURES: list[tuple] = []
 for _ex in FEW_SHOT_EXAMPLES:
     if _ex["answer"] == "null":
@@ -355,7 +360,7 @@ for _ex in FEW_SHOT_EXAMPLES:
         _obj = json.loads(_ex["answer"])
         _FEW_SHOT_SIGNATURES.append((
             _obj.get("amount"),
-            str(_obj.get("merchant", "")).lower().strip() if _obj.get("merchant") else None,
+            str(_obj.get("counterparty", "")).lower().strip() if _obj.get("counterparty") else None,
             _normalize_account(_obj.get("account")),
         ))
     except (json.JSONDecodeError, TypeError):
@@ -412,8 +417,8 @@ def account_accuracy(references: list[str], predictions: list[str]) -> float:
     return 1.0 if ref_norm == pred_norm else 0.0
 
 
-def merchant_accuracy(references: list[str], predictions: list[str]) -> float:
-    """Standalone merchant field accuracy (case-insensitive exact match). Null-null = 1.0.
+def counterparty_accuracy(references: list[str], predictions: list[str]) -> float:
+    """Standalone counterparty field accuracy (case-insensitive exact match). Null-null = 1.0.
     Extracted from field_accuracy for per-field visibility during model comparison."""
     ref = _parse(references[0])
     pred = _parse(predictions[0])
@@ -425,7 +430,7 @@ def merchant_accuracy(references: list[str], predictions: list[str]) -> float:
         return 0.0
     if not isinstance(pred, dict) or not isinstance(ref, dict):
         return 0.0
-    return 1.0 if _merchant_match(ref.get("merchant"), pred.get("merchant")) else 0.0
+    return 1.0 if _counterparty_match(ref.get("counterparty"), pred.get("counterparty")) else 0.0
 
 
 def ghost_transaction_rate(references: list[str], predictions: list[str]) -> float:
@@ -453,7 +458,7 @@ def missed_transaction_rate(references: list[str], predictions: list[str]) -> fl
 
 
 def full_match_accuracy(references: list[str], predictions: list[str]) -> float:
-    """1.0 iff all 4 fields correct with normalisation (amount, type, account, merchant).
+    """1.0 iff all 4 fields correct with normalisation (amount, type, account, counterparty).
     The end-to-end 'this SMS would be handled correctly in the app' signal."""
     ref = _parse(references[0])
     pred = _parse(predictions[0])
@@ -480,13 +485,13 @@ def full_match_accuracy(references: list[str], predictions: list[str]) -> float:
         pred_acc = _normalize_account(pred_raw_acc)
         if ref_acc is None or pred_acc is None or ref_acc != pred_acc:
             return 0.0
-    if not _merchant_match(ref.get("merchant"), pred.get("merchant")):
+    if not _counterparty_match(ref.get("counterparty"), pred.get("counterparty")):
         return 0.0
     return 1.0
 
 
 def few_shot_leakage_rate(references: list[str], predictions: list[str]) -> float:
-    """On null-gold samples: 1.0 if pred's (amount, merchant, account) matches a few-shot example.
+    """On null-gold samples: 1.0 if pred's (amount, counterparty, account) matches a few-shot example.
     Detects models that copy few-shot answers instead of processing the input. Lower is better."""
     ref = _parse(references[0])
     if ref is not None:  # Only check on null-gold samples
@@ -496,7 +501,7 @@ def few_shot_leakage_rate(references: list[str], predictions: list[str]) -> floa
         return 0.0
     sig = (
         pred.get("amount"),
-        str(pred.get("merchant", "")).lower().strip() if pred.get("merchant") else None,
+        str(pred.get("counterparty", "")).lower().strip() if pred.get("counterparty") else None,
         _normalize_account(pred.get("account")),
     )
     return 1.0 if sig in _FEW_SHOT_SIGNATURES else 0.0
@@ -531,25 +536,25 @@ if __name__ == "__main__":
     _check("card != account",
            _normalize_account("Credit Card XX3782") == _normalize_account("A/c X6254"), False)
 
-    print("\n=== _merchant_match (loose) ===")
-    _check("exact",                          _merchant_match("Zomato", "Zomato"), True)
-    _check("case-insensitive",               _merchant_match("Zomato", "ZOMATO"), True)
-    _check("double vs single space",         _merchant_match("OMA  RAM", "OMA RAM"), True)
-    _check("prefix VPA ",                    _merchant_match("manisharadwad@oksbi", "VPA manisharadwad@oksbi"), True)
-    _check("prefix mobile ",                 _merchant_match("1XXXXXX890-APIBANKING", "mobile 1XXXXXX890-APIBANKING"), True)
-    _check("suffix UPI-ref",                 _merchant_match("Compass", "UPI-640971125815-Compass"), True)
-    _check("trailing city noise",            _merchant_match("GOOGLEPLAY MUMBAI MAH", "GOOGLEPLAY"), True)
-    _check("both None",                      _merchant_match(None, None), True)
-    _check("gold None, pred set → mismatch", _merchant_match(None, "SBI UPI"), False)
-    _check("gold set, pred None → mismatch", _merchant_match("Saanvi Star", None), False)
-    _check("different VPA digit",            _merchant_match("q36252344@ybl", "q362523441@ybl"), False)
-    _check("typo in VPA",                    _merchant_match("manisharadwadoksbi", "manishardwadoksbi"), False)
-    _check("substring < 3 chars guard",      _merchant_match("A", "ABC Corp"), False)
+    print("\n=== _counterparty_match (loose) ===")
+    _check("exact",                          _counterparty_match("Zomato", "Zomato"), True)
+    _check("case-insensitive",               _counterparty_match("Zomato", "ZOMATO"), True)
+    _check("double vs single space",         _counterparty_match("OMA  RAM", "OMA RAM"), True)
+    _check("prefix VPA ",                    _counterparty_match("manisharadwad@oksbi", "VPA manisharadwad@oksbi"), True)
+    _check("prefix mobile ",                 _counterparty_match("1XXXXXX890-APIBANKING", "mobile 1XXXXXX890-APIBANKING"), True)
+    _check("suffix UPI-ref",                 _counterparty_match("Compass", "UPI-640971125815-Compass"), True)
+    _check("trailing city noise",            _counterparty_match("GOOGLEPLAY MUMBAI MAH", "GOOGLEPLAY"), True)
+    _check("both None",                      _counterparty_match(None, None), True)
+    _check("gold None, pred set → mismatch", _counterparty_match(None, "SBI UPI"), False)
+    _check("gold set, pred None → mismatch", _counterparty_match("Saanvi Star", None), False)
+    _check("different VPA digit",            _counterparty_match("q36252344@ybl", "q362523441@ybl"), False)
+    _check("typo in VPA",                    _counterparty_match("manisharadwadoksbi", "manishardwadoksbi"), False)
+    _check("substring < 3 chars guard",      _counterparty_match("A", "ABC Corp"), False)
 
     print("\n=== ghost_transaction_rate / missed_transaction_rate ===")
     null_gold = ["null"]
-    txn_gold  = ['{"amount": 150.0, "merchant": "Zomato", "type": "debit", "account": "A/c XX1234"}']
-    txn_pred  = ['{"amount": 150.0, "merchant": "Zomato", "type": "debit", "account": "A/c XX1234"}']
+    txn_gold  = ['{"amount": 150.0, "counterparty": "Zomato", "type": "debit", "account": "A/c XX1234"}']
+    txn_pred  = ['{"amount": 150.0, "counterparty": "Zomato", "type": "debit", "account": "A/c XX1234"}']
     null_pred = ["null"]
 
     _check("ghost: null gold + txn pred → 1.0",  ghost_transaction_rate(null_gold, txn_pred),  1.0)
@@ -560,8 +565,8 @@ if __name__ == "__main__":
     _check("missed: null gold + null pred → 0.0",missed_transaction_rate(null_gold, null_pred),0.0)
 
     print("\n=== few_shot_leakage_rate ===")
-    vpa_leakage = ['{"amount": 500.0, "merchant": "demouser000@examplebank", "type": "credit", "account": "a/c XXXXXX0000"}']
-    diff_pred   = ['{"amount": 999.0, "merchant": "Foo", "type": "debit", "account": "A/c XX9999"}']
+    vpa_leakage = ['{"amount": 500.0, "counterparty": "demouser000@examplebank", "type": "credit", "account": "a/c XXXXXX0000"}']
+    diff_pred   = ['{"amount": 999.0, "counterparty": "Foo", "type": "debit", "account": "A/c XX9999"}']
     _check("leakage: null gold + few-shot answer → 1.0",
            few_shot_leakage_rate(null_gold, vpa_leakage), 1.0)
     _check("no leakage: null gold + different pred → 0.0",
@@ -570,13 +575,13 @@ if __name__ == "__main__":
            few_shot_leakage_rate(txn_gold, vpa_leakage), 0.0)
 
     print("\n=== full_match_accuracy ===")
-    ref1 = ['{"amount": 5000.0, "merchant": null, "type": "debit", "account": "a/c no. XXXXXXXX6254"}']
+    ref1 = ['{"amount": 5000.0, "counterparty": null, "type": "debit", "account": "a/c no. XXXXXXXX6254"}']
     # Normalised format, different account style — should match
-    pred_ok = ['{"amount": 5000.0, "merchant": null, "type": "debit", "account": "A/c XXXXXXXX6254"}']
+    pred_ok = ['{"amount": 5000.0, "counterparty": null, "type": "debit", "account": "A/c XXXXXXXX6254"}']
     _check("full match with normalized account",  full_match_accuracy(ref1, pred_ok), 1.0)
-    pred_wrong_type = ['{"amount": 5000.0, "merchant": null, "type": "credit", "account": "a/c no. XXXXXXXX6254"}']
+    pred_wrong_type = ['{"amount": 5000.0, "counterparty": null, "type": "credit", "account": "a/c no. XXXXXXXX6254"}']
     _check("wrong type → 0.0",    full_match_accuracy(ref1, pred_wrong_type), 0.0)
-    pred_wrong_amt  = ['{"amount": 500.0,  "merchant": null, "type": "debit",  "account": "a/c no. XXXXXXXX6254"}']
+    pred_wrong_amt  = ['{"amount": 500.0,  "counterparty": null, "type": "debit",  "account": "a/c no. XXXXXXXX6254"}']
     _check("wrong amount → 0.0",  full_match_accuracy(ref1, pred_wrong_amt),  0.0)
     _check("null-null → 1.0",     full_match_accuracy(["null"], ["null"]),     1.0)
     _check("null gold, txn pred → 0.0", full_match_accuracy(["null"], pred_ok), 0.0)

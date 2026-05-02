@@ -1,0 +1,2316 @@
+
+QWEN MISSED:
+SMS: HDFC Bank: Rs. 3000.00 credited to a/c XXXXXX9141 on 03-06-24 by a/c linked to VPA 8147717477@axisb (UPI Ref No  415596641087).
+TARGET: {"amount": 3000.0, "merchant": "8147717477@axisb", "date": "03-06-2024", "type": "credit", "account": "a/c XXXXXX9141"}
+
+QWEN MISSED:
+SMS: Transaction Successful! INR 23.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at MIDAS DAILY on 14-APR-2024 at 07:01 PM. Avbl limit: Rs.45893.00. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 23.0, "merchant": "MIDAS DAILY", "date": "14-04-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+QWEN MISSED:
+SMS: Dear Customer, Your a/c no. XXXXXXXX6254 is credited by Rs.1.00 on 20-11-22 by a/c linked to mobile 1XXXXXX890-APIBANKING (IMPS Ref no 232413036764).If not done by you, call 1800111109. -SBI
+TARGET: {"amount": 1.0, "merchant": "1XXXXXX890-APIBANKING", "date": "20-11-2022", "type": "credit", "account": "a/c no. XXXXXXXX6254"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.75.00
+From HDFC Bank A/C *9141
+To AJAY KUMAR YADAV
+On 01-10
+Ref 427566724545
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 75.0, "merchant": "AJAY KUMAR YADAV", "date": "01-10", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Dear Customer, INR 35.00 credited to your A/c No XX6254 on 19/12/2022 through NEFT with UTR 000287975949 by MULTIPL FINTECH SOLUTIONS PRIVATE L, INFO: Multipl Cashback Reward Multipl Cashback Reward Multipl Cashback Reward-SBI
+TARGET: {"amount": 35.0, "merchant": "MULTIPL FINTECH SOLUTIONS PRIVATE L", "date": "19-12-2022", "type": "credit", "account": "A/c No XX6254"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.15.00
+From HDFC Bank A/C *9141
+To UDUPI UPACHAR
+On 25-02
+Ref 442208313597
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 15.0, "merchant": "UDUPI UPACHAR", "date": "25-02", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Delicious Purchase! INR 253.00 spent on your IDFC FIRST Bank Credit Card XX3782 at Bundl technologies P on 14-JUN-2024 Available limit: INR 49065.00 Activate UPI: https://idfcfr.in/vbMFV1 Not You? To block card SMS CCBLOCK 3782 to 5676732 or call 180010888
+TARGET: {"amount": 253.0, "merchant": "Bundl technologies P", "date": "14-06-2024", "type": "debit", "account": "Credit Card XX3782"}
+
+QWEN MISSED:
+SMS: Happy Shopping! INR 83.00 spent on your IDFC FIRST Bank Credit Card XX3782 at Axis on 18-JUN-2024 Available limit: INR 47015.00 Activate UPI: https://idfcfr.in/vbMFV1 Not You? To block card SMS CCBLOCK 3782 to 5676732 or call 180010888
+TARGET: {"amount": 83.0, "merchant": "Axis", "date": "18-06-2024", "type": "debit", "account": "Credit Card XX3782"}
+
+QWEN MISSED:
+SMS: Your A/C XXXXX436254 Debited INR 1,000.00 on 06/12/21 -Transferred to SBI GENERAL INSURANC. Avl Balance INR 1,000.00-SBI
+TARGET: {"amount": 1000.0, "merchant": "SBI GENERAL INSURANC", "date": "06-12-2021", "type": "debit", "account": "A/C XXXXX436254"}
+
+QWEN MISSED:
+SMS: Used Rs526.00
+On HDFCBank Card 0816
+At swiggy1online.gpay@okpayaxis 
+by UPI 425947281526
+On 15-09
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 526.0, "merchant": "swiggy1online.gpay@okpayaxis", "date": "15-09", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Transaction Successful! INR 190.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at SWIGGY on 01-FEB-2024 at 12:51 PM. Avbl limit: Rs.41706.26. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 190.0, "merchant": "SWIGGY", "date": "01-02-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+QWEN MISSED:
+SMS: Alert!You've spent Rs.3939 On HDFC Bank Debit Card xx4955 At IDFCBANK1299025 On 2023-09-29:16:43:05 Avl bal: 51010.08 Not you?Call 18002586161
+TARGET: {"amount": 3939.0, "merchant": "IDFCBANK1299025", "date": "29-09-2023", "type": "debit", "account": "Debit Card xx4955"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs209.0 on 02Feb23 transfer to billdesktez Ref No 303380853533. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 209.0, "merchant": "billdesktez", "date": "02-02-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Dear Customer, INR 30,954.00 credited to your A/c No XX6254 on 21/08/2023 through NEFT with UTR CITIN23410879427 by CARELON GLOBAL SOLUTIONS INDIA LLP, INFO: EMP REIMBURSEMENT-SBI
+TARGET: {"amount": 30954.0, "merchant": "CARELON GLOBAL SOLUTIONS INDIA LLP", "date": "21-08-2023", "type": "credit", "account": "A/c No XX6254"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs400.0 on 11Feb23 transfer to BharatpeMerchant Ref No 304272007608. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 400.0, "merchant": "BharatpeMerchant", "date": "11-02-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Looks like you're one step closer to securing the future of your loved ones!  INR 6572.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at www.hdfclife.com on 30-JAN-2024 at 08:02 PM. Avbl limit: Rs.41779.51. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 6572.0, "merchant": "www.hdfclife.com", "date": "30-01-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.4848.00
+From HDFC Bank A/C *9141
+To Axis
+On 29-04
+Ref 448617252288
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 4848.0, "merchant": "Axis", "date": "29-04", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: HDFC Bank: Rs 14672.00 debited from A/c XXXXXX9141 towards Azad Engineering Limited on 27/12/23. Application No. 336135940993, UMN: 0d12dd3e2de51c89e0637fe6e20a23f4@okhdfcbank. If not you, kindly report on 18002586161.
+TARGET: {"amount": 14672.0, "merchant": "Azad Engineering Limited", "date": "27-12-2023", "type": "debit", "account": "A/c XXXXXX9141"}
+
+QWEN MISSED:
+SMS: Used Rs106.00
+On HDFCBank Card 0816
+At q362523441@ybl 
+by UPI 422581327620
+On 12-08
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 106.0, "merchant": "q36252344@ybl", "date": "12-08", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs234.0 on 01Jul23 transfer to THE RIGHTBOOK Ref No 318227860550. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 234.0, "merchant": "THE RIGHTBOOK", "date": "01-07-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs80.0 on 02Sep22 transfer to ananda Ref No 224501835315. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 80.0, "merchant": "ananda", "date": "02-09-2022", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: HDFC Bank Cardmember, Rs 587 has been credited on your credit card ending 6719 from FLIGHTS MOJO BOOKINGS  South West De IND on 16/FEB/2024. Ask Eva for details, hdfcbk.io/k/XAOXmhw4q4e
+TARGET: {"amount": 587.0, "merchant": "FLIGHTS MOJO BOOKINGS", "date": "16/02/2024", "type": "credit", "account": "credit card ending 6719"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.17.10
+From HDFC Bank A/C *9141
+To PAYTM APP
+On 21-09
+Ref 426570947078
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 17.1, "merchant": "PAYTM APP", "date": "21-09", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Dear Customer, Your a/c no. XXXXXXXX6254 is credited by Rs.1.00 on 27-12-22 by a/c linked to mobile 1XXXXXX890-APIBANKING (IMPS Ref no 236127060114).If not done by you, call 1800111109. -SBI
+TARGET: {"amount": 1.0, "merchant": "1XXXXXX890-APIBANKING", "date": "27-12-2022", "type": "credit", "account": "a/c no. XXXXXXXX6254"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.6041.00
+From HDFC Bank A/C *9141
+To Axis
+On 31-05
+Ref 415223124467
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 6041.0, "merchant": "Axis", "date": "31-05", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Dear Customer, Your a/c no. XXXXXXXX6254 is credited by Rs.1.00 on 25-05-22 by a/c linked to mobile 5XXXXXX274-Razorpay Composite  (IMPS Ref no 214515009354).If not done by you, call 1800111109. -SBI
+TARGET: {"amount": 1.0, "merchant": "5XXXXXX274-Razorpay", "date": "25-05-2022", "type": "credit", "account": "a/c no. XXXXXXXX6254"}
+
+QWEN MISSED:
+SMS: Transaction Successful! INR 203.00 spent on your IDFC FIRST Bank Credit Card XX3782 at Swiggy on 23-JUN-2024 Available limit: INR 46472.00 Activate UPI: https://idfcfr.in/vbMFV1 Not You? To block card SMS CCBLOCK 3782 to 5676732 or call 180010888
+TARGET: {"amount": 203.0, "merchant": "Swiggy", "date": "23-06-2024", "type": "debit", "account": "Credit Card XX3782"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.299.00
+From HDFC Bank A/C *9141
+To CAPITALFLOAT
+On 03-06
+Ref 452130633035
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 299.0, "merchant": "CAPITALFLOAT", "date": "03-06", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Rs.1029.13 spent on HDFC Bank Card x6719 at UBER INDIA SYSTE PVT L on 2024-04-18:02:37:09.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 1029.13, "merchant": "UBER INDIA SYSTE PVT L", "date": "18-04-2024", "type": "debit", "account": "Card x6719"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs24.0 on 14Feb23 transfer to SRI SAI SOUTH Ref No 341180677876. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 24.0, "merchant": "SRI SAI SOUTH", "date": "14-02-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Transaction Successful! INR 246.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at MIDAS DAILY on 24-JAN-2024 at 06:23 PM. Avbl limit: Rs.34589.05. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 246.0, "merchant": "MIDAS DAILY", "date": "24-01-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+QWEN MISSED:
+SMS: Rs.200 spent on HDFC Bank Card x6719 at IND*VistaPrint on 2024-03-11:13:19:35.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 200.0, "merchant": "IND*VistaPrint", "date": "11-03-2024", "type": "debit", "account": "Card x6719"}
+
+QWEN MISSED:
+SMS: Dear Customer, INR 2,000.00 credited to your A/c No XX6254 on 31/07/2023 through NEFT with UTR RBI2122393122556 by IISc, Bangalore, INFO: -SBI
+TARGET: {"amount": 2000.0, "merchant": "IISc, Bangalore", "date": "31-07-2023", "type": "credit", "account": "A/c No XX6254"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs240.0 on 24Jun23 transfer to Mr RAGHAVENDRA A Ref No 317584048534. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 240.0, "merchant": "Mr RAGHAVENDRA A", "date": "24-06-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs20.0 on 22Feb23 transfer to VIVEK S NAIK HUF Ref No 305363192242. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 20.0, "merchant": "VIVEK S NAIK HUF", "date": "22-02-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs85.0 on 18Sep22 transfer to Saanvi Star Ref No 226156010284. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 85.0, "merchant": "Saanvi Star", "date": "18-09-2022", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.70.00
+From HDFC Bank A/C *9141
+To OMA  RAM
+On 21-06
+Ref 417339640847
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 70.0, "merchant": "OMA  RAM", "date": "21-06", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Dear Customer, INR 12,400.00 credited to your A/c No XX6254 on 29/04/2022 through NEFT with UTR RBI1202227788622 by IISc, Bangalore, INFO: -SBI
+TARGET: {"amount": 12400.0, "merchant": "IISc, Bangalore", "date": "29-04-2022", "type": "credit", "account": "A/c No XX6254"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.90.00
+From HDFC Bank A/C *9141
+To IRCTC UTS
+On 18-04
+Ref 410978079326
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 90.0, "merchant": "IRCTC UTS", "date": "18-04", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: HDFC Bank: Rs. 100.00 credited to a/c XXXXXX9141 on 27-04-24 by a/c linked to VPA paytm-8727353@paytm (UPI Ref No  448426661211).
+TARGET: {"amount": 100.0, "merchant": "paytm-8727353@paytm", "date": "27-04-2024", "type": "credit", "account": "a/c XXXXXX9141"}
+
+QWEN MISSED:
+SMS: Hope you had a great meal! INR 15.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at GANESHBHAVAN on 10-FEB-2024 at 06:48 PM. Avbl limit: Rs.40982.44. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 15.0, "merchant": "GANESHBHAVAN", "date": "10-02-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs80.0 on 22Apr23 transfer to SEETHARAMA V G Ref No 347848529742. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 80.0, "merchant": "SEETHARAMA V G", "date": "22-04-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Your A/c. XXXXXXXX7902 is credited by Rs. 1.00 on 08-06-21 by A/c XXXX18625001 ( IMPS Ref no. 115915316496 ).-MAHABANK
+TARGET: {"amount": 1.0, "merchant": "XXXX18625001", "date": "08-06-2021", "type": "credit", "account": "A/c. XXXXXXXX7902"}
+
+QWEN MISSED:
+SMS: HDFC Bank: Rs. 10000.00 credited to a/c XXXXXX9141 on 14-09-23 by a/c linked to VPA manisharadwadoksbi (UPI Ref No  325749424560).
+TARGET: {"amount": 10000.0, "merchant": "manisharadwadoksbi", "date": "14-09-2023", "type": "credit", "account": "a/c XXXXXX9141"}
+
+QWEN MISSED:
+SMS: Looks like you're one step closer to securing the future of your loved ones!  INR 6574.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at HDFC STANDARD LIFE CONV on 28-DEC-2023 at 08:51 PM.
+TARGET: {"amount": 6574.0, "merchant": "HDFC STANDARD LIFE CONV", "date": "28-12-2023", "type": "debit", "account": "Credit Card ending XX3782"}
+
+QWEN MISSED:
+SMS: Txn Rs.40.00
+On HDFC Bank Card 0816
+At paytm-33345433@ptybl 
+by UPI 104398633131
+On 07-05
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 40.0, "merchant": "paytm-33345433@ptybl", "date": "07-05", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: INR 133.00 spent using ICICI Bank Card XX3009 on 08-Mar-26 on AMAZON PAY IN G. Avl Limit: INR 3,97,313.13. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 133.0, "merchant": "AMAZON PAY IN G", "date": "08-03-2026", "type": "debit", "account": "Card XX3009"}
+
+QWEN MISSED:
+SMS: Update! INR 1,57,929.00 deposited in HDFC Bank A/c XX9141 on 30-JAN-26 for NEFT Cr-CITI0000004-HONEYWELL TECH SOLNS LAB P LTD-MANISH SATISH ARADWAD-CITIN26613796504.Avl bal INR 1,62,226.51. Cheque deposits in A/C are subject to clearing
+TARGET: {"amount": 157929.0, "merchant": "HONEYWELL TECH SOLNS LAB P LTD", "date": "30-01-2026", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Sent Rs.50.00
+From HDFC Bank A/C *9141
+To PAYTM TRAVEL
+On 05/02/26
+Ref 603658296706
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 50.0, "merchant": "PAYTM TRAVEL", "date": "05-02-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-credited by Rs.1170 on 10Nov25 transfer from PRAGYAFARKYA Ref No 134449442591 -SBI
+TARGET: {"amount": 1170.0, "merchant": "PRAGYAFARKYA", "date": "10-11-2025", "type": "credit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Txn Rs.247.00
+On HDFC Bank Card 0816
+At swiggyinstamart1online.gpay@okpayaxis 
+by UPI 105989229866
+On 05-06
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 247.0, "merchant": "swiggyinstamart1online.gpay@okpayaxis", "date": "05-06", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 55.00 on 18-Feb-26 for UPI-641510079422-Compass. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 55.0, "merchant": "UPI-641510079422-Compass", "date": "18-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+QWEN MISSED:
+SMS: INR 156.00 spent using ICICI Bank Card XX3009 on 05-Mar-26 on AMAZON PAY IN G. Avl Limit: INR 3,97,162.13. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 156.0, "merchant": "AMAZON PAY IN G", "date": "05-03-2026", "type": "debit", "account": "Card XX3009"}
+
+QWEN MISSED:
+SMS: Sent Rs.22637.00
+From HDFC Bank A/C *9141
+To LUBHAWAN PARIHAR
+On 01/01/26
+Ref 636709319217
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 22637.0, "merchant": "LUBHAWAN PARIHAR", "date": "01-01-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Alert! Rs. 2 refunded by GOOGLEPLAY             MUMBAI        MAH on 25/JUN/2025 & adjusted against HDFC Bank Credit Card 6719 View updated balance here: https://hdfcbk.io/HDFCBK/s/lPNmNXO9
+TARGET: {"amount": 2.0, "merchant": "GOOGLEPLAY             MUMBAI        MAH", "date": "25-06-2025", "type": "credit", "account": "Credit Card 6719"}
+
+QWEN MISSED:
+SMS: Txn Rs.274.00
+On HDFC Bank Card 0816
+At blinkit.payu@hdfcbank 
+by UPI 640517580870
+On 08-02
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 274.0, "merchant": "blinkit.payu@hdfcbank", "date": "08-02", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Credit Alert!
+Rs.500.00 credited to HDFC Bank A/c XX9141 on 27-11-25 from VPA rishabh.gupta.18697@okaxis (UPI 533191724729)
+TARGET: {"amount": 500.0, "merchant": "rishabh.gupta.18697@okaxis", "date": "27-11-2025", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Spent Rs.236 On HDFC Bank Card 6719 At Bangalore On 2026-02-15:18:50:18.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 236.0, "merchant": "Bangalore", "date": "15-02-2026", "type": "debit", "account": "Card 6719"}
+
+QWEN MISSED:
+SMS: Update! INR 1,58,308.00 deposited in HDFC Bank A/c XX9141 on 28-NOV-25 for NEFT Cr-CITI0000004-HONEYWELL TECH SOLNS LAB P LTD-MANISH SATISH ARADWAD-CITIN25661716049.Avl bal INR 1,83,470.67. Cheque deposits in A/C are subject to clearing
+TARGET: {"amount": 158308.0, "merchant": "HONEYWELL TECH SOLNS LAB P LTD", "date": "28-11-2025", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Sent Rs.50.00
+From HDFC Bank A/C *9141
+To Bengaluru Metro
+On 07/02/26
+Ref 603879384388
+Not You?
+Call 18002586 161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 50.0, "merchant": "Bengaluru Metro", "date": "07-02-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Txn Rs.672.00
+On HDFC Bank Card 0816
+At zepto.payu@axisbank
+by UPI 639125278699
+On 25-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 672.0, "merchant": "zepto.payu@axisbank", "date": "25-01", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Credit Alert!
+Rs.5.00 credited to HDFC Bank A/c xx9141 on 03-01-25 from VPA appleservices.bdsi@hdfcbank (UPI 500372630947)
+TARGET: {"amount": 5.0, "merchant": "appleservices.bdsi@hdfcbank", "date": "03-01-2025", "type": "credit", "account": "A/c xx9141"}
+
+QWEN MISSED:
+SMS: Sent Rs.162.00
+From HDFC Bank A/C *9141
+To GURUKIRAN T N
+On 27/07/25
+Ref 557400751537
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 162.0, "merchant": "GURUKIRAN T N", "date": "27-07-2025", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Rs.1044.82 spent on HDFC Bank Card x6719 at Raz*Simpl on 2025-04-07:12:01:33.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 1044.82, "merchant": "Raz*Simpl", "date": "07-04-2025", "type": "debit", "account": "Card x6719"}
+
+QWEN MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 60.00 on 12-Feb-26 for UPI-640971125815-Compass. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 60.0, "merchant": "Compass", "date": "12-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+QWEN MISSED:
+SMS: Credit Alert!
+Rs.15000.00 credited to HDFC Bank A/c XX9141 on 03-03-26 from VPA manisharadwad@oksbi (UPI 606238570072)
+TARGET: {"amount": 15000.0, "merchant": "manisharadwad@oksbi", "date": "03-03-2026", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Txn Rs.60.00
+On HDFC Bank Card 0816
+At paytm-33345433@ptybl 
+by UPI 105558715276
+On 29-05
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 60.0, "merchant": "paytm-33345433@ptybl", "date": "29-05", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 336.00 on 08-Feb-26 for UPI-603959342113-Zepto. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 336.0, "merchant": "Zepto", "date": "08-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+QWEN MISSED:
+SMS: Txn Rs.584.92
+On HDFC Bank Card 0816
+At mcdonalds.27307814@hdfcba
+by UPI 638111729267
+On 15-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 584.92, "merchant": "mcdonalds.27307814@hdfcba", "date": "15-01", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Sent Rs.756.00
+From HDFC Bank A/C *9141
+To PRIYAL  SHRIVASTAVA
+On 18/01/26
+Ref 117363155031
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 756.0, "merchant": "PRIYAL  SHRIVASTAVA", "date": "18-01-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Spent Rs.2458.2 On HDFC Bank Card 6719 At 102 sawan bhawan naigaon On 2025-04-25:20:19:18.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 2458.2, "merchant": "102 sawan bhawan naigaon", "date": "25-04-2025", "type": "debit", "account": "Card 6719"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-credited by Rs.11000 on 21Jan26 transfer from MANISH SATISH ARADWAD Ref No 117518836563 -SBI
+TARGET: {"amount": 11000.0, "merchant": "MANISH SATISH ARADWAD", "date": "21-01-2026", "type": "credit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Sent Rs.6327.37
+From HDFC Bank A/C x9141
+To CRED Club
+On 30/04/25
+Ref 548605768446
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 6327.37, "merchant": "CRED Club", "date": "30-04-2025", "type": "debit", "account": "A/C x9141"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-credited by Rs.5000 on 31Jan26 transfer from Shekhar Sadashiv Jadhav Ref No 649857678059 -SBI
+TARGET: {"amount": 5000.0, "merchant": "Shekhar Sadashiv Jadhav", "date": "31-01-2026", "type": "credit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Update! INR 1,57,504.00 deposited in HDFC Bank A/c XX9141 on 27-FEB-26 for NEFT Cr-CITI0000004-HONEYWELL TECH SOLNS LAB P LTD-MANISH SATISH ARADWAD-CITIN26628728462.Avl bal INR 1,73,099.51. Cheque deposits in A/C are subject to clearing
+TARGET: {"amount": 157504.0, "merchant": "HONEYWELL TECH SOLNS LAB P LTD", "date": "27-02-2026", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Sent Rs.799.00
+From HDFC Bank A/C x9141
+To CAPITALFLOAT
+On 01/05/25
+Ref 512162368300
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 799.0, "merchant": "CAPITALFLOAT", "date": "01-05-2025", "type": "debit", "account": "A/C x9141"}
+
+QWEN MISSED:
+SMS: Credit Alert!
+Rs.2756.00 credited to HDFC Bank A/c XX9141 on 17-01-26 from VPA priyalshrivastava03@okhdfcbank (UPI 117343839648)
+TARGET: {"amount": 2756.0, "merchant": "priyalshrivastava03@okhdfcbank", "date": "17-01-2026", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Sent Rs.450.00
+From HDFC Bank A/C *9141
+To POONAM DEVI
+On 28/11/25
+Ref 114834426240
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 450.0, "merchant": "POONAM DEVI", "date": "28-11-2025", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Spent Rs.325 On HDFC Bank Card 6719 At TOWER 5IAND5J BUNDLTECHNO On 2026-01-11:19:06:08.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 325.0, "merchant": "TOWER 5IAND5J BUNDLTECHNO", "date": "11-01-2026", "type": "debit", "account": "Card 6719"}
+
+QWEN MISSED:
+SMS: Sent Rs.1000.00
+From HDFC Bank A/C *9141
+To RAKSHITA PRABHU
+On 13/03/26
+Ref 119958796451
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 1000.0, "merchant": "RAKSHITA PRABHU", "date": "13-03-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 197.00 on 08-Feb-26 for UPI-603945226362-Swiggy. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 197.0, "merchant": "Swiggy", "date": "08-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+QWEN MISSED:
+SMS: Spent Rs.349 On HDFC Bank Card 6719 At PTM*RELIANCE RETAIL LI On 2026-02-23:21:36:50.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 349.0, "merchant": "PTM*RELIANCE RETAIL LI", "date": "23-02-2026", "type": "debit", "account": "Card 6719"}
+
+QWEN MISSED:
+SMS: INR 119.00 spent using ICICI Bank Card XX3009 on 13-Oct-25 on AMAZON PAY IN G. Avl Limit: INR 3,97,628.78. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 119.0, "merchant": "AMAZON PAY IN G", "date": "13-10-2025", "type": "debit", "account": "Card XX3009"}
+
+QWEN MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 55.00 on 27-Feb-26 for UPI-605818126719-Compass. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 55.0, "merchant": "Compass", "date": "27-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+QWEN MISSED:
+SMS: Txn Rs.10.00
+On HDFC Bank Card 0816
+At q978280566@ybl
+by UPI 639313436971
+On 27-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 10.0, "merchant": "q978280566@ybl", "date": "27-01", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: INR 899.00 spent using ICICI Bank Card XX3009 on 29-Apr-25 on IND*Amazon. Avl Limit: INR 3,62,775.38. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 899.0, "merchant": "IND*Amazon", "date": "29-04-2025", "type": "debit", "account": "Card XX3009"}
+
+QWEN MISSED:
+SMS: Txn Rs.235.00
+On HDFC Bank Card 0816
+At blinkit.payu@hdfcbank
+by UPI 643800233353
+On 13-03
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 235.0, "merchant": "blinkit.payu@hdfcbank", "date": "13-03", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Sent Rs.290.00
+From HDFC Bank A/C *9141
+To RAMESH BABU RAO G N
+On 17/01/26
+Ref 638312973547
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 290.0, "merchant": "RAMESH BABU RAO G N", "date": "17-01-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: INR 1,025.00 spent using ICICI Bank Card XX3009 on 14-Jan-26 on AMAZON PAY WALL. Avl Limit: INR 3,99,015.00. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 1025.0, "merchant": "AMAZON PAY WALL", "date": "14-01-2026", "type": "debit", "account": "Card XX3009"}
+
+QWEN MISSED:
+SMS: Sent Rs.75.00
+From HDFC Bank A/C *9141
+To SOUMYADEEP CHANDRA
+On 05/01/26
+Ref 637107015293
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 75.0, "merchant": "SOUMYADEEP CHANDRA", "date": "05-01-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Rs.753.95 spent on HDFC Bank Card x6719 at JIO PLATFORMS LIMITE on 2025-03-17:14:54:14.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 753.95, "merchant": "JIO PLATFORMS LIMITE", "date": "17-03-2025", "type": "debit", "account": "Card x6719"}
+
+QWEN MISSED:
+SMS: Txn Rs.334.00
+On HDFC Bank Card 0816
+At zeptomarketplacepriva.payu@mairtel 
+by UPI 116508565884
+On 01-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 334.0, "merchant": "zeptomarketplacepriva.payu@mairtel", "date": "01-01", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Txn Rs.60.00
+On HDFC Bank Card 0816
+At paytm-33345433@ptybl
+by UPI 117109380391
+On 13-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 60.0, "merchant": "paytm-33345433@ptybl", "date": "13-01", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Sent Rs.43.00
+From HDFC Bank A/C *9141
+To Corporate Cafe
+On 05/02/26
+Ref 640227036298
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 43.0, "merchant": "Corporate Cafe", "date": "05-02-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Credit Alert!
+Rs.70000.00 credited to HDFC Bank A/c XX9141 on 18-01-26 from VPA 9636269931@yescred (UPI 638417111701)
+TARGET: {"amount": 70000.0, "merchant": "9636269931@yescred", "date": "18-01-2026", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Txn Rs.244.00
+On HDFC Bank Card 0816
+At swiggyinstamart1online.gpay@okpayaxis 
+by UPI 106983795229
+On 24-06
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 244.0, "merchant": "swiggyinstamart1online.gpay@okpayaxis", "date": "24-06", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: HDFC Bank: Rs. 3000.00 credited to a/c XXXXXX9141 on 03-06-24 by a/c linked to VPA 8147717477@axisb (UPI Ref No  415596641087).
+TARGET: {"amount": 3000.0, "merchant": "8147717477@axisb", "date": "03-06-2024", "type": "credit", "account": "a/c XXXXXX9141"}
+
+QWEN MISSED:
+SMS: Transaction Successful! INR 23.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at MIDAS DAILY on 14-APR-2024 at 07:01 PM. Avbl limit: Rs.45893.00. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 23.0, "merchant": "MIDAS DAILY", "date": "14-04-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+QWEN MISSED:
+SMS: Dear Customer, Your a/c no. XXXXXXXX6254 is credited by Rs.1.00 on 20-11-22 by a/c linked to mobile 1XXXXXX890-APIBANKING (IMPS Ref no 232413036764).If not done by you, call 1800111109. -SBI
+TARGET: {"amount": 1.0, "merchant": "1XXXXXX890-APIBANKING", "date": "20-11-2022", "type": "credit", "account": "a/c no. XXXXXXXX6254"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.75.00
+From HDFC Bank A/C *9141
+To AJAY KUMAR YADAV
+On 01-10
+Ref 427566724545
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 75.0, "merchant": "AJAY KUMAR YADAV", "date": "01-10", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Dear Customer, INR 35.00 credited to your A/c No XX6254 on 19/12/2022 through NEFT with UTR 000287975949 by MULTIPL FINTECH SOLUTIONS PRIVATE L, INFO: Multipl Cashback Reward Multipl Cashback Reward Multipl Cashback Reward-SBI
+TARGET: {"amount": 35.0, "merchant": "MULTIPL FINTECH SOLUTIONS PRIVATE L", "date": "19-12-2022", "type": "credit", "account": "A/c No XX6254"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.15.00
+From HDFC Bank A/C *9141
+To UDUPI UPACHAR
+On 25-02
+Ref 442208313597
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 15.0, "merchant": "UDUPI UPACHAR", "date": "25-02", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Delicious Purchase! INR 253.00 spent on your IDFC FIRST Bank Credit Card XX3782 at Bundl technologies P on 14-JUN-2024 Available limit: INR 49065.00 Activate UPI: https://idfcfr.in/vbMFV1 Not You? To block card SMS CCBLOCK 3782 to 5676732 or call 180010888
+TARGET: {"amount": 253.0, "merchant": "Bundl technologies P", "date": "14-06-2024", "type": "debit", "account": "Credit Card XX3782"}
+
+QWEN MISSED:
+SMS: Happy Shopping! INR 83.00 spent on your IDFC FIRST Bank Credit Card XX3782 at Axis on 18-JUN-2024 Available limit: INR 47015.00 Activate UPI: https://idfcfr.in/vbMFV1 Not You? To block card SMS CCBLOCK 3782 to 5676732 or call 180010888
+TARGET: {"amount": 83.0, "merchant": "Axis", "date": "18-06-2024", "type": "debit", "account": "Credit Card XX3782"}
+
+QWEN MISSED:
+SMS: Your A/C XXXXX436254 Debited INR 1,000.00 on 06/12/21 -Transferred to SBI GENERAL INSURANC. Avl Balance INR 1,000.00-SBI
+TARGET: {"amount": 1000.0, "merchant": "SBI GENERAL INSURANC", "date": "06-12-2021", "type": "debit", "account": "A/C XXXXX436254"}
+
+QWEN MISSED:
+SMS: Used Rs526.00
+On HDFCBank Card 0816
+At swiggy1online.gpay@okpayaxis 
+by UPI 425947281526
+On 15-09
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 526.0, "merchant": "swiggy1online.gpay@okpayaxis", "date": "15-09", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Transaction Successful! INR 190.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at SWIGGY on 01-FEB-2024 at 12:51 PM. Avbl limit: Rs.41706.26. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 190.0, "merchant": "SWIGGY", "date": "01-02-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+QWEN MISSED:
+SMS: Alert!You've spent Rs.3939 On HDFC Bank Debit Card xx4955 At IDFCBANK1299025 On 2023-09-29:16:43:05 Avl bal: 51010.08 Not you?Call 18002586161
+TARGET: {"amount": 3939.0, "merchant": "IDFCBANK1299025", "date": "29-09-2023", "type": "debit", "account": "Debit Card xx4955"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs209.0 on 02Feb23 transfer to billdesktez Ref No 303380853533. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 209.0, "merchant": "billdesktez", "date": "02-02-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Dear Customer, INR 30,954.00 credited to your A/c No XX6254 on 21/08/2023 through NEFT with UTR CITIN23410879427 by CARELON GLOBAL SOLUTIONS INDIA LLP, INFO: EMP REIMBURSEMENT-SBI
+TARGET: {"amount": 30954.0, "merchant": "CARELON GLOBAL SOLUTIONS INDIA LLP", "date": "21-08-2023", "type": "credit", "account": "A/c No XX6254"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs400.0 on 11Feb23 transfer to BharatpeMerchant Ref No 304272007608. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 400.0, "merchant": "BharatpeMerchant", "date": "11-02-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Looks like you're one step closer to securing the future of your loved ones!  INR 6572.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at www.hdfclife.com on 30-JAN-2024 at 08:02 PM. Avbl limit: Rs.41779.51. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 6572.0, "merchant": "www.hdfclife.com", "date": "30-01-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.4848.00
+From HDFC Bank A/C *9141
+To Axis
+On 29-04
+Ref 448617252288
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 4848.0, "merchant": "Axis", "date": "29-04", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: HDFC Bank: Rs 14672.00 debited from A/c XXXXXX9141 towards Azad Engineering Limited on 27/12/23. Application No. 336135940993, UMN: 0d12dd3e2de51c89e0637fe6e20a23f4@okhdfcbank. If not you, kindly report on 18002586161.
+TARGET: {"amount": 14672.0, "merchant": "Azad Engineering Limited", "date": "27-12-2023", "type": "debit", "account": "A/c XXXXXX9141"}
+
+QWEN MISSED:
+SMS: Used Rs106.00
+On HDFCBank Card 0816
+At q362523441@ybl 
+by UPI 422581327620
+On 12-08
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 106.0, "merchant": "q36252344@ybl", "date": "12-08", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs234.0 on 01Jul23 transfer to THE RIGHTBOOK Ref No 318227860550. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 234.0, "merchant": "THE RIGHTBOOK", "date": "01-07-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs80.0 on 02Sep22 transfer to ananda Ref No 224501835315. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 80.0, "merchant": "ananda", "date": "02-09-2022", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: HDFC Bank Cardmember, Rs 587 has been credited on your credit card ending 6719 from FLIGHTS MOJO BOOKINGS  South West De IND on 16/FEB/2024. Ask Eva for details, hdfcbk.io/k/XAOXmhw4q4e
+TARGET: {"amount": 587.0, "merchant": "FLIGHTS MOJO BOOKINGS", "date": "16/02/2024", "type": "credit", "account": "credit card ending 6719"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.17.10
+From HDFC Bank A/C *9141
+To PAYTM APP
+On 21-09
+Ref 426570947078
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 17.1, "merchant": "PAYTM APP", "date": "21-09", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Dear Customer, Your a/c no. XXXXXXXX6254 is credited by Rs.1.00 on 27-12-22 by a/c linked to mobile 1XXXXXX890-APIBANKING (IMPS Ref no 236127060114).If not done by you, call 1800111109. -SBI
+TARGET: {"amount": 1.0, "merchant": "1XXXXXX890-APIBANKING", "date": "27-12-2022", "type": "credit", "account": "a/c no. XXXXXXXX6254"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.6041.00
+From HDFC Bank A/C *9141
+To Axis
+On 31-05
+Ref 415223124467
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 6041.0, "merchant": "Axis", "date": "31-05", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Dear Customer, Your a/c no. XXXXXXXX6254 is credited by Rs.1.00 on 25-05-22 by a/c linked to mobile 5XXXXXX274-Razorpay Composite  (IMPS Ref no 214515009354).If not done by you, call 1800111109. -SBI
+TARGET: {"amount": 1.0, "merchant": "5XXXXXX274-Razorpay", "date": "25-05-2022", "type": "credit", "account": "a/c no. XXXXXXXX6254"}
+
+QWEN MISSED:
+SMS: Transaction Successful! INR 203.00 spent on your IDFC FIRST Bank Credit Card XX3782 at Swiggy on 23-JUN-2024 Available limit: INR 46472.00 Activate UPI: https://idfcfr.in/vbMFV1 Not You? To block card SMS CCBLOCK 3782 to 5676732 or call 180010888
+TARGET: {"amount": 203.0, "merchant": "Swiggy", "date": "23-06-2024", "type": "debit", "account": "Credit Card XX3782"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.299.00
+From HDFC Bank A/C *9141
+To CAPITALFLOAT
+On 03-06
+Ref 452130633035
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 299.0, "merchant": "CAPITALFLOAT", "date": "03-06", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Rs.1029.13 spent on HDFC Bank Card x6719 at UBER INDIA SYSTE PVT L on 2024-04-18:02:37:09.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 1029.13, "merchant": "UBER INDIA SYSTE PVT L", "date": "18-04-2024", "type": "debit", "account": "Card x6719"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs24.0 on 14Feb23 transfer to SRI SAI SOUTH Ref No 341180677876. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 24.0, "merchant": "SRI SAI SOUTH", "date": "14-02-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Transaction Successful! INR 246.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at MIDAS DAILY on 24-JAN-2024 at 06:23 PM. Avbl limit: Rs.34589.05. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 246.0, "merchant": "MIDAS DAILY", "date": "24-01-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+QWEN MISSED:
+SMS: Rs.200 spent on HDFC Bank Card x6719 at IND*VistaPrint on 2024-03-11:13:19:35.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 200.0, "merchant": "IND*VistaPrint", "date": "11-03-2024", "type": "debit", "account": "Card x6719"}
+
+QWEN MISSED:
+SMS: Dear Customer, INR 2,000.00 credited to your A/c No XX6254 on 31/07/2023 through NEFT with UTR RBI2122393122556 by IISc, Bangalore, INFO: -SBI
+TARGET: {"amount": 2000.0, "merchant": "IISc, Bangalore", "date": "31-07-2023", "type": "credit", "account": "A/c No XX6254"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs240.0 on 24Jun23 transfer to Mr RAGHAVENDRA A Ref No 317584048534. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 240.0, "merchant": "Mr RAGHAVENDRA A", "date": "24-06-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs20.0 on 22Feb23 transfer to VIVEK S NAIK HUF Ref No 305363192242. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 20.0, "merchant": "VIVEK S NAIK HUF", "date": "22-02-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs85.0 on 18Sep22 transfer to Saanvi Star Ref No 226156010284. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 85.0, "merchant": "Saanvi Star", "date": "18-09-2022", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.70.00
+From HDFC Bank A/C *9141
+To OMA  RAM
+On 21-06
+Ref 417339640847
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 70.0, "merchant": "OMA  RAM", "date": "21-06", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Dear Customer, INR 12,400.00 credited to your A/c No XX6254 on 29/04/2022 through NEFT with UTR RBI1202227788622 by IISc, Bangalore, INFO: -SBI
+TARGET: {"amount": 12400.0, "merchant": "IISc, Bangalore", "date": "29-04-2022", "type": "credit", "account": "A/c No XX6254"}
+
+QWEN MISSED:
+SMS: Amt Sent Rs.90.00
+From HDFC Bank A/C *9141
+To IRCTC UTS
+On 18-04
+Ref 410978079326
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 90.0, "merchant": "IRCTC UTS", "date": "18-04", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: HDFC Bank: Rs. 100.00 credited to a/c XXXXXX9141 on 27-04-24 by a/c linked to VPA paytm-8727353@paytm (UPI Ref No  448426661211).
+TARGET: {"amount": 100.0, "merchant": "paytm-8727353@paytm", "date": "27-04-2024", "type": "credit", "account": "a/c XXXXXX9141"}
+
+QWEN MISSED:
+SMS: Hope you had a great meal! INR 15.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at GANESHBHAVAN on 10-FEB-2024 at 06:48 PM. Avbl limit: Rs.40982.44. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 15.0, "merchant": "GANESHBHAVAN", "date": "10-02-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs80.0 on 22Apr23 transfer to SEETHARAMA V G Ref No 347848529742. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 80.0, "merchant": "SEETHARAMA V G", "date": "22-04-2023", "type": "debit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Your A/c. XXXXXXXX7902 is credited by Rs. 1.00 on 08-06-21 by A/c XXXX18625001 ( IMPS Ref no. 115915316496 ).-MAHABANK
+TARGET: {"amount": 1.0, "merchant": "XXXX18625001", "date": "08-06-2021", "type": "credit", "account": "A/c. XXXXXXXX7902"}
+
+QWEN MISSED:
+SMS: HDFC Bank: Rs. 10000.00 credited to a/c XXXXXX9141 on 14-09-23 by a/c linked to VPA manisharadwadoksbi (UPI Ref No  325749424560).
+TARGET: {"amount": 10000.0, "merchant": "manisharadwadoksbi", "date": "14-09-2023", "type": "credit", "account": "a/c XXXXXX9141"}
+
+QWEN MISSED:
+SMS: Looks like you're one step closer to securing the future of your loved ones!  INR 6574.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at HDFC STANDARD LIFE CONV on 28-DEC-2023 at 08:51 PM.
+TARGET: {"amount": 6574.0, "merchant": "HDFC STANDARD LIFE CONV", "date": "28-12-2023", "type": "debit", "account": "Credit Card ending XX3782"}
+
+QWEN MISSED:
+SMS: Txn Rs.40.00
+On HDFC Bank Card 0816
+At paytm-33345433@ptybl 
+by UPI 104398633131
+On 07-05
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 40.0, "merchant": "paytm-33345433@ptybl", "date": "07-05", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: INR 133.00 spent using ICICI Bank Card XX3009 on 08-Mar-26 on AMAZON PAY IN G. Avl Limit: INR 3,97,313.13. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 133.0, "merchant": "AMAZON PAY IN G", "date": "08-03-2026", "type": "debit", "account": "Card XX3009"}
+
+QWEN MISSED:
+SMS: Update! INR 1,57,929.00 deposited in HDFC Bank A/c XX9141 on 30-JAN-26 for NEFT Cr-CITI0000004-HONEYWELL TECH SOLNS LAB P LTD-MANISH SATISH ARADWAD-CITIN26613796504.Avl bal INR 1,62,226.51. Cheque deposits in A/C are subject to clearing
+TARGET: {"amount": 157929.0, "merchant": "HONEYWELL TECH SOLNS LAB P LTD", "date": "30-01-2026", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Sent Rs.50.00
+From HDFC Bank A/C *9141
+To PAYTM TRAVEL
+On 05/02/26
+Ref 603658296706
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 50.0, "merchant": "PAYTM TRAVEL", "date": "05-02-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-credited by Rs.1170 on 10Nov25 transfer from PRAGYAFARKYA Ref No 134449442591 -SBI
+TARGET: {"amount": 1170.0, "merchant": "PRAGYAFARKYA", "date": "10-11-2025", "type": "credit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Txn Rs.247.00
+On HDFC Bank Card 0816
+At swiggyinstamart1online.gpay@okpayaxis 
+by UPI 105989229866
+On 05-06
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 247.0, "merchant": "swiggyinstamart1online.gpay@okpayaxis", "date": "05-06", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 55.00 on 18-Feb-26 for UPI-641510079422-Compass. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 55.0, "merchant": "UPI-641510079422-Compass", "date": "18-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+QWEN MISSED:
+SMS: INR 156.00 spent using ICICI Bank Card XX3009 on 05-Mar-26 on AMAZON PAY IN G. Avl Limit: INR 3,97,162.13. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 156.0, "merchant": "AMAZON PAY IN G", "date": "05-03-2026", "type": "debit", "account": "Card XX3009"}
+
+QWEN MISSED:
+SMS: Sent Rs.22637.00
+From HDFC Bank A/C *9141
+To LUBHAWAN PARIHAR
+On 01/01/26
+Ref 636709319217
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 22637.0, "merchant": "LUBHAWAN PARIHAR", "date": "01-01-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Alert! Rs. 2 refunded by GOOGLEPLAY             MUMBAI        MAH on 25/JUN/2025 & adjusted against HDFC Bank Credit Card 6719 View updated balance here: https://hdfcbk.io/HDFCBK/s/lPNmNXO9
+TARGET: {"amount": 2.0, "merchant": "GOOGLEPLAY             MUMBAI        MAH", "date": "25-06-2025", "type": "credit", "account": "Credit Card 6719"}
+
+QWEN MISSED:
+SMS: Txn Rs.274.00
+On HDFC Bank Card 0816
+At blinkit.payu@hdfcbank 
+by UPI 640517580870
+On 08-02
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 274.0, "merchant": "blinkit.payu@hdfcbank", "date": "08-02", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Credit Alert!
+Rs.500.00 credited to HDFC Bank A/c XX9141 on 27-11-25 from VPA rishabh.gupta.18697@okaxis (UPI 533191724729)
+TARGET: {"amount": 500.0, "merchant": "rishabh.gupta.18697@okaxis", "date": "27-11-2025", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Spent Rs.236 On HDFC Bank Card 6719 At Bangalore On 2026-02-15:18:50:18.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 236.0, "merchant": "Bangalore", "date": "15-02-2026", "type": "debit", "account": "Card 6719"}
+
+QWEN MISSED:
+SMS: Update! INR 1,58,308.00 deposited in HDFC Bank A/c XX9141 on 28-NOV-25 for NEFT Cr-CITI0000004-HONEYWELL TECH SOLNS LAB P LTD-MANISH SATISH ARADWAD-CITIN25661716049.Avl bal INR 1,83,470.67. Cheque deposits in A/C are subject to clearing
+TARGET: {"amount": 158308.0, "merchant": "HONEYWELL TECH SOLNS LAB P LTD", "date": "28-11-2025", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Sent Rs.50.00
+From HDFC Bank A/C *9141
+To Bengaluru Metro
+On 07/02/26
+Ref 603879384388
+Not You?
+Call 18002586 161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 50.0, "merchant": "Bengaluru Metro", "date": "07-02-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Txn Rs.672.00
+On HDFC Bank Card 0816
+At zepto.payu@axisbank
+by UPI 639125278699
+On 25-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 672.0, "merchant": "zepto.payu@axisbank", "date": "25-01", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Credit Alert!
+Rs.5.00 credited to HDFC Bank A/c xx9141 on 03-01-25 from VPA appleservices.bdsi@hdfcbank (UPI 500372630947)
+TARGET: {"amount": 5.0, "merchant": "appleservices.bdsi@hdfcbank", "date": "03-01-2025", "type": "credit", "account": "A/c xx9141"}
+
+QWEN MISSED:
+SMS: Sent Rs.162.00
+From HDFC Bank A/C *9141
+To GURUKIRAN T N
+On 27/07/25
+Ref 557400751537
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 162.0, "merchant": "GURUKIRAN T N", "date": "27-07-2025", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Rs.1044.82 spent on HDFC Bank Card x6719 at Raz*Simpl on 2025-04-07:12:01:33.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 1044.82, "merchant": "Raz*Simpl", "date": "07-04-2025", "type": "debit", "account": "Card x6719"}
+
+QWEN MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 60.00 on 12-Feb-26 for UPI-640971125815-Compass. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 60.0, "merchant": "Compass", "date": "12-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+QWEN MISSED:
+SMS: Credit Alert!
+Rs.15000.00 credited to HDFC Bank A/c XX9141 on 03-03-26 from VPA manisharadwad@oksbi (UPI 606238570072)
+TARGET: {"amount": 15000.0, "merchant": "manisharadwad@oksbi", "date": "03-03-2026", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Txn Rs.60.00
+On HDFC Bank Card 0816
+At paytm-33345433@ptybl 
+by UPI 105558715276
+On 29-05
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 60.0, "merchant": "paytm-33345433@ptybl", "date": "29-05", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 336.00 on 08-Feb-26 for UPI-603959342113-Zepto. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 336.0, "merchant": "Zepto", "date": "08-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+QWEN MISSED:
+SMS: Txn Rs.584.92
+On HDFC Bank Card 0816
+At mcdonalds.27307814@hdfcba
+by UPI 638111729267
+On 15-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 584.92, "merchant": "mcdonalds.27307814@hdfcba", "date": "15-01", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Sent Rs.756.00
+From HDFC Bank A/C *9141
+To PRIYAL  SHRIVASTAVA
+On 18/01/26
+Ref 117363155031
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 756.0, "merchant": "PRIYAL  SHRIVASTAVA", "date": "18-01-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Spent Rs.2458.2 On HDFC Bank Card 6719 At 102 sawan bhawan naigaon On 2025-04-25:20:19:18.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 2458.2, "merchant": "102 sawan bhawan naigaon", "date": "25-04-2025", "type": "debit", "account": "Card 6719"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-credited by Rs.11000 on 21Jan26 transfer from MANISH SATISH ARADWAD Ref No 117518836563 -SBI
+TARGET: {"amount": 11000.0, "merchant": "MANISH SATISH ARADWAD", "date": "21-01-2026", "type": "credit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Sent Rs.6327.37
+From HDFC Bank A/C x9141
+To CRED Club
+On 30/04/25
+Ref 548605768446
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 6327.37, "merchant": "CRED Club", "date": "30-04-2025", "type": "debit", "account": "A/C x9141"}
+
+QWEN MISSED:
+SMS: Dear SBI User, your A/c X6254-credited by Rs.5000 on 31Jan26 transfer from Shekhar Sadashiv Jadhav Ref No 649857678059 -SBI
+TARGET: {"amount": 5000.0, "merchant": "Shekhar Sadashiv Jadhav", "date": "31-01-2026", "type": "credit", "account": "A/c X6254"}
+
+QWEN MISSED:
+SMS: Update! INR 1,57,504.00 deposited in HDFC Bank A/c XX9141 on 27-FEB-26 for NEFT Cr-CITI0000004-HONEYWELL TECH SOLNS LAB P LTD-MANISH SATISH ARADWAD-CITIN26628728462.Avl bal INR 1,73,099.51. Cheque deposits in A/C are subject to clearing
+TARGET: {"amount": 157504.0, "merchant": "HONEYWELL TECH SOLNS LAB P LTD", "date": "27-02-2026", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Sent Rs.799.00
+From HDFC Bank A/C x9141
+To CAPITALFLOAT
+On 01/05/25
+Ref 512162368300
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 799.0, "merchant": "CAPITALFLOAT", "date": "01-05-2025", "type": "debit", "account": "A/C x9141"}
+
+QWEN MISSED:
+SMS: Credit Alert!
+Rs.2756.00 credited to HDFC Bank A/c XX9141 on 17-01-26 from VPA priyalshrivastava03@okhdfcbank (UPI 117343839648)
+TARGET: {"amount": 2756.0, "merchant": "priyalshrivastava03@okhdfcbank", "date": "17-01-2026", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Sent Rs.450.00
+From HDFC Bank A/C *9141
+To POONAM DEVI
+On 28/11/25
+Ref 114834426240
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 450.0, "merchant": "POONAM DEVI", "date": "28-11-2025", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Spent Rs.325 On HDFC Bank Card 6719 At TOWER 5IAND5J BUNDLTECHNO On 2026-01-11:19:06:08.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 325.0, "merchant": "TOWER 5IAND5J BUNDLTECHNO", "date": "11-01-2026", "type": "debit", "account": "Card 6719"}
+
+QWEN MISSED:
+SMS: Sent Rs.1000.00
+From HDFC Bank A/C *9141
+To RAKSHITA PRABHU
+On 13/03/26
+Ref 119958796451
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 1000.0, "merchant": "RAKSHITA PRABHU", "date": "13-03-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 197.00 on 08-Feb-26 for UPI-603945226362-Swiggy. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 197.0, "merchant": "Swiggy", "date": "08-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+QWEN MISSED:
+SMS: Spent Rs.349 On HDFC Bank Card 6719 At PTM*RELIANCE RETAIL LI On 2026-02-23:21:36:50.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 349.0, "merchant": "PTM*RELIANCE RETAIL LI", "date": "23-02-2026", "type": "debit", "account": "Card 6719"}
+
+QWEN MISSED:
+SMS: INR 119.00 spent using ICICI Bank Card XX3009 on 13-Oct-25 on AMAZON PAY IN G. Avl Limit: INR 3,97,628.78. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 119.0, "merchant": "AMAZON PAY IN G", "date": "13-10-2025", "type": "debit", "account": "Card XX3009"}
+
+QWEN MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 55.00 on 27-Feb-26 for UPI-605818126719-Compass. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 55.0, "merchant": "Compass", "date": "27-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+QWEN MISSED:
+SMS: Txn Rs.10.00
+On HDFC Bank Card 0816
+At q978280566@ybl
+by UPI 639313436971
+On 27-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 10.0, "merchant": "q978280566@ybl", "date": "27-01", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: INR 899.00 spent using ICICI Bank Card XX3009 on 29-Apr-25 on IND*Amazon. Avl Limit: INR 3,62,775.38. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 899.0, "merchant": "IND*Amazon", "date": "29-04-2025", "type": "debit", "account": "Card XX3009"}
+
+QWEN MISSED:
+SMS: Txn Rs.235.00
+On HDFC Bank Card 0816
+At blinkit.payu@hdfcbank
+by UPI 643800233353
+On 13-03
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 235.0, "merchant": "blinkit.payu@hdfcbank", "date": "13-03", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Sent Rs.290.00
+From HDFC Bank A/C *9141
+To RAMESH BABU RAO G N
+On 17/01/26
+Ref 638312973547
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 290.0, "merchant": "RAMESH BABU RAO G N", "date": "17-01-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: INR 1,025.00 spent using ICICI Bank Card XX3009 on 14-Jan-26 on AMAZON PAY WALL. Avl Limit: INR 3,99,015.00. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 1025.0, "merchant": "AMAZON PAY WALL", "date": "14-01-2026", "type": "debit", "account": "Card XX3009"}
+
+QWEN MISSED:
+SMS: Sent Rs.75.00
+From HDFC Bank A/C *9141
+To SOUMYADEEP CHANDRA
+On 05/01/26
+Ref 637107015293
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 75.0, "merchant": "SOUMYADEEP CHANDRA", "date": "05-01-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Rs.753.95 spent on HDFC Bank Card x6719 at JIO PLATFORMS LIMITE on 2025-03-17:14:54:14.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 753.95, "merchant": "JIO PLATFORMS LIMITE", "date": "17-03-2025", "type": "debit", "account": "Card x6719"}
+
+QWEN MISSED:
+SMS: Txn Rs.334.00
+On HDFC Bank Card 0816
+At zeptomarketplacepriva.payu@mairtel 
+by UPI 116508565884
+On 01-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 334.0, "merchant": "zeptomarketplacepriva.payu@mairtel", "date": "01-01", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Txn Rs.60.00
+On HDFC Bank Card 0816
+At paytm-33345433@ptybl
+by UPI 117109380391
+On 13-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 60.0, "merchant": "paytm-33345433@ptybl", "date": "13-01", "type": "debit", "account": "Card 0816"}
+
+QWEN MISSED:
+SMS: Sent Rs.43.00
+From HDFC Bank A/C *9141
+To Corporate Cafe
+On 05/02/26
+Ref 640227036298
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 43.0, "merchant": "Corporate Cafe", "date": "05-02-2026", "type": "debit", "account": "A/C *9141"}
+
+QWEN MISSED:
+SMS: Credit Alert!
+Rs.70000.00 credited to HDFC Bank A/c XX9141 on 18-01-26 from VPA 9636269931@yescred (UPI 638417111701)
+TARGET: {"amount": 70000.0, "merchant": "9636269931@yescred", "date": "18-01-2026", "type": "credit", "account": "A/c XX9141"}
+
+QWEN MISSED:
+SMS: Txn Rs.244.00
+On HDFC Bank Card 0816
+At swiggyinstamart1online.gpay@okpayaxis 
+by UPI 106983795229
+On 24-06
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 244.0, "merchant": "swiggyinstamart1online.gpay@okpayaxis", "date": "24-06", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: HDFC Bank: Rs. 3000.00 credited to a/c XXXXXX9141 on 03-06-24 by a/c linked to VPA 8147717477@axisb (UPI Ref No  415596641087).
+TARGET: {"amount": 3000.0, "merchant": "8147717477@axisb", "date": "03-06-2024", "type": "credit", "account": "a/c XXXXXX9141"}
+
+GEMMA MISSED:
+SMS: Transaction Successful! INR 23.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at MIDAS DAILY on 14-APR-2024 at 07:01 PM. Avbl limit: Rs.45893.00. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 23.0, "merchant": "MIDAS DAILY", "date": "14-04-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+GEMMA MISSED:
+SMS: Dear Customer, Your a/c no. XXXXXXXX6254 is credited by Rs.1.00 on 20-11-22 by a/c linked to mobile 1XXXXXX890-APIBANKING (IMPS Ref no 232413036764).If not done by you, call 1800111109. -SBI
+TARGET: {"amount": 1.0, "merchant": "1XXXXXX890-APIBANKING", "date": "20-11-2022", "type": "credit", "account": "a/c no. XXXXXXXX6254"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.75.00
+From HDFC Bank A/C *9141
+To AJAY KUMAR YADAV
+On 01-10
+Ref 427566724545
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 75.0, "merchant": "AJAY KUMAR YADAV", "date": "01-10", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Dear Customer, INR 35.00 credited to your A/c No XX6254 on 19/12/2022 through NEFT with UTR 000287975949 by MULTIPL FINTECH SOLUTIONS PRIVATE L, INFO: Multipl Cashback Reward Multipl Cashback Reward Multipl Cashback Reward-SBI
+TARGET: {"amount": 35.0, "merchant": "MULTIPL FINTECH SOLUTIONS PRIVATE L", "date": "19-12-2022", "type": "credit", "account": "A/c No XX6254"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.15.00
+From HDFC Bank A/C *9141
+To UDUPI UPACHAR
+On 25-02
+Ref 442208313597
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 15.0, "merchant": "UDUPI UPACHAR", "date": "25-02", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Delicious Purchase! INR 253.00 spent on your IDFC FIRST Bank Credit Card XX3782 at Bundl technologies P on 14-JUN-2024 Available limit: INR 49065.00 Activate UPI: https://idfcfr.in/vbMFV1 Not You? To block card SMS CCBLOCK 3782 to 5676732 or call 180010888
+TARGET: {"amount": 253.0, "merchant": "Bundl technologies P", "date": "14-06-2024", "type": "debit", "account": "Credit Card XX3782"}
+
+GEMMA MISSED:
+SMS: Happy Shopping! INR 83.00 spent on your IDFC FIRST Bank Credit Card XX3782 at Axis on 18-JUN-2024 Available limit: INR 47015.00 Activate UPI: https://idfcfr.in/vbMFV1 Not You? To block card SMS CCBLOCK 3782 to 5676732 or call 180010888
+TARGET: {"amount": 83.0, "merchant": "Axis", "date": "18-06-2024", "type": "debit", "account": "Credit Card XX3782"}
+
+GEMMA MISSED:
+SMS: Your A/C XXXXX436254 Debited INR 1,000.00 on 06/12/21 -Transferred to SBI GENERAL INSURANC. Avl Balance INR 1,000.00-SBI
+TARGET: {"amount": 1000.0, "merchant": "SBI GENERAL INSURANC", "date": "06-12-2021", "type": "debit", "account": "A/C XXXXX436254"}
+
+GEMMA MISSED:
+SMS: Used Rs526.00
+On HDFCBank Card 0816
+At swiggy1online.gpay@okpayaxis 
+by UPI 425947281526
+On 15-09
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 526.0, "merchant": "swiggy1online.gpay@okpayaxis", "date": "15-09", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Transaction Successful! INR 190.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at SWIGGY on 01-FEB-2024 at 12:51 PM. Avbl limit: Rs.41706.26. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 190.0, "merchant": "SWIGGY", "date": "01-02-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+GEMMA MISSED:
+SMS: Alert!You've spent Rs.3939 On HDFC Bank Debit Card xx4955 At IDFCBANK1299025 On 2023-09-29:16:43:05 Avl bal: 51010.08 Not you?Call 18002586161
+TARGET: {"amount": 3939.0, "merchant": "IDFCBANK1299025", "date": "29-09-2023", "type": "debit", "account": "Debit Card xx4955"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs209.0 on 02Feb23 transfer to billdesktez Ref No 303380853533. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 209.0, "merchant": "billdesktez", "date": "02-02-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Dear Customer, INR 30,954.00 credited to your A/c No XX6254 on 21/08/2023 through NEFT with UTR CITIN23410879427 by CARELON GLOBAL SOLUTIONS INDIA LLP, INFO: EMP REIMBURSEMENT-SBI
+TARGET: {"amount": 30954.0, "merchant": "CARELON GLOBAL SOLUTIONS INDIA LLP", "date": "21-08-2023", "type": "credit", "account": "A/c No XX6254"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs400.0 on 11Feb23 transfer to BharatpeMerchant Ref No 304272007608. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 400.0, "merchant": "BharatpeMerchant", "date": "11-02-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Looks like you're one step closer to securing the future of your loved ones!  INR 6572.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at www.hdfclife.com on 30-JAN-2024 at 08:02 PM. Avbl limit: Rs.41779.51. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 6572.0, "merchant": "www.hdfclife.com", "date": "30-01-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.4848.00
+From HDFC Bank A/C *9141
+To Axis
+On 29-04
+Ref 448617252288
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 4848.0, "merchant": "Axis", "date": "29-04", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: HDFC Bank: Rs 14672.00 debited from A/c XXXXXX9141 towards Azad Engineering Limited on 27/12/23. Application No. 336135940993, UMN: 0d12dd3e2de51c89e0637fe6e20a23f4@okhdfcbank. If not you, kindly report on 18002586161.
+TARGET: {"amount": 14672.0, "merchant": "Azad Engineering Limited", "date": "27-12-2023", "type": "debit", "account": "A/c XXXXXX9141"}
+
+GEMMA MISSED:
+SMS: Used Rs106.00
+On HDFCBank Card 0816
+At q362523441@ybl 
+by UPI 422581327620
+On 12-08
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 106.0, "merchant": "q36252344@ybl", "date": "12-08", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs234.0 on 01Jul23 transfer to THE RIGHTBOOK Ref No 318227860550. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 234.0, "merchant": "THE RIGHTBOOK", "date": "01-07-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs80.0 on 02Sep22 transfer to ananda Ref No 224501835315. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 80.0, "merchant": "ananda", "date": "02-09-2022", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: HDFC Bank Cardmember, Rs 587 has been credited on your credit card ending 6719 from FLIGHTS MOJO BOOKINGS  South West De IND on 16/FEB/2024. Ask Eva for details, hdfcbk.io/k/XAOXmhw4q4e
+TARGET: {"amount": 587.0, "merchant": "FLIGHTS MOJO BOOKINGS", "date": "16/02/2024", "type": "credit", "account": "credit card ending 6719"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.17.10
+From HDFC Bank A/C *9141
+To PAYTM APP
+On 21-09
+Ref 426570947078
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 17.1, "merchant": "PAYTM APP", "date": "21-09", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Dear Customer, Your a/c no. XXXXXXXX6254 is credited by Rs.1.00 on 27-12-22 by a/c linked to mobile 1XXXXXX890-APIBANKING (IMPS Ref no 236127060114).If not done by you, call 1800111109. -SBI
+TARGET: {"amount": 1.0, "merchant": "1XXXXXX890-APIBANKING", "date": "27-12-2022", "type": "credit", "account": "a/c no. XXXXXXXX6254"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.6041.00
+From HDFC Bank A/C *9141
+To Axis
+On 31-05
+Ref 415223124467
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 6041.0, "merchant": "Axis", "date": "31-05", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Dear Customer, Your a/c no. XXXXXXXX6254 is credited by Rs.1.00 on 25-05-22 by a/c linked to mobile 5XXXXXX274-Razorpay Composite  (IMPS Ref no 214515009354).If not done by you, call 1800111109. -SBI
+TARGET: {"amount": 1.0, "merchant": "5XXXXXX274-Razorpay", "date": "25-05-2022", "type": "credit", "account": "a/c no. XXXXXXXX6254"}
+
+GEMMA MISSED:
+SMS: Transaction Successful! INR 203.00 spent on your IDFC FIRST Bank Credit Card XX3782 at Swiggy on 23-JUN-2024 Available limit: INR 46472.00 Activate UPI: https://idfcfr.in/vbMFV1 Not You? To block card SMS CCBLOCK 3782 to 5676732 or call 180010888
+TARGET: {"amount": 203.0, "merchant": "Swiggy", "date": "23-06-2024", "type": "debit", "account": "Credit Card XX3782"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.299.00
+From HDFC Bank A/C *9141
+To CAPITALFLOAT
+On 03-06
+Ref 452130633035
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 299.0, "merchant": "CAPITALFLOAT", "date": "03-06", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Rs.1029.13 spent on HDFC Bank Card x6719 at UBER INDIA SYSTE PVT L on 2024-04-18:02:37:09.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 1029.13, "merchant": "UBER INDIA SYSTE PVT L", "date": "18-04-2024", "type": "debit", "account": "Card x6719"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs24.0 on 14Feb23 transfer to SRI SAI SOUTH Ref No 341180677876. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 24.0, "merchant": "SRI SAI SOUTH", "date": "14-02-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Transaction Successful! INR 246.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at MIDAS DAILY on 24-JAN-2024 at 06:23 PM. Avbl limit: Rs.34589.05. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 246.0, "merchant": "MIDAS DAILY", "date": "24-01-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+GEMMA MISSED:
+SMS: Rs.200 spent on HDFC Bank Card x6719 at IND*VistaPrint on 2024-03-11:13:19:35.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 200.0, "merchant": "IND*VistaPrint", "date": "11-03-2024", "type": "debit", "account": "Card x6719"}
+
+GEMMA MISSED:
+SMS: Dear Customer, INR 2,000.00 credited to your A/c No XX6254 on 31/07/2023 through NEFT with UTR RBI2122393122556 by IISc, Bangalore, INFO: -SBI
+TARGET: {"amount": 2000.0, "merchant": "IISc, Bangalore", "date": "31-07-2023", "type": "credit", "account": "A/c No XX6254"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs240.0 on 24Jun23 transfer to Mr RAGHAVENDRA A Ref No 317584048534. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 240.0, "merchant": "Mr RAGHAVENDRA A", "date": "24-06-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs20.0 on 22Feb23 transfer to VIVEK S NAIK HUF Ref No 305363192242. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 20.0, "merchant": "VIVEK S NAIK HUF", "date": "22-02-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs85.0 on 18Sep22 transfer to Saanvi Star Ref No 226156010284. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 85.0, "merchant": "Saanvi Star", "date": "18-09-2022", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.70.00
+From HDFC Bank A/C *9141
+To OMA  RAM
+On 21-06
+Ref 417339640847
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 70.0, "merchant": "OMA  RAM", "date": "21-06", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Dear Customer, INR 12,400.00 credited to your A/c No XX6254 on 29/04/2022 through NEFT with UTR RBI1202227788622 by IISc, Bangalore, INFO: -SBI
+TARGET: {"amount": 12400.0, "merchant": "IISc, Bangalore", "date": "29-04-2022", "type": "credit", "account": "A/c No XX6254"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.90.00
+From HDFC Bank A/C *9141
+To IRCTC UTS
+On 18-04
+Ref 410978079326
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 90.0, "merchant": "IRCTC UTS", "date": "18-04", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: HDFC Bank: Rs. 100.00 credited to a/c XXXXXX9141 on 27-04-24 by a/c linked to VPA paytm-8727353@paytm (UPI Ref No  448426661211).
+TARGET: {"amount": 100.0, "merchant": "paytm-8727353@paytm", "date": "27-04-2024", "type": "credit", "account": "a/c XXXXXX9141"}
+
+GEMMA MISSED:
+SMS: Hope you had a great meal! INR 15.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at GANESHBHAVAN on 10-FEB-2024 at 06:48 PM. Avbl limit: Rs.40982.44. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 15.0, "merchant": "GANESHBHAVAN", "date": "10-02-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs80.0 on 22Apr23 transfer to SEETHARAMA V G Ref No 347848529742. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 80.0, "merchant": "SEETHARAMA V G", "date": "22-04-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Your A/c. XXXXXXXX7902 is credited by Rs. 1.00 on 08-06-21 by A/c XXXX18625001 ( IMPS Ref no. 115915316496 ).-MAHABANK
+TARGET: {"amount": 1.0, "merchant": "XXXX18625001", "date": "08-06-2021", "type": "credit", "account": "A/c. XXXXXXXX7902"}
+
+GEMMA MISSED:
+SMS: HDFC Bank: Rs. 10000.00 credited to a/c XXXXXX9141 on 14-09-23 by a/c linked to VPA manisharadwadoksbi (UPI Ref No  325749424560).
+TARGET: {"amount": 10000.0, "merchant": "manisharadwadoksbi", "date": "14-09-2023", "type": "credit", "account": "a/c XXXXXX9141"}
+
+GEMMA MISSED:
+SMS: Looks like you're one step closer to securing the future of your loved ones!  INR 6574.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at HDFC STANDARD LIFE CONV on 28-DEC-2023 at 08:51 PM.
+TARGET: {"amount": 6574.0, "merchant": "HDFC STANDARD LIFE CONV", "date": "28-12-2023", "type": "debit", "account": "Credit Card ending XX3782"}
+
+GEMMA MISSED:
+SMS: Txn Rs.40.00
+On HDFC Bank Card 0816
+At paytm-33345433@ptybl 
+by UPI 104398633131
+On 07-05
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 40.0, "merchant": "paytm-33345433@ptybl", "date": "07-05", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: INR 133.00 spent using ICICI Bank Card XX3009 on 08-Mar-26 on AMAZON PAY IN G. Avl Limit: INR 3,97,313.13. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 133.0, "merchant": "AMAZON PAY IN G", "date": "08-03-2026", "type": "debit", "account": "Card XX3009"}
+
+GEMMA MISSED:
+SMS: Update! INR 1,57,929.00 deposited in HDFC Bank A/c XX9141 on 30-JAN-26 for NEFT Cr-CITI0000004-HONEYWELL TECH SOLNS LAB P LTD-MANISH SATISH ARADWAD-CITIN26613796504.Avl bal INR 1,62,226.51. Cheque deposits in A/C are subject to clearing
+TARGET: {"amount": 157929.0, "merchant": "HONEYWELL TECH SOLNS LAB P LTD", "date": "30-01-2026", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Sent Rs.50.00
+From HDFC Bank A/C *9141
+To PAYTM TRAVEL
+On 05/02/26
+Ref 603658296706
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 50.0, "merchant": "PAYTM TRAVEL", "date": "05-02-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-credited by Rs.1170 on 10Nov25 transfer from PRAGYAFARKYA Ref No 134449442591 -SBI
+TARGET: {"amount": 1170.0, "merchant": "PRAGYAFARKYA", "date": "10-11-2025", "type": "credit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Txn Rs.247.00
+On HDFC Bank Card 0816
+At swiggyinstamart1online.gpay@okpayaxis 
+by UPI 105989229866
+On 05-06
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 247.0, "merchant": "swiggyinstamart1online.gpay@okpayaxis", "date": "05-06", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 55.00 on 18-Feb-26 for UPI-641510079422-Compass. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 55.0, "merchant": "UPI-641510079422-Compass", "date": "18-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+GEMMA MISSED:
+SMS: INR 156.00 spent using ICICI Bank Card XX3009 on 05-Mar-26 on AMAZON PAY IN G. Avl Limit: INR 3,97,162.13. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 156.0, "merchant": "AMAZON PAY IN G", "date": "05-03-2026", "type": "debit", "account": "Card XX3009"}
+
+GEMMA MISSED:
+SMS: Sent Rs.22637.00
+From HDFC Bank A/C *9141
+To LUBHAWAN PARIHAR
+On 01/01/26
+Ref 636709319217
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 22637.0, "merchant": "LUBHAWAN PARIHAR", "date": "01-01-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Alert! Rs. 2 refunded by GOOGLEPLAY             MUMBAI        MAH on 25/JUN/2025 & adjusted against HDFC Bank Credit Card 6719 View updated balance here: https://hdfcbk.io/HDFCBK/s/lPNmNXO9
+TARGET: {"amount": 2.0, "merchant": "GOOGLEPLAY             MUMBAI        MAH", "date": "25-06-2025", "type": "credit", "account": "Credit Card 6719"}
+
+GEMMA MISSED:
+SMS: Txn Rs.274.00
+On HDFC Bank Card 0816
+At blinkit.payu@hdfcbank 
+by UPI 640517580870
+On 08-02
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 274.0, "merchant": "blinkit.payu@hdfcbank", "date": "08-02", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Credit Alert!
+Rs.500.00 credited to HDFC Bank A/c XX9141 on 27-11-25 from VPA rishabh.gupta.18697@okaxis (UPI 533191724729)
+TARGET: {"amount": 500.0, "merchant": "rishabh.gupta.18697@okaxis", "date": "27-11-2025", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Spent Rs.236 On HDFC Bank Card 6719 At Bangalore On 2026-02-15:18:50:18.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 236.0, "merchant": "Bangalore", "date": "15-02-2026", "type": "debit", "account": "Card 6719"}
+
+GEMMA MISSED:
+SMS: Update! INR 1,58,308.00 deposited in HDFC Bank A/c XX9141 on 28-NOV-25 for NEFT Cr-CITI0000004-HONEYWELL TECH SOLNS LAB P LTD-MANISH SATISH ARADWAD-CITIN25661716049.Avl bal INR 1,83,470.67. Cheque deposits in A/C are subject to clearing
+TARGET: {"amount": 158308.0, "merchant": "HONEYWELL TECH SOLNS LAB P LTD", "date": "28-11-2025", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Sent Rs.50.00
+From HDFC Bank A/C *9141
+To Bengaluru Metro
+On 07/02/26
+Ref 603879384388
+Not You?
+Call 18002586 161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 50.0, "merchant": "Bengaluru Metro", "date": "07-02-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Txn Rs.672.00
+On HDFC Bank Card 0816
+At zepto.payu@axisbank
+by UPI 639125278699
+On 25-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 672.0, "merchant": "zepto.payu@axisbank", "date": "25-01", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Credit Alert!
+Rs.5.00 credited to HDFC Bank A/c xx9141 on 03-01-25 from VPA appleservices.bdsi@hdfcbank (UPI 500372630947)
+TARGET: {"amount": 5.0, "merchant": "appleservices.bdsi@hdfcbank", "date": "03-01-2025", "type": "credit", "account": "A/c xx9141"}
+
+GEMMA MISSED:
+SMS: Sent Rs.162.00
+From HDFC Bank A/C *9141
+To GURUKIRAN T N
+On 27/07/25
+Ref 557400751537
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 162.0, "merchant": "GURUKIRAN T N", "date": "27-07-2025", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Rs.1044.82 spent on HDFC Bank Card x6719 at Raz*Simpl on 2025-04-07:12:01:33.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 1044.82, "merchant": "Raz*Simpl", "date": "07-04-2025", "type": "debit", "account": "Card x6719"}
+
+GEMMA MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 60.00 on 12-Feb-26 for UPI-640971125815-Compass. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 60.0, "merchant": "Compass", "date": "12-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+GEMMA MISSED:
+SMS: Credit Alert!
+Rs.15000.00 credited to HDFC Bank A/c XX9141 on 03-03-26 from VPA manisharadwad@oksbi (UPI 606238570072)
+TARGET: {"amount": 15000.0, "merchant": "manisharadwad@oksbi", "date": "03-03-2026", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Txn Rs.60.00
+On HDFC Bank Card 0816
+At paytm-33345433@ptybl 
+by UPI 105558715276
+On 29-05
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 60.0, "merchant": "paytm-33345433@ptybl", "date": "29-05", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 336.00 on 08-Feb-26 for UPI-603959342113-Zepto. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 336.0, "merchant": "Zepto", "date": "08-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+GEMMA MISSED:
+SMS: Txn Rs.584.92
+On HDFC Bank Card 0816
+At mcdonalds.27307814@hdfcba
+by UPI 638111729267
+On 15-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 584.92, "merchant": "mcdonalds.27307814@hdfcba", "date": "15-01", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Sent Rs.756.00
+From HDFC Bank A/C *9141
+To PRIYAL  SHRIVASTAVA
+On 18/01/26
+Ref 117363155031
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 756.0, "merchant": "PRIYAL  SHRIVASTAVA", "date": "18-01-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Spent Rs.2458.2 On HDFC Bank Card 6719 At 102 sawan bhawan naigaon On 2025-04-25:20:19:18.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 2458.2, "merchant": "102 sawan bhawan naigaon", "date": "25-04-2025", "type": "debit", "account": "Card 6719"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-credited by Rs.11000 on 21Jan26 transfer from MANISH SATISH ARADWAD Ref No 117518836563 -SBI
+TARGET: {"amount": 11000.0, "merchant": "MANISH SATISH ARADWAD", "date": "21-01-2026", "type": "credit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Sent Rs.6327.37
+From HDFC Bank A/C x9141
+To CRED Club
+On 30/04/25
+Ref 548605768446
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 6327.37, "merchant": "CRED Club", "date": "30-04-2025", "type": "debit", "account": "A/C x9141"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-credited by Rs.5000 on 31Jan26 transfer from Shekhar Sadashiv Jadhav Ref No 649857678059 -SBI
+TARGET: {"amount": 5000.0, "merchant": "Shekhar Sadashiv Jadhav", "date": "31-01-2026", "type": "credit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Update! INR 1,57,504.00 deposited in HDFC Bank A/c XX9141 on 27-FEB-26 for NEFT Cr-CITI0000004-HONEYWELL TECH SOLNS LAB P LTD-MANISH SATISH ARADWAD-CITIN26628728462.Avl bal INR 1,73,099.51. Cheque deposits in A/C are subject to clearing
+TARGET: {"amount": 157504.0, "merchant": "HONEYWELL TECH SOLNS LAB P LTD", "date": "27-02-2026", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Sent Rs.799.00
+From HDFC Bank A/C x9141
+To CAPITALFLOAT
+On 01/05/25
+Ref 512162368300
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 799.0, "merchant": "CAPITALFLOAT", "date": "01-05-2025", "type": "debit", "account": "A/C x9141"}
+
+GEMMA MISSED:
+SMS: Credit Alert!
+Rs.2756.00 credited to HDFC Bank A/c XX9141 on 17-01-26 from VPA priyalshrivastava03@okhdfcbank (UPI 117343839648)
+TARGET: {"amount": 2756.0, "merchant": "priyalshrivastava03@okhdfcbank", "date": "17-01-2026", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Sent Rs.450.00
+From HDFC Bank A/C *9141
+To POONAM DEVI
+On 28/11/25
+Ref 114834426240
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 450.0, "merchant": "POONAM DEVI", "date": "28-11-2025", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Spent Rs.325 On HDFC Bank Card 6719 At TOWER 5IAND5J BUNDLTECHNO On 2026-01-11:19:06:08.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 325.0, "merchant": "TOWER 5IAND5J BUNDLTECHNO", "date": "11-01-2026", "type": "debit", "account": "Card 6719"}
+
+GEMMA MISSED:
+SMS: Sent Rs.1000.00
+From HDFC Bank A/C *9141
+To RAKSHITA PRABHU
+On 13/03/26
+Ref 119958796451
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 1000.0, "merchant": "RAKSHITA PRABHU", "date": "13-03-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 197.00 on 08-Feb-26 for UPI-603945226362-Swiggy. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 197.0, "merchant": "Swiggy", "date": "08-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+GEMMA MISSED:
+SMS: Spent Rs.349 On HDFC Bank Card 6719 At PTM*RELIANCE RETAIL LI On 2026-02-23:21:36:50.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 349.0, "merchant": "PTM*RELIANCE RETAIL LI", "date": "23-02-2026", "type": "debit", "account": "Card 6719"}
+
+GEMMA MISSED:
+SMS: INR 119.00 spent using ICICI Bank Card XX3009 on 13-Oct-25 on AMAZON PAY IN G. Avl Limit: INR 3,97,628.78. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 119.0, "merchant": "AMAZON PAY IN G", "date": "13-10-2025", "type": "debit", "account": "Card XX3009"}
+
+GEMMA MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 55.00 on 27-Feb-26 for UPI-605818126719-Compass. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 55.0, "merchant": "Compass", "date": "27-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+GEMMA MISSED:
+SMS: Txn Rs.10.00
+On HDFC Bank Card 0816
+At q978280566@ybl
+by UPI 639313436971
+On 27-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 10.0, "merchant": "q978280566@ybl", "date": "27-01", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: INR 899.00 spent using ICICI Bank Card XX3009 on 29-Apr-25 on IND*Amazon. Avl Limit: INR 3,62,775.38. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 899.0, "merchant": "IND*Amazon", "date": "29-04-2025", "type": "debit", "account": "Card XX3009"}
+
+GEMMA MISSED:
+SMS: Txn Rs.235.00
+On HDFC Bank Card 0816
+At blinkit.payu@hdfcbank
+by UPI 643800233353
+On 13-03
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 235.0, "merchant": "blinkit.payu@hdfcbank", "date": "13-03", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Sent Rs.290.00
+From HDFC Bank A/C *9141
+To RAMESH BABU RAO G N
+On 17/01/26
+Ref 638312973547
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 290.0, "merchant": "RAMESH BABU RAO G N", "date": "17-01-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: INR 1,025.00 spent using ICICI Bank Card XX3009 on 14-Jan-26 on AMAZON PAY WALL. Avl Limit: INR 3,99,015.00. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 1025.0, "merchant": "AMAZON PAY WALL", "date": "14-01-2026", "type": "debit", "account": "Card XX3009"}
+
+GEMMA MISSED:
+SMS: Sent Rs.75.00
+From HDFC Bank A/C *9141
+To SOUMYADEEP CHANDRA
+On 05/01/26
+Ref 637107015293
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 75.0, "merchant": "SOUMYADEEP CHANDRA", "date": "05-01-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Rs.753.95 spent on HDFC Bank Card x6719 at JIO PLATFORMS LIMITE on 2025-03-17:14:54:14.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 753.95, "merchant": "JIO PLATFORMS LIMITE", "date": "17-03-2025", "type": "debit", "account": "Card x6719"}
+
+GEMMA MISSED:
+SMS: Txn Rs.334.00
+On HDFC Bank Card 0816
+At zeptomarketplacepriva.payu@mairtel 
+by UPI 116508565884
+On 01-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 334.0, "merchant": "zeptomarketplacepriva.payu@mairtel", "date": "01-01", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Txn Rs.60.00
+On HDFC Bank Card 0816
+At paytm-33345433@ptybl
+by UPI 117109380391
+On 13-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 60.0, "merchant": "paytm-33345433@ptybl", "date": "13-01", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Sent Rs.43.00
+From HDFC Bank A/C *9141
+To Corporate Cafe
+On 05/02/26
+Ref 640227036298
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 43.0, "merchant": "Corporate Cafe", "date": "05-02-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Credit Alert!
+Rs.70000.00 credited to HDFC Bank A/c XX9141 on 18-01-26 from VPA 9636269931@yescred (UPI 638417111701)
+TARGET: {"amount": 70000.0, "merchant": "9636269931@yescred", "date": "18-01-2026", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Txn Rs.244.00
+On HDFC Bank Card 0816
+At swiggyinstamart1online.gpay@okpayaxis 
+by UPI 106983795229
+On 24-06
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 244.0, "merchant": "swiggyinstamart1online.gpay@okpayaxis", "date": "24-06", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: HDFC Bank: Rs. 3000.00 credited to a/c XXXXXX9141 on 03-06-24 by a/c linked to VPA 8147717477@axisb (UPI Ref No  415596641087).
+TARGET: {"amount": 3000.0, "merchant": "8147717477@axisb", "date": "03-06-2024", "type": "credit", "account": "a/c XXXXXX9141"}
+
+GEMMA MISSED:
+SMS: Transaction Successful! INR 23.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at MIDAS DAILY on 14-APR-2024 at 07:01 PM. Avbl limit: Rs.45893.00. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 23.0, "merchant": "MIDAS DAILY", "date": "14-04-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+GEMMA MISSED:
+SMS: Dear Customer, Your a/c no. XXXXXXXX6254 is credited by Rs.1.00 on 20-11-22 by a/c linked to mobile 1XXXXXX890-APIBANKING (IMPS Ref no 232413036764).If not done by you, call 1800111109. -SBI
+TARGET: {"amount": 1.0, "merchant": "1XXXXXX890-APIBANKING", "date": "20-11-2022", "type": "credit", "account": "a/c no. XXXXXXXX6254"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.75.00
+From HDFC Bank A/C *9141
+To AJAY KUMAR YADAV
+On 01-10
+Ref 427566724545
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 75.0, "merchant": "AJAY KUMAR YADAV", "date": "01-10", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Dear Customer, INR 35.00 credited to your A/c No XX6254 on 19/12/2022 through NEFT with UTR 000287975949 by MULTIPL FINTECH SOLUTIONS PRIVATE L, INFO: Multipl Cashback Reward Multipl Cashback Reward Multipl Cashback Reward-SBI
+TARGET: {"amount": 35.0, "merchant": "MULTIPL FINTECH SOLUTIONS PRIVATE L", "date": "19-12-2022", "type": "credit", "account": "A/c No XX6254"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.15.00
+From HDFC Bank A/C *9141
+To UDUPI UPACHAR
+On 25-02
+Ref 442208313597
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 15.0, "merchant": "UDUPI UPACHAR", "date": "25-02", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Delicious Purchase! INR 253.00 spent on your IDFC FIRST Bank Credit Card XX3782 at Bundl technologies P on 14-JUN-2024 Available limit: INR 49065.00 Activate UPI: https://idfcfr.in/vbMFV1 Not You? To block card SMS CCBLOCK 3782 to 5676732 or call 180010888
+TARGET: {"amount": 253.0, "merchant": "Bundl technologies P", "date": "14-06-2024", "type": "debit", "account": "Credit Card XX3782"}
+
+GEMMA MISSED:
+SMS: Happy Shopping! INR 83.00 spent on your IDFC FIRST Bank Credit Card XX3782 at Axis on 18-JUN-2024 Available limit: INR 47015.00 Activate UPI: https://idfcfr.in/vbMFV1 Not You? To block card SMS CCBLOCK 3782 to 5676732 or call 180010888
+TARGET: {"amount": 83.0, "merchant": "Axis", "date": "18-06-2024", "type": "debit", "account": "Credit Card XX3782"}
+
+GEMMA MISSED:
+SMS: Your A/C XXXXX436254 Debited INR 1,000.00 on 06/12/21 -Transferred to SBI GENERAL INSURANC. Avl Balance INR 1,000.00-SBI
+TARGET: {"amount": 1000.0, "merchant": "SBI GENERAL INSURANC", "date": "06-12-2021", "type": "debit", "account": "A/C XXXXX436254"}
+
+GEMMA MISSED:
+SMS: Used Rs526.00
+On HDFCBank Card 0816
+At swiggy1online.gpay@okpayaxis 
+by UPI 425947281526
+On 15-09
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 526.0, "merchant": "swiggy1online.gpay@okpayaxis", "date": "15-09", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Transaction Successful! INR 190.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at SWIGGY on 01-FEB-2024 at 12:51 PM. Avbl limit: Rs.41706.26. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 190.0, "merchant": "SWIGGY", "date": "01-02-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+GEMMA MISSED:
+SMS: Alert!You've spent Rs.3939 On HDFC Bank Debit Card xx4955 At IDFCBANK1299025 On 2023-09-29:16:43:05 Avl bal: 51010.08 Not you?Call 18002586161
+TARGET: {"amount": 3939.0, "merchant": "IDFCBANK1299025", "date": "29-09-2023", "type": "debit", "account": "Debit Card xx4955"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs209.0 on 02Feb23 transfer to billdesktez Ref No 303380853533. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 209.0, "merchant": "billdesktez", "date": "02-02-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Dear Customer, INR 30,954.00 credited to your A/c No XX6254 on 21/08/2023 through NEFT with UTR CITIN23410879427 by CARELON GLOBAL SOLUTIONS INDIA LLP, INFO: EMP REIMBURSEMENT-SBI
+TARGET: {"amount": 30954.0, "merchant": "CARELON GLOBAL SOLUTIONS INDIA LLP", "date": "21-08-2023", "type": "credit", "account": "A/c No XX6254"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs400.0 on 11Feb23 transfer to BharatpeMerchant Ref No 304272007608. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 400.0, "merchant": "BharatpeMerchant", "date": "11-02-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Looks like you're one step closer to securing the future of your loved ones!  INR 6572.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at www.hdfclife.com on 30-JAN-2024 at 08:02 PM. Avbl limit: Rs.41779.51. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 6572.0, "merchant": "www.hdfclife.com", "date": "30-01-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.4848.00
+From HDFC Bank A/C *9141
+To Axis
+On 29-04
+Ref 448617252288
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 4848.0, "merchant": "Axis", "date": "29-04", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: HDFC Bank: Rs 14672.00 debited from A/c XXXXXX9141 towards Azad Engineering Limited on 27/12/23. Application No. 336135940993, UMN: 0d12dd3e2de51c89e0637fe6e20a23f4@okhdfcbank. If not you, kindly report on 18002586161.
+TARGET: {"amount": 14672.0, "merchant": "Azad Engineering Limited", "date": "27-12-2023", "type": "debit", "account": "A/c XXXXXX9141"}
+
+GEMMA MISSED:
+SMS: Used Rs106.00
+On HDFCBank Card 0816
+At q362523441@ybl 
+by UPI 422581327620
+On 12-08
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 106.0, "merchant": "q36252344@ybl", "date": "12-08", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs234.0 on 01Jul23 transfer to THE RIGHTBOOK Ref No 318227860550. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 234.0, "merchant": "THE RIGHTBOOK", "date": "01-07-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs80.0 on 02Sep22 transfer to ananda Ref No 224501835315. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 80.0, "merchant": "ananda", "date": "02-09-2022", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: HDFC Bank Cardmember, Rs 587 has been credited on your credit card ending 6719 from FLIGHTS MOJO BOOKINGS  South West De IND on 16/FEB/2024. Ask Eva for details, hdfcbk.io/k/XAOXmhw4q4e
+TARGET: {"amount": 587.0, "merchant": "FLIGHTS MOJO BOOKINGS", "date": "16/02/2024", "type": "credit", "account": "credit card ending 6719"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.17.10
+From HDFC Bank A/C *9141
+To PAYTM APP
+On 21-09
+Ref 426570947078
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 17.1, "merchant": "PAYTM APP", "date": "21-09", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Dear Customer, Your a/c no. XXXXXXXX6254 is credited by Rs.1.00 on 27-12-22 by a/c linked to mobile 1XXXXXX890-APIBANKING (IMPS Ref no 236127060114).If not done by you, call 1800111109. -SBI
+TARGET: {"amount": 1.0, "merchant": "1XXXXXX890-APIBANKING", "date": "27-12-2022", "type": "credit", "account": "a/c no. XXXXXXXX6254"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.6041.00
+From HDFC Bank A/C *9141
+To Axis
+On 31-05
+Ref 415223124467
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 6041.0, "merchant": "Axis", "date": "31-05", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Dear Customer, Your a/c no. XXXXXXXX6254 is credited by Rs.1.00 on 25-05-22 by a/c linked to mobile 5XXXXXX274-Razorpay Composite  (IMPS Ref no 214515009354).If not done by you, call 1800111109. -SBI
+TARGET: {"amount": 1.0, "merchant": "5XXXXXX274-Razorpay", "date": "25-05-2022", "type": "credit", "account": "a/c no. XXXXXXXX6254"}
+
+GEMMA MISSED:
+SMS: Transaction Successful! INR 203.00 spent on your IDFC FIRST Bank Credit Card XX3782 at Swiggy on 23-JUN-2024 Available limit: INR 46472.00 Activate UPI: https://idfcfr.in/vbMFV1 Not You? To block card SMS CCBLOCK 3782 to 5676732 or call 180010888
+TARGET: {"amount": 203.0, "merchant": "Swiggy", "date": "23-06-2024", "type": "debit", "account": "Credit Card XX3782"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.299.00
+From HDFC Bank A/C *9141
+To CAPITALFLOAT
+On 03-06
+Ref 452130633035
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 299.0, "merchant": "CAPITALFLOAT", "date": "03-06", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Rs.1029.13 spent on HDFC Bank Card x6719 at UBER INDIA SYSTE PVT L on 2024-04-18:02:37:09.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 1029.13, "merchant": "UBER INDIA SYSTE PVT L", "date": "18-04-2024", "type": "debit", "account": "Card x6719"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs24.0 on 14Feb23 transfer to SRI SAI SOUTH Ref No 341180677876. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 24.0, "merchant": "SRI SAI SOUTH", "date": "14-02-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Transaction Successful! INR 246.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at MIDAS DAILY on 24-JAN-2024 at 06:23 PM. Avbl limit: Rs.34589.05. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 246.0, "merchant": "MIDAS DAILY", "date": "24-01-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+GEMMA MISSED:
+SMS: Rs.200 spent on HDFC Bank Card x6719 at IND*VistaPrint on 2024-03-11:13:19:35.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 200.0, "merchant": "IND*VistaPrint", "date": "11-03-2024", "type": "debit", "account": "Card x6719"}
+
+GEMMA MISSED:
+SMS: Dear Customer, INR 2,000.00 credited to your A/c No XX6254 on 31/07/2023 through NEFT with UTR RBI2122393122556 by IISc, Bangalore, INFO: -SBI
+TARGET: {"amount": 2000.0, "merchant": "IISc, Bangalore", "date": "31-07-2023", "type": "credit", "account": "A/c No XX6254"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs240.0 on 24Jun23 transfer to Mr RAGHAVENDRA A Ref No 317584048534. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 240.0, "merchant": "Mr RAGHAVENDRA A", "date": "24-06-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs20.0 on 22Feb23 transfer to VIVEK S NAIK HUF Ref No 305363192242. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 20.0, "merchant": "VIVEK S NAIK HUF", "date": "22-02-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs85.0 on 18Sep22 transfer to Saanvi Star Ref No 226156010284. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 85.0, "merchant": "Saanvi Star", "date": "18-09-2022", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.70.00
+From HDFC Bank A/C *9141
+To OMA  RAM
+On 21-06
+Ref 417339640847
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 70.0, "merchant": "OMA  RAM", "date": "21-06", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Dear Customer, INR 12,400.00 credited to your A/c No XX6254 on 29/04/2022 through NEFT with UTR RBI1202227788622 by IISc, Bangalore, INFO: -SBI
+TARGET: {"amount": 12400.0, "merchant": "IISc, Bangalore", "date": "29-04-2022", "type": "credit", "account": "A/c No XX6254"}
+
+GEMMA MISSED:
+SMS: Amt Sent Rs.90.00
+From HDFC Bank A/C *9141
+To IRCTC UTS
+On 18-04
+Ref 410978079326
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 90.0, "merchant": "IRCTC UTS", "date": "18-04", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: HDFC Bank: Rs. 100.00 credited to a/c XXXXXX9141 on 27-04-24 by a/c linked to VPA paytm-8727353@paytm (UPI Ref No  448426661211).
+TARGET: {"amount": 100.0, "merchant": "paytm-8727353@paytm", "date": "27-04-2024", "type": "credit", "account": "a/c XXXXXX9141"}
+
+GEMMA MISSED:
+SMS: Hope you had a great meal! INR 15.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at GANESHBHAVAN on 10-FEB-2024 at 06:48 PM. Avbl limit: Rs.40982.44. If not done by you, call 180010888 for dispute or to block your card SMS CCBLOCK 3782 to 5676732
+TARGET: {"amount": 15.0, "merchant": "GANESHBHAVAN", "date": "10-02-2024", "type": "debit", "account": "Credit Card ending XX3782"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-debited by Rs80.0 on 22Apr23 transfer to SEETHARAMA V G Ref No 347848529742. If not done by u, fwd this SMS to 9223008333/Call 1800111109 or 09449112211 to block UPI -SBI
+TARGET: {"amount": 80.0, "merchant": "SEETHARAMA V G", "date": "22-04-2023", "type": "debit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Your A/c. XXXXXXXX7902 is credited by Rs. 1.00 on 08-06-21 by A/c XXXX18625001 ( IMPS Ref no. 115915316496 ).-MAHABANK
+TARGET: {"amount": 1.0, "merchant": "XXXX18625001", "date": "08-06-2021", "type": "credit", "account": "A/c. XXXXXXXX7902"}
+
+GEMMA MISSED:
+SMS: HDFC Bank: Rs. 10000.00 credited to a/c XXXXXX9141 on 14-09-23 by a/c linked to VPA manisharadwadoksbi (UPI Ref No  325749424560).
+TARGET: {"amount": 10000.0, "merchant": "manisharadwadoksbi", "date": "14-09-2023", "type": "credit", "account": "a/c XXXXXX9141"}
+
+GEMMA MISSED:
+SMS: Looks like you're one step closer to securing the future of your loved ones!  INR 6574.00 spent on your IDFC FIRST Bank Credit Card ending XX3782 at HDFC STANDARD LIFE CONV on 28-DEC-2023 at 08:51 PM.
+TARGET: {"amount": 6574.0, "merchant": "HDFC STANDARD LIFE CONV", "date": "28-12-2023", "type": "debit", "account": "Credit Card ending XX3782"}
+
+GEMMA MISSED:
+SMS: Txn Rs.40.00
+On HDFC Bank Card 0816
+At paytm-33345433@ptybl 
+by UPI 104398633131
+On 07-05
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 40.0, "merchant": "paytm-33345433@ptybl", "date": "07-05", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: INR 133.00 spent using ICICI Bank Card XX3009 on 08-Mar-26 on AMAZON PAY IN G. Avl Limit: INR 3,97,313.13. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 133.0, "merchant": "AMAZON PAY IN G", "date": "08-03-2026", "type": "debit", "account": "Card XX3009"}
+
+GEMMA MISSED:
+SMS: Update! INR 1,57,929.00 deposited in HDFC Bank A/c XX9141 on 30-JAN-26 for NEFT Cr-CITI0000004-HONEYWELL TECH SOLNS LAB P LTD-MANISH SATISH ARADWAD-CITIN26613796504.Avl bal INR 1,62,226.51. Cheque deposits in A/C are subject to clearing
+TARGET: {"amount": 157929.0, "merchant": "HONEYWELL TECH SOLNS LAB P LTD", "date": "30-01-2026", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Sent Rs.50.00
+From HDFC Bank A/C *9141
+To PAYTM TRAVEL
+On 05/02/26
+Ref 603658296706
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 50.0, "merchant": "PAYTM TRAVEL", "date": "05-02-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-credited by Rs.1170 on 10Nov25 transfer from PRAGYAFARKYA Ref No 134449442591 -SBI
+TARGET: {"amount": 1170.0, "merchant": "PRAGYAFARKYA", "date": "10-11-2025", "type": "credit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Txn Rs.247.00
+On HDFC Bank Card 0816
+At swiggyinstamart1online.gpay@okpayaxis 
+by UPI 105989229866
+On 05-06
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 247.0, "merchant": "swiggyinstamart1online.gpay@okpayaxis", "date": "05-06", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 55.00 on 18-Feb-26 for UPI-641510079422-Compass. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 55.0, "merchant": "UPI-641510079422-Compass", "date": "18-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+GEMMA MISSED:
+SMS: INR 156.00 spent using ICICI Bank Card XX3009 on 05-Mar-26 on AMAZON PAY IN G. Avl Limit: INR 3,97,162.13. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 156.0, "merchant": "AMAZON PAY IN G", "date": "05-03-2026", "type": "debit", "account": "Card XX3009"}
+
+GEMMA MISSED:
+SMS: Sent Rs.22637.00
+From HDFC Bank A/C *9141
+To LUBHAWAN PARIHAR
+On 01/01/26
+Ref 636709319217
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 22637.0, "merchant": "LUBHAWAN PARIHAR", "date": "01-01-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Alert! Rs. 2 refunded by GOOGLEPLAY             MUMBAI        MAH on 25/JUN/2025 & adjusted against HDFC Bank Credit Card 6719 View updated balance here: https://hdfcbk.io/HDFCBK/s/lPNmNXO9
+TARGET: {"amount": 2.0, "merchant": "GOOGLEPLAY             MUMBAI        MAH", "date": "25-06-2025", "type": "credit", "account": "Credit Card 6719"}
+
+GEMMA MISSED:
+SMS: Txn Rs.274.00
+On HDFC Bank Card 0816
+At blinkit.payu@hdfcbank 
+by UPI 640517580870
+On 08-02
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 274.0, "merchant": "blinkit.payu@hdfcbank", "date": "08-02", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Credit Alert!
+Rs.500.00 credited to HDFC Bank A/c XX9141 on 27-11-25 from VPA rishabh.gupta.18697@okaxis (UPI 533191724729)
+TARGET: {"amount": 500.0, "merchant": "rishabh.gupta.18697@okaxis", "date": "27-11-2025", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Spent Rs.236 On HDFC Bank Card 6719 At Bangalore On 2026-02-15:18:50:18.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 236.0, "merchant": "Bangalore", "date": "15-02-2026", "type": "debit", "account": "Card 6719"}
+
+GEMMA MISSED:
+SMS: Update! INR 1,58,308.00 deposited in HDFC Bank A/c XX9141 on 28-NOV-25 for NEFT Cr-CITI0000004-HONEYWELL TECH SOLNS LAB P LTD-MANISH SATISH ARADWAD-CITIN25661716049.Avl bal INR 1,83,470.67. Cheque deposits in A/C are subject to clearing
+TARGET: {"amount": 158308.0, "merchant": "HONEYWELL TECH SOLNS LAB P LTD", "date": "28-11-2025", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Sent Rs.50.00
+From HDFC Bank A/C *9141
+To Bengaluru Metro
+On 07/02/26
+Ref 603879384388
+Not You?
+Call 18002586 161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 50.0, "merchant": "Bengaluru Metro", "date": "07-02-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Txn Rs.672.00
+On HDFC Bank Card 0816
+At zepto.payu@axisbank
+by UPI 639125278699
+On 25-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 672.0, "merchant": "zepto.payu@axisbank", "date": "25-01", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Credit Alert!
+Rs.5.00 credited to HDFC Bank A/c xx9141 on 03-01-25 from VPA appleservices.bdsi@hdfcbank (UPI 500372630947)
+TARGET: {"amount": 5.0, "merchant": "appleservices.bdsi@hdfcbank", "date": "03-01-2025", "type": "credit", "account": "A/c xx9141"}
+
+GEMMA MISSED:
+SMS: Sent Rs.162.00
+From HDFC Bank A/C *9141
+To GURUKIRAN T N
+On 27/07/25
+Ref 557400751537
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 162.0, "merchant": "GURUKIRAN T N", "date": "27-07-2025", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Rs.1044.82 spent on HDFC Bank Card x6719 at Raz*Simpl on 2025-04-07:12:01:33.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 1044.82, "merchant": "Raz*Simpl", "date": "07-04-2025", "type": "debit", "account": "Card x6719"}
+
+GEMMA MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 60.00 on 12-Feb-26 for UPI-640971125815-Compass. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 60.0, "merchant": "Compass", "date": "12-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+GEMMA MISSED:
+SMS: Credit Alert!
+Rs.15000.00 credited to HDFC Bank A/c XX9141 on 03-03-26 from VPA manisharadwad@oksbi (UPI 606238570072)
+TARGET: {"amount": 15000.0, "merchant": "manisharadwad@oksbi", "date": "03-03-2026", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Txn Rs.60.00
+On HDFC Bank Card 0816
+At paytm-33345433@ptybl 
+by UPI 105558715276
+On 29-05
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 60.0, "merchant": "paytm-33345433@ptybl", "date": "29-05", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 336.00 on 08-Feb-26 for UPI-603959342113-Zepto. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 336.0, "merchant": "Zepto", "date": "08-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+GEMMA MISSED:
+SMS: Txn Rs.584.92
+On HDFC Bank Card 0816
+At mcdonalds.27307814@hdfcba
+by UPI 638111729267
+On 15-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 584.92, "merchant": "mcdonalds.27307814@hdfcba", "date": "15-01", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Sent Rs.756.00
+From HDFC Bank A/C *9141
+To PRIYAL  SHRIVASTAVA
+On 18/01/26
+Ref 117363155031
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 756.0, "merchant": "PRIYAL  SHRIVASTAVA", "date": "18-01-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Spent Rs.2458.2 On HDFC Bank Card 6719 At 102 sawan bhawan naigaon On 2025-04-25:20:19:18.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 2458.2, "merchant": "102 sawan bhawan naigaon", "date": "25-04-2025", "type": "debit", "account": "Card 6719"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-credited by Rs.11000 on 21Jan26 transfer from MANISH SATISH ARADWAD Ref No 117518836563 -SBI
+TARGET: {"amount": 11000.0, "merchant": "MANISH SATISH ARADWAD", "date": "21-01-2026", "type": "credit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Sent Rs.6327.37
+From HDFC Bank A/C x9141
+To CRED Club
+On 30/04/25
+Ref 548605768446
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 6327.37, "merchant": "CRED Club", "date": "30-04-2025", "type": "debit", "account": "A/C x9141"}
+
+GEMMA MISSED:
+SMS: Dear SBI User, your A/c X6254-credited by Rs.5000 on 31Jan26 transfer from Shekhar Sadashiv Jadhav Ref No 649857678059 -SBI
+TARGET: {"amount": 5000.0, "merchant": "Shekhar Sadashiv Jadhav", "date": "31-01-2026", "type": "credit", "account": "A/c X6254"}
+
+GEMMA MISSED:
+SMS: Update! INR 1,57,504.00 deposited in HDFC Bank A/c XX9141 on 27-FEB-26 for NEFT Cr-CITI0000004-HONEYWELL TECH SOLNS LAB P LTD-MANISH SATISH ARADWAD-CITIN26628728462.Avl bal INR 1,73,099.51. Cheque deposits in A/C are subject to clearing
+TARGET: {"amount": 157504.0, "merchant": "HONEYWELL TECH SOLNS LAB P LTD", "date": "27-02-2026", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Sent Rs.799.00
+From HDFC Bank A/C x9141
+To CAPITALFLOAT
+On 01/05/25
+Ref 512162368300
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 799.0, "merchant": "CAPITALFLOAT", "date": "01-05-2025", "type": "debit", "account": "A/C x9141"}
+
+GEMMA MISSED:
+SMS: Credit Alert!
+Rs.2756.00 credited to HDFC Bank A/c XX9141 on 17-01-26 from VPA priyalshrivastava03@okhdfcbank (UPI 117343839648)
+TARGET: {"amount": 2756.0, "merchant": "priyalshrivastava03@okhdfcbank", "date": "17-01-2026", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Sent Rs.450.00
+From HDFC Bank A/C *9141
+To POONAM DEVI
+On 28/11/25
+Ref 114834426240
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 450.0, "merchant": "POONAM DEVI", "date": "28-11-2025", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Spent Rs.325 On HDFC Bank Card 6719 At TOWER 5IAND5J BUNDLTECHNO On 2026-01-11:19:06:08.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 325.0, "merchant": "TOWER 5IAND5J BUNDLTECHNO", "date": "11-01-2026", "type": "debit", "account": "Card 6719"}
+
+GEMMA MISSED:
+SMS: Sent Rs.1000.00
+From HDFC Bank A/C *9141
+To RAKSHITA PRABHU
+On 13/03/26
+Ref 119958796451
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 1000.0, "merchant": "RAKSHITA PRABHU", "date": "13-03-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 197.00 on 08-Feb-26 for UPI-603945226362-Swiggy. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 197.0, "merchant": "Swiggy", "date": "08-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+GEMMA MISSED:
+SMS: Spent Rs.349 On HDFC Bank Card 6719 At PTM*RELIANCE RETAIL LI On 2026-02-23:21:36:50.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 349.0, "merchant": "PTM*RELIANCE RETAIL LI", "date": "23-02-2026", "type": "debit", "account": "Card 6719"}
+
+GEMMA MISSED:
+SMS: INR 119.00 spent using ICICI Bank Card XX3009 on 13-Oct-25 on AMAZON PAY IN G. Avl Limit: INR 3,97,628.78. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 119.0, "merchant": "AMAZON PAY IN G", "date": "13-10-2025", "type": "debit", "account": "Card XX3009"}
+
+GEMMA MISSED:
+SMS: ICICI Bank Credit Card XX6003 debited for INR 55.00 on 27-Feb-26 for UPI-605818126719-Compass. To dispute call 18001080/SMS BLOCK 6003 to 9215676766
+TARGET: {"amount": 55.0, "merchant": "Compass", "date": "27-02-2026", "type": "debit", "account": "Credit Card XX6003"}
+
+GEMMA MISSED:
+SMS: Txn Rs.10.00
+On HDFC Bank Card 0816
+At q978280566@ybl
+by UPI 639313436971
+On 27-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 10.0, "merchant": "q978280566@ybl", "date": "27-01", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: INR 899.00 spent using ICICI Bank Card XX3009 on 29-Apr-25 on IND*Amazon. Avl Limit: INR 3,62,775.38. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 899.0, "merchant": "IND*Amazon", "date": "29-04-2025", "type": "debit", "account": "Card XX3009"}
+
+GEMMA MISSED:
+SMS: Txn Rs.235.00
+On HDFC Bank Card 0816
+At blinkit.payu@hdfcbank
+by UPI 643800233353
+On 13-03
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 235.0, "merchant": "blinkit.payu@hdfcbank", "date": "13-03", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Sent Rs.290.00
+From HDFC Bank A/C *9141
+To RAMESH BABU RAO G N
+On 17/01/26
+Ref 638312973547
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 290.0, "merchant": "RAMESH BABU RAO G N", "date": "17-01-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: INR 1,025.00 spent using ICICI Bank Card XX3009 on 14-Jan-26 on AMAZON PAY WALL. Avl Limit: INR 3,99,015.00. If not you, call 1800 2662/SMS BLOCK 3009 to 9215676766.
+TARGET: {"amount": 1025.0, "merchant": "AMAZON PAY WALL", "date": "14-01-2026", "type": "debit", "account": "Card XX3009"}
+
+GEMMA MISSED:
+SMS: Sent Rs.75.00
+From HDFC Bank A/C *9141
+To SOUMYADEEP CHANDRA
+On 05/01/26
+Ref 637107015293
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 75.0, "merchant": "SOUMYADEEP CHANDRA", "date": "05-01-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Rs.753.95 spent on HDFC Bank Card x6719 at JIO PLATFORMS LIMITE on 2025-03-17:14:54:14.Not U? To Block & Reissue Call 18002586161/SMS BLOCK CC 6719 to 7308080808
+TARGET: {"amount": 753.95, "merchant": "JIO PLATFORMS LIMITE", "date": "17-03-2025", "type": "debit", "account": "Card x6719"}
+
+GEMMA MISSED:
+SMS: Txn Rs.334.00
+On HDFC Bank Card 0816
+At zeptomarketplacepriva.payu@mairtel 
+by UPI 116508565884
+On 01-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 334.0, "merchant": "zeptomarketplacepriva.payu@mairtel", "date": "01-01", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Txn Rs.60.00
+On HDFC Bank Card 0816
+At paytm-33345433@ptybl
+by UPI 117109380391
+On 13-01
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 60.0, "merchant": "paytm-33345433@ptybl", "date": "13-01", "type": "debit", "account": "Card 0816"}
+
+GEMMA MISSED:
+SMS: Sent Rs.43.00
+From HDFC Bank A/C *9141
+To Corporate Cafe
+On 05/02/26
+Ref 640227036298
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+TARGET: {"amount": 43.0, "merchant": "Corporate Cafe", "date": "05-02-2026", "type": "debit", "account": "A/C *9141"}
+
+GEMMA MISSED:
+SMS: Credit Alert!
+Rs.70000.00 credited to HDFC Bank A/c XX9141 on 18-01-26 from VPA 9636269931@yescred (UPI 638417111701)
+TARGET: {"amount": 70000.0, "merchant": "9636269931@yescred", "date": "18-01-2026", "type": "credit", "account": "A/c XX9141"}
+
+GEMMA MISSED:
+SMS: Txn Rs.244.00
+On HDFC Bank Card 0816
+At swiggyinstamart1online.gpay@okpayaxis 
+by UPI 106983795229
+On 24-06
+Not You?
+Call 18002586161/SMS BLOCK CC 0816 to 7308080808
+TARGET: {"amount": 244.0, "merchant": "swiggyinstamart1online.gpay@okpayaxis", "date": "24-06", "type": "debit", "account": "Card 0816"}

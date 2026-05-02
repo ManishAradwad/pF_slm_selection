@@ -64,21 +64,21 @@ FULL_QUANTS=(Q4_K_M Q8_0)
 # loose (4096) lets the model converge naturally. For Qwen3-0.6B/1.7B the
 # two budgets produce nearly identical results (they converge well under
 # 1024); for Qwen3.5-0.8B (avg 3794 thinking tokens) the delta is large.
-THINKING_BUDGETS=(1024 4096)
+THINKING_BUDGETS=(1024)
 # Single budget for the smoke pass — just verify the pipeline.
-SMOKE_THINKING_BUDGETS=(4096)
+SMOKE_THINKING_BUDGETS=(1024)
 # Models that are thinking-aware (chat template responds to enable_thinking).
 THINKING_MODELS_RE='^(Qwen/Qwen3-0\.6B|Qwen/Qwen3\.5-0\.8B|Qwen/Qwen3-1\.7B)$'
 
 # Models in roughly ascending parameter count for fast feedback first.
 MODELS=(
+  "Qwen/Qwen3-1.7B                 Qwen3-1.7B"
+  "google/gemma-4-E2B-it           gemma-4-E2B-it"
   "google/gemma-3-270m-it          gemma-3-270m-it"
   "Qwen/Qwen3-0.6B                 Qwen3-0.6B"
   "Qwen/Qwen3.5-0.8B               Qwen3.5-0.8B"
   "LiquidAI/LFM2.5-1.2B-Instruct   LFM2.5-1.2B-Instruct"
-  "Qwen/Qwen3-1.7B                 Qwen3-1.7B"
   "arcee-ai/arcee-lite             arcee-lite"
-  "google/gemma-4-E2B-it           gemma-4-E2B-it"
 )
 
 run_one() {
