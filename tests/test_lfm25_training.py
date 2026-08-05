@@ -118,6 +118,7 @@ def test_dataset_and_collator_mask_prompt_padding_and_carry_sample_weight(tmp_pa
         assert all(label == -100 for label in feature["labels"][:first_supervised])
         assert feature["labels"][first_supervised:] == feature["input_ids"][first_supervised:]
 
+    pytest.importorskip("torch")
     batch = CompletionCollator(FakeTokenizer())(dataset.features)
     assert batch["sample_weight"].tolist() == [2.5, 1.0]
     short_length = len(dataset.features[0]["input_ids"])
