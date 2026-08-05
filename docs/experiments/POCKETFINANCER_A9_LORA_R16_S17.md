@@ -6,6 +6,18 @@ Date: 2026-08-05
 
 Android source: `a9b7df44be2183daac3a05cadbfd40b8f309cd4b`
 
+## 2.6B follow-up
+
+The executed
+[LFM2.5-2.6B Base LoRA follow-up](POCKETFINANCER_LFM25_2_6B_R16_S17.md)
+is dated 2026-08-05 and completes the prospective 2.6B step discussed below. Its
+BF16 rank-16 probe passed at 7,351.9 MiB peak allocated VRAM, so QLoRA was not
+used. On the same 154-train / 29-dev silver materialization, the adapter did not
+reliably improve the untouched Base on the reused 203-row regression fixture.
+Human-gold, Android-device, and deployment gates remain open; teacher labels
+still require source grounding and human review. The 350M results in this report
+remain the historical record of this run.
+
 ## Conclusion
 
 The end-to-end training, merge, GGUF conversion, and Android-profile evaluation

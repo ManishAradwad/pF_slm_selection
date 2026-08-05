@@ -6,23 +6,34 @@ Run commands from `/home/tojinotzenin/pF_slm_selection` inside WSL2 after
 ## Primary PocketFinancer pipeline
 
 `scripts/run_pocketfinancer_pipeline.py` is the single supported entry point for
-new app-facing work. It reads
-`configs/pipelines/pocketfinancer-lfm2.5-350m.json` and exposes these stages:
+new app-facing work. The default and canonical declaration is
+`configs/pipelines/pocketfinancer-lfm2.5-350m.json`. The parallel
+`configs/pipelines/pocketfinancer-lfm2.5-2.6b-base.json` declaration applies the
+same workflow to the pinned LFM2.5-2.6B-Base checkpoint and must be selected
+explicitly with `--config`. Both declarations expose these stages:
 
 | Stage | Purpose |
 |---|---|
 | `check` | Report local readiness and exact inputs without modifying anything |
 | `plan` | Print every command as an argv array |
 | `build-data` | Materialize app-filtered, source-grounded private train/dev rows |
+| `evaluate-base-hf` | Evaluate the locked, untuned HF checkpoint before adaptation |
 | `train` | Train completion-only LoRA with the exact PocketFinancer messages |
-| `evaluate-hf` | Fast BF16/adapter diagnostic using the app prompt and prefilter |
+| `evaluate-hf` | Evaluate the trained HF adapter using the app prompt and prefilter |
 | `merge` | Merge the chosen adapter into the HF base |
 | `convert` | Produce reference and deployable GGUF files |
 | `evaluate-gguf` | Evaluate the deployable artifact under the app runtime profile |
 
-Use `--dry-run` with an execution stage to inspect only that command. `all` exists
-for an intentional end-to-end run, but stage-by-stage execution is preferable while
-developing because each artifact can be inspected before the next expensive step.
+Execution order is `build-data`, `evaluate-base-hf`, `train`, `evaluate-hf`,
+`merge`, `convert`, then `evaluate-gguf`. Use `--dry-run` with an execution stage
+to inspect only that command. `all` exists for an intentional end-to-end run, but
+stage-by-stage execution is preferable while developing because each artifact can
+be inspected before the next expensive step.
+
+When thinking mode is enabled, the HF and GGUF evaluators retain raw reasoning
+only in `samples.jsonl` beneath ignored local `RESULTS/` directories; aggregate
+metrics do not contain it. Evaluation timing is measured on the WSL host, not on
+an Android device, and is not Android runtime-performance evidence.
 
 ## Environment and safety
 
@@ -30,6 +41,7 @@ developing because each artifact can be inspected before the next expensive step
 |---|---|
 | `python scripts/verify_gpu.py` | Verify CUDA/PyTorch and local runtime readiness |
 | `python scripts/verify_lfm25_backward.py` | Run a real short LFM backward-pass probe |
+| `python scripts/probe_lfm25_lora_memory.py --help` | Inspect the one-backward-pass LoRA capacity gate; it is not training or quality evidence |
 | `python scripts/check_repo_safety.py` | Check that private/generated artifacts cannot be committed |
 | `bash scripts/setup_wsl.sh` | Bootstrap the pinned native WSL environment |
 
@@ -37,10 +49,28 @@ developing because each artifact can be inspected before the next expensive step
 
 | Command | Purpose |
 |---|---|
+| `python scripts/review_lfm25_blinded_test.py export` | Freeze all test rows into a reviewer-blind, test-only local package |
+| `python scripts/review_lfm25_blinded_test.py validate` | Validate complete or resumable partial human annotations without writing outputs |
+| `python scripts/review_lfm25_blinded_test.py import` | Write completed labels to a separate reviewed manifest plus aggregate-only report |
 | `python scripts/build_lfm25_private_sft_v2.py` | Rebuild the private source-grounded direct SFT set |
 | `python scripts/build_lfm25_candidate_sft.py` | Convert grounded direct rows to candidate-selector rows |
 | `python scripts/build_lfm25_candidate_curriculum.py` | Build low-weight semantic curriculum and mixed training data |
 | `python scripts/audit_lfm25_candidate_coverage.py` | Audit deterministic candidate coverage without training |
+
+The blinded workflow writes only below ignored `PRIVATE_DATA/lfm25`. Give reviewers
+only `blinded_test_review.jsonl`; the ID map and provenance metadata are internal.
+Untouched rows stay blank so review can resume later. Import never edits the frozen
+`split_manifest.jsonl`: it writes `split_manifest_human_reviewed.jsonl` and an
+aggregate report separately. Existing nonempty outputs require an explicit
+`--force`. Package metadata and the import report are committed last as validity
+markers; a detected source change rolls the group back to its prior state.
+
+For each completed row, set `decision` to `transaction` or `not_transaction`,
+then fill `reviewer` and an ISO-8601 `reviewed_at` timestamp with a timezone.
+Transactions also require a numeric `amount`, `type` (`debit` or `credit`), and
+nonempty `account`; `counterparty` may be null. Non-transactions keep all four
+extraction fields null. Leave every annotation field null on untouched rows;
+`notes` is optional only after a decision is complete.
 
 The filenames preserve compatibility with historical manifests. Dataset status and
 actual semantic versions are recorded in [the experiment catalog](../docs/experiments/EXPERIMENT_CATALOG.md).

@@ -26,9 +26,15 @@ and metrics interpretation. The current versioned record is
 
 ## Current status
 
-The first unified Android-aligned `LiquidAI/LFM2.5-350M` LoRA run is complete. It
-trained on the local RTX 4070, exported BF16/Q8/Q4 GGUFs, and evaluated the Q4
-artifact through the app prompt, prefilter, and parser profile.
+As of 2026-08-05, the first Android-aligned 2.6B diagnostic slice is complete.
+It compares the untouched Post and Base checkpoints, a small Base-model LoRA,
+and its BF16/Q8/Q4 exports. None of these results supports deployment.
+
+### Historical 350M run
+
+The first unified Android-aligned `LiquidAI/LFM2.5-350M` LoRA run trained on the
+local RTX 4070, exported BF16/Q8/Q4 GGUFs, and evaluated the Q4 artifact through
+the app prompt, prefilter, and parser profile.
 
 | Variant | Whole-pipeline exact | Transaction exact |
 |---|---:|---:|
@@ -46,6 +52,31 @@ These 203 rows are a repeatedly consulted regression fixture, not a fresh test.
 Read the [complete run report](docs/experiments/POCKETFINANCER_A9_LORA_R16_S17.md)
 and [experiment catalog](docs/experiments/EXPERIMENT_CATALOG.md) before comparing
 scores.
+
+### 2.6B diagnostics
+
+| Variant | App-interpreted whole exact | App-interpreted transaction exact |
+|---|---:|---:|
+| Untouched Post, HF | 174/203 | 86/114 |
+| Untouched Base, HF | 186/203 | 98/114 |
+| Selected LoRA, HF | 184/203 | 96/114 |
+| Tuned BF16 GGUF, single BOS | 184/203 | 96/114 |
+| Tuned Q8 GGUF, single BOS | 184/203 | 96/114 |
+| Tuned Q4 GGUF, Android-current | 166/203 | 78/114 |
+| Tuned Q4 GGUF, single BOS | 173/203 | 85/114 |
+
+Every row above uses the same reused 203-row regression fixture; it is not a
+fresh test. HF and GPU timings are not Android timings. The Android-current Q4
+result uses the profile's actual declared duplicate-BOS behavior, while the
+single-BOS rows are diagnostics.
+
+Untouched Base beat untouched Post. The small 154-train/29-dev silver-data LoRA
+did not reliably beat Base. Q8 preserved tuned HF/BF16 parity, while Q4 lost
+quality. Single BOS recovered seven whole-pipeline and seven transaction exact
+rows relative to Android-current Q4, but the Android source and device-behavior
+decision remains open. See the
+[completed 2.6B report](docs/experiments/POCKETFINANCER_LFM25_2_6B_R16_S17.md)
+for the controlled comparisons and limitations.
 
 ## System overview
 
@@ -82,33 +113,41 @@ Development happens in the native WSL2 checkout, not in a duplicated NTFS clone:
 cd /home/tojinotzenin/pF_slm_selection
 source scripts/activate_wsl.sh
 
+# Choose the 350M or 2.6B Base declaration.
+PIPELINE_CONFIG=configs/pipelines/pocketfinancer-lfm2.5-350m.json
+# PIPELINE_CONFIG=configs/pipelines/pocketfinancer-lfm2.5-2.6b-base.json
+
 # Read-only readiness and provenance verification.
-python scripts/run_pocketfinancer_pipeline.py check
+python scripts/run_pocketfinancer_pipeline.py check --config "$PIPELINE_CONFIG"
 
 # Display the exact commands without executing a stage.
-python scripts/run_pocketfinancer_pipeline.py plan
+python scripts/run_pocketfinancer_pipeline.py plan --config "$PIPELINE_CONFIG"
 ```
 
-The supported pipeline declaration is
-[`configs/pipelines/pocketfinancer-lfm2.5-350m.json`](configs/pipelines/pocketfinancer-lfm2.5-350m.json).
+The supported pipeline declarations are the
+[`350M profile`](configs/pipelines/pocketfinancer-lfm2.5-350m.json) and
+[`2.6B Base profile`](configs/pipelines/pocketfinancer-lfm2.5-2.6b-base.json).
+The CLI defaults to 350M; pass `--config` to select either declaration explicitly.
 Run expensive work one stage at a time:
 
 | Stage | Purpose |
 |---|---|
 | `build-data` | Build app-filtered, source-grounded private train/dev rows |
+| `evaluate-base-hf` | Score the untouched locked model before training |
 | `train` | Train completion-only LoRA using the exact app messages |
-| `evaluate-hf` | Run fast base/adapter diagnostics |
+| `evaluate-hf` | Run the selected-adapter HF diagnostic |
 | `merge` | Merge the selected adapter into the locked base |
 | `convert` | Export reference and deployable GGUF quantizations |
 | `evaluate-gguf` | Score the deployable GGUF under the app profile |
 
 ```bash
-python scripts/run_pocketfinancer_pipeline.py build-data
-python scripts/run_pocketfinancer_pipeline.py train
-python scripts/run_pocketfinancer_pipeline.py evaluate-hf
-python scripts/run_pocketfinancer_pipeline.py merge
-python scripts/run_pocketfinancer_pipeline.py convert
-python scripts/run_pocketfinancer_pipeline.py evaluate-gguf
+python scripts/run_pocketfinancer_pipeline.py build-data --config "$PIPELINE_CONFIG"
+python scripts/run_pocketfinancer_pipeline.py evaluate-base-hf --config "$PIPELINE_CONFIG"
+python scripts/run_pocketfinancer_pipeline.py train --config "$PIPELINE_CONFIG"
+python scripts/run_pocketfinancer_pipeline.py evaluate-hf --config "$PIPELINE_CONFIG"
+python scripts/run_pocketfinancer_pipeline.py merge --config "$PIPELINE_CONFIG"
+python scripts/run_pocketfinancer_pipeline.py convert --config "$PIPELINE_CONFIG"
+python scripts/run_pocketfinancer_pipeline.py evaluate-gguf --config "$PIPELINE_CONFIG"
 ```
 
 `all` is available for intentional automation, but stage-by-stage execution makes
@@ -203,21 +242,23 @@ guard, not a substitute for reviewing content and diffs.
 - [Agent/tool-neutral repository rules](AGENTS.md)
 - [Contribution and pull-request workflow](CONTRIBUTING.md)
 - [Command map](scripts/README.md)
-- [Latest Android-aligned run](docs/experiments/POCKETFINANCER_A9_LORA_R16_S17.md)
+- [Completed 2.6B diagnostic report](docs/experiments/POCKETFINANCER_LFM25_2_6B_R16_S17.md)
+- [Historical 350M Android-aligned run](docs/experiments/POCKETFINANCER_A9_LORA_R16_S17.md)
 - [Experiment and dataset catalog](docs/experiments/EXPERIMENT_CATALOG.md)
 - [Fine-tuning, LoRA, and QLoRA primer](docs/guides/FINE_TUNING_PRIMER.md)
 - [Model-improvement roadmap](docs/architecture/MODEL_IMPROVEMENT_ROADMAP.md)
-- [LFM2.5-2.6B evaluation plan](docs/experiments/LFM25_2_6B_EVALUATION_PLAN.md)
+- [LFM2.5-2.6B pre-run evaluation plan (provenance)](docs/experiments/LFM25_2_6B_EVALUATION_PLAN.md)
 
 ## Next decision gates
 
-1. Create a fresh human-reviewed, sender/template-held-out test.
+1. Complete adjudication of the already-created frozen blind package (1,436 rows
+   pending) for a fresh human-gold test.
 2. Expand clean source-grounded training data and measure multi-seed learning
-   curves.
-3. Verify single versus duplicate BOS on the real Android JNI token stream.
-4. Benchmark LFM2.5-2.6B as a quality ceiling and reviewed local teacher.
-5. Revisit grounded candidate selection or task-specific span heads if direct
-   350M generation plateaus.
+   curves only after that review.
+3. Fix or verify BOS handling on the real Android JNI token stream.
+4. Measure 2.6B RAM, latency, thermals, and battery on the target device.
+5. Decide whether to use a teacher or different architecture only with grounded,
+   reviewed labels.
 
 ## Contributing
 

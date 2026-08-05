@@ -21,6 +21,10 @@ must not be used for training.
 No run below has yet been validated on a new, human-reviewed, template-held-out
 test set or through a working target-phone Android inference path.
 
+A frozen reviewer-blind package covers all 1,436 rows in the held-out test
+partition, but all 1,436 remain pending human adjudication. It is not human gold
+and contributed no training row or result below.
+
 ## Dataset lineage
 
 | Dataset | Train | Dev/tuning | Status | Meaning |
@@ -67,6 +71,14 @@ checkpoint by loss, but neither can support a credible ghost-rate claim.
 
 | System | Exact on 203 | Transaction exact | Status and interpretation |
 |---|---:|---:|---|
+| LFM2.5-2.6B untouched Post, HF proxy | 174/203 | 86/114 | Two-pass local diagnostic; not Android runtime |
+| LFM2.5-2.6B untouched Post, official Q4 single-BOS | 176/203 | 88/114 | Host-GPU diagnostic; no reliable change from Post HF (`p=0.815`) |
+| **LFM2.5-2.6B untouched Base, HF proxy** | **186/203** | **98/114** | Best completed 2.6B result; reused-fixture ceiling evidence only |
+| LFM2.5-2.6B Base rank-16 LoRA, HF proxy | 184/203 | 96/114 | No reliable gain over untouched Base (`p=0.727`) |
+| LFM2.5-2.6B Base LoRA, BF16 single-BOS | 184/203 | 96/114 | Host-GPU merge reference; not phone runtime |
+| LFM2.5-2.6B Base LoRA, Q8 single-BOS | 184/203 | 96/114 | Prediction-identical to BF16 on this host run |
+| LFM2.5-2.6B Base LoRA, Q4 Android-current BOS | 166/203 | 78/114 | Host CPU diagnostic; duplicate-BOS warning on all invocations |
+| LFM2.5-2.6B Base LoRA, Q4 single-BOS | 173/203 | 85/114 | Better than current BOS (`p=0.039`), still below HF (`p=0.007`) |
 | Always null | 89/203 | 0/114 | Sanity baseline |
 | Android a9 untouched base, HF proxy | 89/203 | 0/114 | Current baseline; app parser, not JNI runtime |
 | **Android a9 r16-s17 adapter, HF proxy** | **121/203** | **32/114** | Current app-aligned training diagnostic |
@@ -87,6 +99,16 @@ The full current-run record is
 Its 203 rows are the reused regression set, not a fresh test. Grammar-on produced
 exactly the same Q4 output strings as grammar-off. The single-BOS direction is
 interesting but not statistically decisive and needs Android JNI verification.
+
+The [completed 2.6B diagnostic](POCKETFINANCER_LFM25_2_6B_R16_S17.md) and its
+[machine-readable record](../../configs/experiments/lfm2.5-2.6b-base-r16-s17.json)
+catalog the newer aggregate evidence. The untouched Base's 186/203 is local
+quality-ceiling evidence on the reused fixture only. Rank-16 LoRA reached 184/203
+and did not establish a reliable gain over Base (`p=0.7265625`). Single-BOS BF16
+and Q8 preserved the LoRA HF app-exact result and matched one another exactly;
+Q4 fell to 166/203 under Android-current BOS handling and recovered to 173/203
+with single BOS. Quantization and correct BOS handling remain unresolved for
+shipping. No result establishes custom-JNI runtime, device, or deployment parity.
 
 The direct clean result has 94 true positives, 20 transaction misses, no ghosts,
 and 202/203 valid/schema-valid outputs under its saved experimental evaluator. The
@@ -129,6 +151,14 @@ remains a historical `a6c8a11` snapshot.
 
 ## Decision
 
+- **2.6B untouched Base:** use only as controlled, reused-regression
+  quality-ceiling evidence; it is not a production benchmark or deployment choice.
+- **2.6B rank-16 LoRA:** do not promote; one silver-data seed showed no reliable
+  improvement over untouched Base.
+- **2.6B BF16/Q8:** identical single-BOS host predictions are useful conversion
+  parity evidence, not Android runtime or device evidence.
+- **2.6B Q4/BOS:** the Q4 loss and Android-current duplicate-BOS behavior are
+  unresolved shipping blockers; do not ship.
 - **350M direct artifact:** continue research; do not promote.
 - **Latest direct Q4:** operational pipeline artifact, but only 31/114 exact
   transactions under current tokenization; do not ship.

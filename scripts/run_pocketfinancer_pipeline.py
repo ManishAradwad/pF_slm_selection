@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"{item.label}={item.path.relative_to(REPO_ROOT)}" for item in missing
             )
             parser.error(f"{stage} is missing required input(s): {details}")
-        if stage in {"train", "evaluate-hf", "merge"}:
+        if stage in {"evaluate-base-hf", "train", "evaluate-hf", "merge"}:
             try:
                 verify_locked_model(config, REPO_ROOT)
             except PipelineConfigError as error:

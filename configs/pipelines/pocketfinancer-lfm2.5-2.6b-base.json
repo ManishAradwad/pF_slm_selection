@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "name": "pocketfinancer-lfm2.5-350m-direct-lora",
+  "name": "pocketfinancer-lfm2.5-2.6b-base-direct-lora",
   "app_profile": "configs/contracts/pocketfinancer-android-current.json",
   "runtime": {
     "python": ".venv/bin/python"
   },
   "model": {
-    "id": "LiquidAI/LFM2.5-350M",
-    "local_path": "TRAINING_ARTIFACTS/base/LFM2.5-350M",
-    "lock": "configs/lfm25/model.lock.json",
+    "id": "LiquidAI/LFM2.5-2.6B-Base",
+    "local_path": "TRAINING_ARTIFACTS/base/LFM2.5-2.6B-Base",
+    "lock": "configs/lfm25/model-2.6b-base.lock.json",
     "thinking_mode": false
   },
   "data": {
@@ -28,15 +28,15 @@
   "training": {
     "method": "lora",
     "prompt_profile": "pocketfinancer",
-    "output_dir": "TRAINING_ARTIFACTS/pocketfinancer/lfm2.5-350m-direct-r16-s17",
+    "output_dir": "TRAINING_ARTIFACTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17",
     "rank": 16,
     "alpha": 32,
     "dropout": 0.05,
     "learning_rate": 0.0001,
     "epochs": 4,
-    "batch_size": 2,
-    "eval_batch_size": 2,
-    "gradient_accumulation": 16,
+    "batch_size": 1,
+    "eval_batch_size": 1,
+    "gradient_accumulation": 32,
     "max_length": 2304,
     "loss_mode": "per_example_completion_mean",
     "first_supervised_token_weight": 3.0,
@@ -51,13 +51,13 @@
     "n_ctx": 3072,
     "grammar": false,
     "grammar_path": "DATA/sms_extraction.gbnf",
-    "hf_base_output_dir": "RESULTS/pocketfinancer/lfm2.5-350m-base-hf",
-    "hf_output_dir": "RESULTS/pocketfinancer/lfm2.5-350m-direct-r16-s17-hf",
-    "gguf_output_dir": "RESULTS/pocketfinancer/lfm2.5-350m-direct-r16-s17-q4"
+    "hf_base_output_dir": "RESULTS/pocketfinancer/lfm2.5-2.6b-base-untuned-hf",
+    "hf_output_dir": "RESULTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17-hf",
+    "gguf_output_dir": "RESULTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17-q4"
   },
   "export": {
-    "merged_dir": "TRAINING_ARTIFACTS/pocketfinancer/lfm2.5-350m-direct-r16-s17-merged",
-    "gguf_prefix": "TRAINING_ARTIFACTS/pocketfinancer/gguf/lfm2.5-350m-direct-r16-s17",
-    "deployable_gguf": "TRAINING_ARTIFACTS/pocketfinancer/gguf/lfm2.5-350m-direct-r16-s17-Q4_K_M.gguf"
+    "merged_dir": "TRAINING_ARTIFACTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17-merged",
+    "gguf_prefix": "TRAINING_ARTIFACTS/pocketfinancer/gguf/lfm2.5-2.6b-base-direct-r16-s17",
+    "deployable_gguf": "TRAINING_ARTIFACTS/pocketfinancer/gguf/lfm2.5-2.6b-base-direct-r16-s17-Q4_K_M.gguf"
   }
 }

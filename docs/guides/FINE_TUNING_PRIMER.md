@@ -58,14 +58,22 @@ QLoRA combines two ideas during training:
 2. Train LoRA adapters in a higher precision such as BF16/FP16.
 
 Gradients and optimizer state apply to the adapters, not to all 4-bit base weights.
-This can make a 2.69B model practical on the RTX 4070. It is not the same as taking
-a trained model and exporting a Q4 GGUF for Android: training-time 4-bit loading
-and deployment quantization are separate steps and require separate parity tests.
+This can reduce the memory needed for a 2.69B model on the RTX 4070. It is not the
+same as taking a trained model and exporting a Q4 GGUF for Android: training-time
+4-bit loading and deployment quantization are separate steps and require separate
+parity tests.
 
 QLoRA has tradeoffs: more kernel/library complexity, slower operations in some
-setups, and potential architecture-specific incompatibilities. We should use it
-for 2.6B only after a short real backward-pass probe confirms Liquid's hybrid
-modules, PEFT targets, bitsandbytes, sequence length, and memory headroom.
+setups, and potential architecture-specific incompatibilities. The 2026-08-05
+[executed 2.6B report](../experiments/POCKETFINANCER_LFM25_2_6B_R16_S17.md)
+records a real BF16 rank-16 backward-pass probe that passed at 7,351.9 MiB peak
+allocated VRAM. Ordinary BF16 LoRA fit, so QLoRA was not used.
+
+That controlled diagnostic used the same 154-train / 29-dev silver
+materialization as the 350M run. It did not reliably improve the untouched Base
+on the reused 203-row regression fixture. Fresh human-gold evaluation, Android
+device measurements, and deployment review remain open. Any outputs used as
+teacher labels still require source grounding and human review.
 
 ## What our SFT objective changed
 
@@ -123,7 +131,8 @@ high, model capacity or the output formulation is the likely limit.
 2. Make the evaluator reproduce the Android runtime exactly.
 3. Train 350M direct and candidate variants on successively larger clean datasets.
 4. Merge/export the winning adapters and test GGUF parity.
-5. Compare 350M, LFM2.5-2.6B, and other finalists on identical data and decoding.
+5. Use the completed 2.6B diagnostic as a controlled baseline, not promotion
+   evidence; repeat comparisons only with the remaining human-gold gate in place.
 6. Measure RAM, cold load, latency, thermals, and battery on target phones.
 
 Model size should be the variable we change after the data and contract are fixed.
