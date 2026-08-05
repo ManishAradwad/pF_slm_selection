@@ -1,8 +1,12 @@
 # Documentation map
 
 The repository contains historical model-selection work and a newer fine-tuning
-pipeline. This page is the human-facing index; `CLAUDE.md` remains operational
-context for coding agents and is not the experiment catalog.
+pipeline. The root `README.md` is the human onboarding page, `AGENTS.md` contains
+tool-neutral repository policy, and this page indexes durable technical evidence.
+No agent-specific file is a separate source of truth.
+
+Development workflow: [repository instructions](../AGENTS.md) and
+[contribution guide](../CONTRIBUTING.md).
 
 ## Read in this order
 
@@ -25,6 +29,8 @@ context for coding agents and is not the experiment catalog.
    the staged move toward a model-agnostic package.
 9. [LFM2.5-2.6B evaluation plan](experiments/LFM25_2_6B_EVALUATION_PLAN.md) - a
    future, like-for-like test of the new agentic model and its Base checkpoint.
+10. [Historical general GGUF sweep](history/GENERAL_GGUF_BENCHMARK_2026-04-25.md) -
+    dated pre-app-contract model-slate evidence retained for audit only.
 
 ## Status language
 

@@ -92,3 +92,39 @@ def test_2_6b_candidate_record_is_pinned_but_not_downloaded() -> None:
     assert len(model["post_trained"]["revision"]) == 40
     assert files["LFM2.5-2.6B-Q4_0.gguf"] < files["LFM2.5-2.6B-Q8_0.gguf"]
     assert model["license"]["commercial_revenue_threshold_usd"] == 10_000_000
+
+
+def test_repository_guidance_is_harness_neutral() -> None:
+    required_files = (
+        "README.md",
+        "AGENTS.md",
+        "CONTRIBUTING.md",
+        ".github/pull_request_template.md",
+        "docs/history/GENERAL_GGUF_BENCHMARK_2026-04-25.md",
+    )
+    for relative in required_files:
+        assert (ROOT / relative).is_file(), relative
+
+    assert not (ROOT / "CLAUDE.md").exists()
+    assert not (ROOT / ".claude/scheduled_tasks.lock").exists()
+    assert not (ROOT / ".devcontainer/post-create.sh").exists()
+
+    guidance_files = (
+        "README.md",
+        "AGENTS.md",
+        "CONTRIBUTING.md",
+        "docs/README.md",
+        "scripts/README.md",
+        "scripts/evaluate.sh",
+        "scripts/fetch_models.sh",
+    )
+    guidance = "\n".join(
+        (ROOT / relative).read_text(encoding="utf-8")
+        for relative in guidance_files
+    ).lower()
+    assert "claude.md" not in guidance
+    assert "@anthropic-ai" not in guidance
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "scripts/run_pocketfinancer_pipeline.py" in readme
+    assert "AGENTS.md" in readme

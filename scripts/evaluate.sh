@@ -16,7 +16,7 @@
 # Per-model thinking is auto-detected from each tokenizer's chat template
 # (Qwen3 family → on; everything else → off). Override with THINKING env var.
 #
-# Each (model, quant, budget) gets a fresh Python subprocess — see CLAUDE.md
+# Each (model, quant, budget) gets a fresh Python subprocess; see scripts/README.md
 # § Pipeline for the run-isolation contract and end-to-end metric flow.
 
 set -uo pipefail

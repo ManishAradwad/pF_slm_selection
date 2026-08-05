@@ -20,7 +20,6 @@ which controls are required before any training result can be trusted.
   Windows `D:` drive was already 95% full during the audit.
 - Docker is not part of the active workflow. The obsolete project container,
   images, volume, build cache, and `pf_docker` shim were removed on 2026-08-03.
-- `.devcontainer/` remains only as a small reproducibility reference.
 
 Verified on 2026-08-03:
 

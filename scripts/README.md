@@ -63,6 +63,9 @@ actual semantic versions are recorded in [the experiment catalog](../docs/experi
 benchmark. They remain useful for exploration but are not the default app-facing
 pipeline.
 
+The dated results and failure signatures from that work are preserved in the
+[general GGUF benchmark history](../docs/history/GENERAL_GGUF_BENCHMARK_2026-04-25.md).
+
 ## Historical commands
 
 `scripts/run_lfm25_experiments.py`, `evaluate_lfm25_hf.py`,
