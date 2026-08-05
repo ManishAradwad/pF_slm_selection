@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "status": "audited_current_implementation",
+  "audited_at": "2026-08-05",
+  "android_repository": "/home/tojinotzenin/pocket-financer-android",
+  "android_revision": "a6c8a11",
+  "prompt": {
+    "outer_system": "You are a helpful financial SMS extraction assistant.",
+    "roles": [
+      "system",
+      "user"
+    ],
+    "few_shot_examples": 7,
+    "system_policy_sha256": "16e042a07a18165e1cd0b1c0d0cd3bcee67f64825df8adc74e568b3eadffd64a",
+    "few_shot_examples_sha256": "ea4e57c646f2232b5e1d24c1211b8ee6ac68cfef2f69c52ac9ae3765116749aa",
+    "lfm2_5_350m_locked_prompt_tokens": {
+      "rows": 203,
+      "minimum": 1862,
+      "mean": 1899.8,
+      "maximum": 2017
+    }
+  },
+  "preprocessing": {
+    "sms_receiver_to_pipeline_wired": false,
+    "prefilter": null
+  },
+  "runtime": {
+    "wrapper": "custom_kotlin_jni",
+    "llama_cpp_tag": "b9198",
+    "device": "android_cpu",
+    "gpu_layers": 0,
+    "maximum_threads": 4,
+    "n_ctx": 1024,
+    "n_batch": 512,
+    "n_ubatch": 256,
+    "flash_attention": true,
+    "kv_cache_type": "q8_0",
+    "memory_map": false
+  },
+  "generation": {
+    "mode": "mandatory_two_phase",
+    "temperature": 0.0,
+    "repetition_penalty": null,
+    "thinking": {
+      "prefix": "<think>\n",
+      "maximum_tokens": 1024,
+      "grammar": null,
+      "stop": "</think>"
+    },
+    "answer": {
+      "maximum_tokens": 256,
+      "grammar_required": true,
+      "grammar_sha256": "c321daca16ea3dbdf4269c6504f7cbab5e587d1ce849e3b79133e5449d1c7939",
+      "stop": null
+    }
+  },
+  "models": {
+    "lfm2_5_350m_configured": false,
+    "reachable_selection_family": "qwen"
+  },
+  "known_blockers": [
+    "prompt_does_not_fit_n_ctx",
+    "jni_overflow_keeps_only_final_64_tokens",
+    "real_sms_channel_not_collected_by_pipeline",
+    "selection_parser_differs_from_android_parser",
+    "no_native_gguf_generation_test"
+  ],
+  "documentation": "docs/architecture/ANDROID_RUNTIME_AUDIT.md"
+}

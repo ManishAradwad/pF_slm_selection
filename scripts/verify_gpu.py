@@ -1,6 +1,6 @@
 """Sanity check: torch sees the GPU and llama-cpp-python is CUDA-built.
 
-Run after container rebuild. If this fails, the runtime will silently fall
+Run after native environment setup. If this fails, the runtime will silently fall
 back to CPU on every eval — diagnose before that happens.
 
 Looks for the smallest .gguf file under MODELS/ to load. If MODELS/ is empty,

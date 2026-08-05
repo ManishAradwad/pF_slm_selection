@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Download GGUFs for the candidate SLM slate (see CLAUDE.md § Candidate models).
+# Download GGUFs for the historical general slate; see scripts/README.md.
 # Per user direction we now sweep multiple quantizations per model so each
 # candidate's quality/size tradeoff curve can be measured directly. Bonsai is
 # excluded — Bonsai is published only at Q1_0 and the run currently fails for
@@ -16,6 +16,7 @@
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
+source scripts/activate_wsl.sh
 mkdir -p MODELS
 
 dl() {

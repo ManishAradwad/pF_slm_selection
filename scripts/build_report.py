@@ -72,7 +72,7 @@ HEADLINE_METRICS = [
     ("amount_accuracy",           "Amount",            True),
     ("type_accuracy",             "Type",              True),
     ("account_accuracy",          "Account",           True),
-    ("merchant_accuracy",         "Merchant",          True),
+    ("counterparty_accuracy",     "Counterparty",      True),
     ("json_validity",             "JSON valid",        True),
 ]
 
@@ -208,9 +208,12 @@ def _select_doc_ids(runs: list[RunRecord], k: int = 8) -> list[int]:
     pick = []
     # interleave real + null so the viewer alternates
     for i in range(max(len(real), len(nulls))):
-        if i < len(real): pick.append(real[i]["doc_id"])
-        if i < len(nulls): pick.append(nulls[i]["doc_id"])
-        if len(pick) >= k: break
+        if i < len(real):
+            pick.append(real[i]["doc_id"])
+        if i < len(nulls):
+            pick.append(nulls[i]["doc_id"])
+        if len(pick) >= k:
+            break
     return pick[:k]
 
 

@@ -2,7 +2,7 @@ task: sms_extraction
 dataset_path: json
 dataset_kwargs:
   data_files:
-    test: /workspaces/pF_slm_selection/DATA/extraction_ds.jsonl
+    test: DATA/extraction_ds.jsonl
 output_type: generate_until
 test_split: test
 

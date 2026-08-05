@@ -1,0 +1,43 @@
+{
+  "model": {
+    "repo": "LiquidAI/LFM2.5-350M",
+    "revision": "36aa424c15e1bd69acab3380c0854b3d188e1036",
+    "architecture": "Lfm2ForCausalLM",
+    "model_type": "lfm2",
+    "parameters": 354483968,
+    "dtype": "BF16",
+    "license_identifier_from_model_card": "lfm1.0",
+    "files": {
+      "LICENSE": "4d28ca14dedc0b3d0fcc2b3339f0e79931faa33874f3d24f522183a8fc70068c",
+      "README.md": "a2bb9f40aca96e21d0e2c497af58f459a4b1f92c9d459dc0ece67ec63f7480b5",
+      "chat_template.jinja": "013eed60546434b6967e3483153d8c5c37abcb1d667f8b1f914683f2a9411531",
+      "config.json": "720b43d6ddc2ed25be23eed355aefcf342434a176dedad23dbe0a5e3ac24bbb8",
+      "generation_config.json": "0ec7d228c4de7e3453e98bf6910c7eb7841e87fede63ea11c0f75a5c64e1c3c3",
+      "model.safetensors": "1c9c77a4471a7f590f85240f74ed1fc26df7fbde88c3006724e2f93ca993ea4e",
+      "tokenizer.json": "df1d8d5ec5d091b460562ffd545e4a5e91d17d4a0db7ebe733be34ed374377bd",
+      "tokenizer_config.json": "3701f370c70034d06e28947ff51c1063983393319f429e3ce58f06a45fae67cc"
+    }
+  },
+  "official_gguf": {
+    "repo": "LiquidAI/LFM2.5-350M-GGUF",
+    "revision": "bb7ee58b243e4cede04187e323e760b04f8a0091",
+    "architecture": "lfm2",
+    "files": {
+      "LICENSE": "5188f2b355da20647257a3156db5834c794e5fb5e6d8dc4d4cdbb3180e75b85b",
+      "README.md": "48db34ba9584413c198522d3b35efd7419093910b143179ffc0d8cf87e431cbb",
+      "LFM2.5-350M-Q4_K_M.gguf": "7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4",
+      "LFM2.5-350M-Q8_0.gguf": "be036a757295e550098b85e13f6af2735d0fa73b41e1156a40c7d8e8e32a5766"
+    }
+  },
+  "runtime": {
+    "python": "3.11.14",
+    "torch": "2.6.0+cu124",
+    "transformers": "5.6.2",
+    "trl": "1.9.2",
+    "peft": "0.20.0",
+    "accelerate": "1.13.0",
+    "bitsandbytes": "0.50.0",
+    "llama_cpp_python": "0.3.20",
+    "lm_eval_commit": "9b2b9280330a3a5b20953346c8b51e23c4c8c4e2"
+  }
+}

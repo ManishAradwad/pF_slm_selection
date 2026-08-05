@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "resolved_at_utc": "2026-08-03T21:14:18Z",
+  "upstream": {
+    "repository": "https://github.com/ggml-org/llama.cpp.git",
+    "commit": "fe2adf0e722f30f5295fdec8a0f1dc788f7498bc",
+    "tree": "3d5eccf08dbfe6edab1939314964475a603ab2de",
+    "commit_date": "2026-08-03T20:31:15+02:00",
+    "commit_subject": "vendor : update BoringSSL to 0.20260803.0 (#26523)",
+    "llama_cpp_build_number": 10252
+  },
+  "lfm2_support": {
+    "hf_architectures": [
+      "Lfm2ForCausalLM",
+      "LFM2ForCausalLM"
+    ],
+    "gguf_architecture": "lfm2",
+    "converter_registration": "conversion/lfm2.py:@ModelBase.register(\"Lfm2ForCausalLM\", \"LFM2ForCausalLM\")",
+    "runtime_implementation": "src/models/lfm2.cpp",
+    "runtime_enum": "src/llama-arch.h:LLM_ARCH_LFM2"
+  },
+  "source_sha256": {
+    "convert_hf_to_gguf.py": "e38975e1c68d98ac1664dfd530616eb35c72294382a4dd873d4746b23f27779f",
+    "conversion/lfm2.py": "3a982a27907248ca5b429d1cc43b035be77b31ae07754d6078c8b9f99cc126eb",
+    "gguf-py/gguf/constants.py": "1ea9bcbd401be27916351fd9ab9fe23e330d9f8617c3a816d1bf6e833cd2300c",
+    "requirements/requirements-convert_hf_to_gguf.txt": "d6ee53814f8069932540c3c06f03121914098b3485c7a48bb7baa4e6358943d8",
+    "requirements/requirements-convert_legacy_llama.txt": "64e5b8f1be7f0e88b79ec24e10cfc9defe5f3c061f730a3e2f88423e152f5bc0",
+    "tools/quantize/quantize.cpp": "7d7d1ef46d50319e0bec2d9b4d5d8a1343e95c7dbeb3cb66a36cc9ac51a63877",
+    "tools/quantize/main.cpp": "a8de51b344dba33b0ecfd8643b1cd6de3c4be7ed6ccfe054576fb83f6b7d157d",
+    "tools/cli/cli.cpp": "d5e6778b6fed13692099dca94b6f432bb5733942b291c0e0c98a6eb21bce429d",
+    "CMakeLists.txt": "5a839381ec7aa248fe8e8f1036ce60a885fb83ce90811eb2b229bca263006de7",
+    "ggml/src/ggml-cuda/CMakeLists.txt": "893edd71a30e6990b88ff86a916fa7e5edbbb7a572d942a05a7fc083706c63e7"
+  },
+  "build": {
+    "directory": "UPSTREAM/llama.cpp/build-lfm25-cuda",
+    "generator": "Ninja",
+    "targets": [
+      "llama-cli",
+      "llama-quantize",
+      "llama-bench"
+    ],
+    "options": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "89",
+      "GGML_CUDA": "ON",
+      "GGML_CUDA_NCCL": "OFF",
+      "GGML_NATIVE": "OFF",
+      "LLAMA_CURL": "OFF",
+      "LLAMA_BUILD_APP": "OFF",
+      "LLAMA_BUILD_SERVER": "ON",
+      "LLAMA_BUILD_UI": "OFF",
+      "LLAMA_USE_PREBUILT_UI": "OFF",
+      "LLAMA_BUILD_TESTS": "OFF",
+      "LLAMA_BUILD_EXAMPLES": "OFF",
+      "LLAMA_BUILD_TOOLS": "ON",
+      "LLAMA_BUILD_COMMON": "ON",
+      "LLAMA_OPENSSL": "OFF",
+      "LLAMA_LLGUIDANCE": "OFF"
+    },
+    "toolchain_observed": {
+      "environment": "native WSL2; Ubuntu 24.04.3 LTS",
+      "kernel": "6.6.87.2-microsoft-standard-WSL2",
+      "git": "2.43.0",
+      "cmake": "3.28.3",
+      "ninja": "1.11.1",
+      "cxx": "GNU 13.3.0",
+      "cuda_toolkit": "12.8.93",
+      "gpu": "NVIDIA GeForce RTX 4070",
+      "gpu_compute_capability": "8.9",
+      "nvidia_driver": "591.74",
+      "gpu_memory_mib": 12282
+    },
+    "binary_sha256_observed": {
+      "llama-cli": "ec14f84789ba58a826cdd47bde7000ded204809da2707486d32fa4409beea6d6",
+      "llama-quantize": "114afac910cecfaa733aa7feb5835dfd2e9ecd1bb74215b8c44428e4ced191a7",
+      "llama-bench": "ffc62fbba121b433c92ea5dd7344a29431e86d5c9da76631befe5968263bdfd8"
+    },
+    "note": "At this revision, llama-cli depends on the internal server implementation, so LLAMA_BUILD_SERVER must be ON; no server target is built or run. CURL, OpenSSL, UI assets, and prebuilt-UI downloads are disabled."
+  },
+  "converter_runtime_observed": {
+    "python": "3.11.14",
+    "torch": "2.6.0+cu124",
+    "numpy": "2.4.6",
+    "transformers": "5.6.2",
+    "safetensors": "0.8.0",
+    "sentencepiece": "0.2.2",
+    "upstream_declared_for_all_converters": {
+      "torch": "2.11.0",
+      "numpy": "~=1.26.4",
+      "transformers": "4.57.6",
+      "sentencepiece": ">=0.1.98,<0.3.0",
+      "protobuf": ">=4.21.0,<5.0.0"
+    },
+    "note": "The existing project venv was used without package downloads. Although it differs from upstream's cross-model pins, converter import, LFM2 conversion, all quantizations, and runtime loading passed at this exact revision."
+  },
+  "verification": {
+    "verified_at_utc": "2026-08-03T21:14:18Z",
+    "converter_import_and_supported_model_listing": "passed",
+    "cuda_device_registration": "passed",
+    "cuda_device": "CUDA0: NVIDIA GeForce RTX 4070",
+    "smoke_input": "TRAINING_ARTIFACTS/smoke_merged",
+    "smoke_output_prefix": "TRAINING_ARTIFACTS/smoke_gguf/lfm25-smoke",
+    "smoke_artifact_bytes": {
+      "BF16": 711484512,
+      "Q8_0": 379216992,
+      "Q4_K_M": 229311584
+    },
+    "smoke_conversion_and_quantization": "passed",
+    "load_and_generation_smoke": {
+      "status": "passed",
+      "artifact": "Q4_K_M",
+      "gpu_layers": "all",
+      "generated_tokens": 1,
+      "input": "fixed synthetic text",
+      "prompt_and_output_logging": "suppressed"
+    },
+    "other_artifact_load_smokes": "not_run_in_this_toolchain_smoke"
+  }
+}

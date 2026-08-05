@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-source pf_docker/bin/activate
+set -euo pipefail
+
+cd "$(dirname "$0")"
+source scripts/activate_wsl.sh
 export GRAMMAR="DATA/sms_extraction.gbnf"
 
 echo "Running Qwen3-1.7B Q8..."
