@@ -1,0 +1,47 @@
+{
+  "base_model": "TRAINING_ARTIFACTS/base/LFM2.5-350M",
+  "common": {
+    "alpha": 32,
+    "dropout": 0.05,
+    "epochs": 6,
+    "batch_size": 8,
+    "eval_batch_size": 16,
+    "gradient_accumulation": 4,
+    "max_length": 512,
+    "max_new_tokens": 96,
+    "prompt_profile": "legacy",
+    "loss_mode": "per_example_completion_mean",
+    "first_supervised_token_weight": 1.0,
+    "warmup_ratio": 0.1,
+    "weight_decay": 0.01,
+    "early_stopping_patience": 2
+  },
+  "comparison": [
+    {
+      "name": "r8_lr1e4_seed17",
+      "rank": 8,
+      "learning_rate": 0.0001,
+      "seed": 17
+    },
+    {
+      "name": "r16_lr1e4_seed17",
+      "rank": 16,
+      "learning_rate": 0.0001,
+      "seed": 17
+    },
+    {
+      "name": "r16_lr2e4_seed17",
+      "rank": 16,
+      "learning_rate": 0.0002,
+      "seed": 17
+    }
+  ],
+  "finalist_seeds": [
+    17,
+    29,
+    41
+  ],
+  "selection_rule": "Highest dev four-field exact match, then lower conditional ghost rate, then lower eval loss.",
+  "full_finetune_gate": "Only if the best LoRA clearly underfits after error analysis.",
+  "qlora_gate": "Only if measured BF16 LoRA memory pressure prevents the planned batch/sequence length."
+}

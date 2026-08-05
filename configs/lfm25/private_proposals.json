@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "private_manifest": "PRIVATE_DATA/lfm25/split_manifest.jsonl",
+  "review_queue": "PRIVATE_DATA/lfm25/review_queue.jsonl",
+  "report": "PRIVATE_DATA/lfm25/local_model_proposal_report.json",
+  "checkpoint_dir": "PRIVATE_DATA/lfm25/proposal_checkpoints",
+  "selection": {
+    "eligible_splits": [
+      "train",
+      "dev"
+    ],
+    "include_all_heuristic_transactions": true,
+    "maximum_rows": 384,
+    "negative_sampling": "round_robin_by_split_and_hard_negative_category",
+    "test_rows_are_blinded": true
+  },
+  "inference": {
+    "grammar": "DATA/sms_extraction.gbnf",
+    "prompt_source": "DATA/utils.py:doc_to_text",
+    "n_ctx": 4096,
+    "n_gpu_layers": -1,
+    "max_tokens": 96,
+    "temperature": 0.0,
+    "repeat_penalty": 1.05,
+    "seed": 17,
+    "confidence_for_schema_valid_greedy_output": 0.99,
+    "confidence_basis": "format confidence from deterministic grammar-constrained decoding; semantic acceptance still requires cross-family consensus"
+  },
+  "models": [
+    {
+      "model_id": "google/gemma-4-E2B-it:Q4_K_M",
+      "model_family": "gemma-4-e2b",
+      "gguf": "MODELS/gemma-4-E2B-it-Q4_K_M.gguf",
+      "gguf_sha256": "ac0069ebccd39925d836f24a88c0f0c858d20578c29b21ab7cedce66ee576845",
+      "tokenizer": "google/gemma-4-E2B-it",
+      "tokenizer_revision": "3e22461f65e89153144f8adb70e3b8c2cc9845a7",
+      "thinking": false
+    },
+    {
+      "model_id": "google/gemma-4-E2B-it:Q8_0",
+      "model_family": "gemma-4-e2b",
+      "gguf": "MODELS/gemma-4-E2B-it-Q8_0.gguf",
+      "gguf_sha256": "6db0088e7e2b6459dfb29fa59b0b1d7299d249ef28debc464d4d564caf444511",
+      "tokenizer": "google/gemma-4-E2B-it",
+      "tokenizer_revision": "3e22461f65e89153144f8adb70e3b8c2cc9845a7",
+      "thinking": false
+    },
+    {
+      "model_id": "Qwen/Qwen3-1.7B:Q8_0",
+      "model_family": "qwen3-1.7b",
+      "gguf": "MODELS/Qwen3-1.7B-Q8_0.gguf",
+      "gguf_sha256": "0becaa825564295d82e9af4d008bca5f8b7f5f73bf1c6a0b58f7c53ef26b47fd",
+      "tokenizer": "Qwen/Qwen3-1.7B",
+      "tokenizer_revision": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+      "thinking": true,
+      "thinking_max_tokens": 1024,
+      "thinking_repeat_penalty": 1.1
+    }
+  ]
+}

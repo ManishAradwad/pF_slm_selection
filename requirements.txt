@@ -1,28 +1,22 @@
-# Pinned deps for the SLM-eval container. Single source of truth — referenced
-# from .devcontainer/Dockerfile so rebuilds are deterministic.
+# Pinned Python dependencies for the native WSL2 evaluation environment.
+# Create/activate `.venv` with Python 3.11, install the CUDA PyTorch and
+# llama-cpp-python wheels separately, then install this file.
 #
-# Versions verified 2026-04-25 against official upstream docs:
-#   transformers — huggingface.co/docs/transformers/installation
-#                  (4.57.6 = latest 4.x stable; 5.x not yet adapter-tested)
-#   accelerate   — pypi.org/project/accelerate
-#   huggingface_hub — pypi.org/project/huggingface-hub (1.x ships the new `hf` CLI)
-#   lm_eval      — github.com/EleutherAI/lm-evaluation-harness
-#                  (latest PyPI tag is v0.4.11 from Feb 2025; we pin to a
-#                  later main commit because the existing adapter at
-#                  DATA/llamacpp_model.py was developed against it)
+# These versions match the environment used by the preserved current-schema
+# finalist runs. The lm-eval revision matches the local upstream clone.
 #
 # torch is NOT in this file. PyTorch's official install pattern uses
-#   pip install torch --index-url https://download.pytorch.org/whl/cu126
+#   uv pip install --python .venv/bin/python torch==2.6.0 \
+#     --index-url https://download.pytorch.org/whl/cu124
 # which restricts pip to *only* PyTorch's wheel index. Mixing it via
 # --extra-index-url risks pip picking the wrong wheel for a sibling package.
-# The Dockerfile installs torch in a separate layer for this reason.
+# Install it separately for this reason.
 #
-# llama-cpp-python is also NOT here. abetlen ships prebuilt CUDA wheels for
-# cu121-cu125 only — none for our cu126 base. The Dockerfile builds it from
-# source with CMAKE_ARGS=-DGGML_CUDA=on and --no-binary so it actually links
-# against the GPU instead of pip silently grabbing a CPU-only wheel.
+# llama-cpp-python is also NOT here. Install the verified CUDA wheel separately:
+#   uv pip install --python .venv/bin/python llama-cpp-python==0.3.20 \
+#     --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124
 
-transformers>=4.57.6
-accelerate>=1.13.0
-huggingface_hub>=1.12.0
-lm_eval[gguf] @ git+https://github.com/EleutherAI/lm-evaluation-harness.git@c1c4bea3777f73e188395264083adcf454913344
+transformers==5.6.2
+accelerate==1.13.0
+huggingface_hub==1.12.0
+lm_eval[gguf] @ git+https://github.com/EleutherAI/lm-evaluation-harness.git@9b2b9280330a3a5b20953346c8b51e23c4c8c4e2

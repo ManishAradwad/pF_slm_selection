@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "profile": "pocketfinancer",
+  "profile_version": 3,
+  "status": "current_app_profile",
+  "audited_at": "2026-08-05",
+  "source_of_truth": "PocketFinancer Android committed source",
+  "android_source": {
+    "repository": "https://github.com/ManishAradwad/pocket-financer-android",
+    "revision": "a9b7df44be2183daac3a05cadbfd40b8f309cd4b",
+    "hash_basis": "sha256_of_git_blob_content_at_revision",
+    "files": {
+      "app/src/main/java/com/pocketfinancer/SlmModelSpecs.kt": "49fa500801b8e5ef0129244a6ef9863c985627fe42d762976cbedfd729f848c0",
+      "hardware/src/main/java/com/pocketfinancer/hardware/SlmSelector.kt": "03c53546fab7848a77be951010fc573f40e547408c2adf30f18b974caf046e37",
+      "inference/src/main/assets/few_shot_examples.json": "ea4e57c646f2232b5e1d24c1211b8ee6ac68cfef2f69c52ac9ae3765116749aa",
+      "inference/src/main/assets/sms_extraction.gbnf": "c321daca16ea3dbdf4269c6504f7cbab5e587d1ce849e3b79133e5449d1c7939",
+      "inference/src/main/assets/system_prompt.txt": "16e042a07a18165e1cd0b1c0d0cd3bcee67f64825df8adc74e568b3eadffd64a",
+      "inference/src/main/cpp/llama_jni.cpp": "c80fe00d19f2005e57a87931be3f307d459775a05c129d1adfc85b8f6f2a7dde",
+      "inference/src/main/java/com/pocketfinancer/inference/LlamaEngine.kt": "7210c81268390fa261cd1b95d68b749e9344497c7f945035c49657c48055fee9",
+      "inference/src/main/java/com/pocketfinancer/inference/SlmRuntime.kt": "f4b1bbc2dd538fab79d8766f69639c5da89f5ac34aab76bc2f65742d1ba9fbf4",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/ExtractionParser.kt": "7d394a6cbd1097b1cecc71a463450b9489a88ca8b9a75a90edb064e32b10091c",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/PipelineService.kt": "1a2587be76f45263254696d021045e1d52acfab53f2ab555ddf1eeb84578109e",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/PromptBuilder.kt": "316c9df493184c6ae67e38d837363f8f94ec470a3c867d34b67b7ed97896bdfa",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/SlmProcessingPreferences.kt": "a795a4d90686bb37c402e63c134eb71906004de448061fa43dfc1d73a4041d7e",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/SmsFilterPipeline.kt": "2df07947474177729659cb2c4db0d4828fce63e02b5aae915f8972899ef51999"
+    }
+  },
+  "prompt": {
+    "outer_system_message": "You are a helpful financial SMS extraction assistant.",
+    "message_roles": [
+      "system",
+      "user"
+    ],
+    "long_policy_location": "user_message",
+    "few_shot_examples": 7,
+    "assets": {
+      "system_prompt.txt": "16e042a07a18165e1cd0b1c0d0cd3bcee67f64825df8adc74e568b3eadffd64a",
+      "few_shot_examples.json": "ea4e57c646f2232b5e1d24c1211b8ee6ac68cfef2f69c52ac9ae3765116749aa",
+      "sms_extraction.gbnf": "c321daca16ea3dbdf4269c6504f7cbab5e587d1ce849e3b79133e5449d1c7939"
+    }
+  },
+  "preprocessing": {
+    "enabled": true,
+    "implementation": "SmsFilterPipeline.kt",
+    "ordered_stages": [
+      "reject_personal_mobile_sender",
+      "require_currency_amount",
+      "require_masked_account_or_card",
+      "require_completed_transaction_verb",
+      "reject_otp_or_verification",
+      "reject_collect_or_mandate_request"
+    ]
+  },
+  "runtime": {
+    "backend": "custom Kotlin/JNI llama.cpp",
+    "llama_cpp_revision": "b9198",
+    "device": "cpu",
+    "n_gpu_layers": 0,
+    "n_ctx": 3072,
+    "n_batch": 512,
+    "n_ubatch": 256,
+    "max_cpu_threads": 4,
+    "flash_attention": true,
+    "use_mmap": false,
+    "chat_template": "gguf_builtin_primary_with_qwen3_fallback"
+  },
+  "generation": {
+    "temperature": 0.0,
+    "repeat_penalty": 1.0,
+    "thinking_mode": "model_config",
+    "non_thinking": {
+      "passes": 1,
+      "answer_max_tokens": 256,
+      "stop": null
+    },
+    "thinking": {
+      "passes": 2,
+      "thinking_max_tokens": 1024,
+      "thinking_stop": "</think>",
+      "answer_max_tokens": 256,
+      "answer_stop": null
+    },
+    "grammar": {
+      "optional": true,
+      "default_enabled": false
+    }
+  },
+  "models": {
+    "LiquidAI/LFM2.5-350M": {
+      "has_thinking_mode": false,
+      "generation_path": "non_thinking"
+    }
+  },
+  "output_parser": {
+    "implementation": "ExtractionParser.kt",
+    "literal_null_case_insensitive": true,
+    "json_window": "first_open_brace_to_last_close_brace",
+    "required_non_nullish_fields": [
+      "amount",
+      "type",
+      "account"
+    ],
+    "amount_must_be_positive": true,
+    "accepted_types": [
+      "debit",
+      "credit"
+    ],
+    "counterparty_optional": true
+  },
+  "host_evaluation": {
+    "gguf_engine": "llama-cpp-python",
+    "primary_score_interpretation": "PocketFinancer parser",
+    "also_report_strict_raw_output_metrics": true,
+    "runtime_parity": false,
+    "remaining_gaps": [
+      "Android uses custom JNI rather than llama-cpp-python",
+      "thinking-mode KV-cache continuation differs in the host emulator",
+      "phone latency and memory require an instrumented device run"
+    ]
+  }
+}

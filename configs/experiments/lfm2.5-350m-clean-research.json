@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "status": "research_not_production",
+  "recorded_at": "2026-08-05",
+  "base_model": {
+    "model_id": "LiquidAI/LFM2.5-350M",
+    "local_path": "TRAINING_ARTIFACTS/base/LFM2.5-350M",
+    "lock": "configs/lfm25/model.lock.json"
+  },
+  "evaluation_boundary": {
+    "dataset": "DATA/extraction_ds.jsonl",
+    "rows": 203,
+    "transactions": 114,
+    "nulls": 89,
+    "status": "locked_reused_regression_not_fresh_test"
+  },
+  "contract_warning": {
+    "prompt_assets_and_roles_match_android": true,
+    "android_runtime_parity": false,
+    "reason": "This file catalogs saved research runs. Android a9b7df44 now uses the six-stage prefilter and direct generation for non-thinking LFM, but saved HF runs remain host-side diagnostics rather than JNI/device measurements.",
+    "historical_audit": "configs/contracts/pocketfinancer-android-a6c8a11.json",
+    "current_profile": "configs/contracts/pocketfinancer-android-current.json"
+  },
+  "experiments": [
+    {
+      "name": "direct-clean-r16-lr1e4-s17",
+      "protocol": "direct_four_field_generation",
+      "train": {
+        "path": "PRIVATE_DATA/lfm25/private_sft_v3/private_sft_v2_train.jsonl",
+        "rows": 160,
+        "sha256": "c48ea5d565bebc9858489ea1c2a0623f96dea276673a9f4b429321e14e1318f9"
+      },
+      "dev": {
+        "path": "PRIVATE_DATA/lfm25/private_sft_v3/private_sft_v2_dev.jsonl",
+        "rows": 25,
+        "sha256": "e61fa0ec3a945c8c25af961e885382d57f367ada5ddf2f815e4f6168200d282c",
+        "status": "silver_tuning_only"
+      },
+      "training": {
+        "prompt_profile": "android",
+        "rank": 16,
+        "alpha": 32,
+        "dropout": 0.05,
+        "learning_rate": 0.0001,
+        "epochs_run": 4,
+        "selected_epoch": 4,
+        "max_length": 2304,
+        "loss_mode": "per_example_completion_mean",
+        "first_supervised_token_weight": 3.0,
+        "seed": 17,
+        "peak_vram_mib": 3886.7
+      },
+      "adapter": "TRAINING_ARTIFACTS/lfm25_v2/android_private_clean_r16_lr1e4_seed17/adapter",
+      "result": {
+        "path": "RESULTS/lfm25/v2_android_private_clean_seed17_regression/metrics.json",
+        "whole_exact": 140,
+        "transaction_exact": 51,
+        "true_positives": 94,
+        "misses": 20,
+        "ghosts": 0,
+        "valid_outputs": 202
+      }
+    },
+    {
+      "name": "candidate-clean-curriculum-r16-lr1e4-s17",
+      "protocol": "grounded_candidate_selector",
+      "train": {
+        "path": "PRIVATE_DATA/lfm25/candidate_curriculum_v2/candidate_mixed_train.jsonl",
+        "rows": 438,
+        "sha256": "13e2e7eab1d708542a679e43e3134feca47e93d6df552d1f55608ff501fc87fc",
+        "private_rows": 158,
+        "synthetic_rows": 280
+      },
+      "dev": {
+        "path": "PRIVATE_DATA/lfm25/candidate_sft_v4/candidate_sft_dev.jsonl",
+        "rows": 25,
+        "sha256": "1807c8faf13229946e153d4825bcac28d773b0abacc1dd09d9d6dbd23bbd9e19",
+        "status": "silver_tuning_only"
+      },
+      "candidate_implementation_sha256": "e4b2c9dc2b6eeb85e2ab494ac905a492bd7ef4692560313b6ec0cab1ed07b8c1",
+      "training": {
+        "prompt_profile": "candidate_selector",
+        "rank": 16,
+        "alpha": 32,
+        "dropout": 0.05,
+        "learning_rate": 0.0001,
+        "epochs_run": 5,
+        "selected_epoch": 3,
+        "max_length": 512,
+        "loss_mode": "per_example_completion_mean",
+        "first_supervised_token_weight": 3.0,
+        "seed": 17,
+        "peak_vram_mib": 3645.2
+      },
+      "adapter": "TRAINING_ARTIFACTS/lfm25_v2/candidate_semantic_curriculum_clean_r16_lr1e4_seed17/adapter",
+      "result": {
+        "path": "RESULTS/lfm25/v2_candidate_semantic_curriculum_clean_seed17_regression/metrics.json",
+        "whole_exact": 154,
+        "transaction_exact": 66,
+        "true_positives": 102,
+        "misses": 12,
+        "ghosts": 1,
+        "valid_outputs": 203,
+        "all_emitted_fields_source_grounded": true
+      },
+      "android_wire_compatible": false
+    }
+  ]
+}

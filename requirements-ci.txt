@@ -1,0 +1,5 @@
+# CI-only tools; model/GPU dependencies intentionally stay out of this environment.
+pytest==9.0.3
+ruff==0.15.11
+shellcheck-py==0.10.0.1
+rapidfuzz==3.14.5

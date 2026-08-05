@@ -1,14 +1,32 @@
 # CLAUDE.md - SLM Evaluation for Financial SMS
 
 ## Project Overview
-Evaluation playground for selecting the optimal Small Language Model (SLM) to power a mobile financial helper app called **pocket-financer**. The app tracks the user's bank accounts and credit/debit cards, then uses an SLM to process transaction SMS alerts and maintain balance/spend data. Wallets (Simpl, slice, PayTM wallet) are out of scope — only direct bank account and card transactions. Production runtime is **`llama.rn`** (React Native binding over `llama.cpp`) on Android.
+
+> **Current source of truth (2026-08-05):** PocketFinancer Android revision
+> `a9b7df44` supersedes the older `a6c8a11` audit. The app now runs its six-stage
+> SMS filter before inference, uses `n_ctx=3072`, branches on each model's explicit
+> `hasThinkingMode`, allows optional GBNF with default off, and generates a direct
+> 256-token answer for non-thinking models such as LFM2.5-350M. The versioned
+> profile is `configs/contracts/pocketfinancer-android-current.json`.
+Evaluation and fine-tuning workspace for the local Small Language Model (SLM) that
+powers **pocket-financer**. The app tracks bank accounts and cards, then uses an SLM
+to process transaction SMS alerts. Wallets and BNPL services remain out of scope.
+Production inference is a custom Kotlin/JNI wrapper over pinned llama.cpp `b9198`.
 
 ## Evaluation approach
-The task is **structured JSON extraction**, not classification. Given an Indian bank/card SMS, the model outputs either the literal word `null` (not a real transaction) or a JSON object with 4 fields: `amount`, `merchant`, `type` (`debit`|`credit`), `account`. Pipeline is built out-of-tree on `lm-evaluation-harness`.
 
-**Backend**: `llama-cpp-python` — the same engine as production `llama.rn`. This is the whole reason to avoid the HF `transformers` backend: quantization, tokenization, and sampler match on-device, so dev metrics honestly predict production behavior.
+> The broad model-slate details below are historical/general benchmark behavior.
+> New work uses `scripts/run_pocketfinancer_pipeline.py`; it does not infer app
+> behavior from these older defaults.
+The task is **structured JSON extraction**, not classification. Given an Indian bank/card SMS, the model outputs either the literal word `null` (not a real transaction) or a JSON object with 4 fields: `amount`, `counterparty`, `type` (`debit`|`credit`), `account`. Pipeline is built out-of-tree on `lm-evaluation-harness`.
 
-**Grammar-constrained decoding**: A GBNF grammar (`DATA/sms_extraction.gbnf`) enforces output shape. `amount`, `type`, `account` are non-nullable; `merchant` is nullable. The same grammar ships on-device.
+**Backend**: `llama-cpp-python` is a host-side GGUF emulator. It shares llama.cpp
+ancestry with Android but is not exact JNI/device parity. HF evaluation is a fast
+training diagnostic; deployable claims require GGUF and target-device validation.
+
+**Grammar-constrained decoding**: A GBNF grammar (`DATA/sms_extraction.gbnf`) can
+enforce output shape. The same grammar ships on-device, where it is optional and
+defaults off. Every report must state grammar on/off explicitly.
 
 **Two-phase generation for thinking models** (Qwen3 family). When the tokenizer's chat template responds to `enable_thinking` (i.e. rendering with `True` differs from `False`), we run two passes per sample:
 1. **Phase 1** — render prompt with `enable_thinking=True`, force-open the block by appending `<think>\n`, generate freely with `repeat_penalty=1.1` (breaks Qwen3.5-class loops). Two stop conditions: `max_tokens=thinking_max_tokens` (the budget — default 4096) and `stop=["</think>"]`. Whichever fires first wins. If the budget hits first, we forcibly append `</think>\n` ourselves before phase 2 — i.e. the model gets cut off mid-thought.
@@ -22,9 +40,9 @@ Without phase 1, GBNF suppresses every `<think>` token (the grammar disallows `<
 
 Every metric appears twice in results files with `,extract_json` and `,extract_json_nonnull` suffixes. Compare the two columns to see raw-model vs production-filtered behavior.
 
-**Prompt structure**: `SYSTEM_PROMPT + "### EXAMPLES" block (6 demos) + "### YOUR TASK" delimiter + (sender, sms, "Output: ")`. The explicit delimiter is a domain-level fix: without it, thinking models read few-shot demos as in-flight chat turns and answer one of those instead of the actual query (observed on Qwen3-1.7B with 23.6% few-shot leakage pre-fix). The delimiter helps any model and is not a per-SLM hack.
+**Prompt structure**: `SYSTEM_PROMPT + "### EXAMPLES" block (7 demos) + "### YOUR TASK" delimiter + (sender, sms, "Output: ")`. The explicit delimiter is a domain-level fix: without it, thinking models read few-shot demos as in-flight chat turns and answer one of those instead of the actual query (observed on Qwen3-1.7B with 23.6% few-shot leakage pre-fix). The delimiter helps any model and is not a per-SLM hack.
 
-**Merchant match is intentionally loose** — case-insensitive + whitespace-collapsed + substring either direction (3-char floor). Bank SMS wrap the same entity in cosmetic boilerplate (`VPA x@y`, `mobile 9XXX-APIBANKING`, `UPI-<ref>-Compass`, trailing city names) and the model shouldn't be punished for failing to strip it. `None` vs non-`None` stays strict — over-extraction is still an error. See `_merchant_match` in `DATA/utils.py`.
+**Counterparty match is intentionally loose** — case-insensitive + whitespace-collapsed + substring either direction (3-char floor). Bank SMS wrap the same entity in cosmetic boilerplate (`VPA x@y`, `mobile 9XXX-APIBANKING`, `UPI-<ref>-Compass`, trailing city names) and the model shouldn't be punished for failing to strip it. `None` vs non-`None` stays strict — over-extraction is still an error. See `_counterparty_match` in `DATA/utils.py`.
 
 **Run isolation**: each (model, quant, thinking_budget) tuple runs in a **fresh Python subprocess** spawned by `scripts/evaluate.sh`. New CUDA context, new GGUF load, new KV cache, no shared in-memory state with the previous quant. Only read-only files (dataset, grammar, GGUF, HF tokenizer cache) are shared — none are mutated. So one model's behavior cannot bleed into the next.
 
@@ -48,10 +66,10 @@ Expect per-model tuning. Structured-JSON extraction stresses each model's chat-t
 
 ## Entry point
 
-**Whole-slate evaluation** (default workflow):
+**Whole-slate evaluation** (historical/general workflow):
 
 ```bash
-source pf_docker/bin/activate
+source .venv/bin/activate
 bash scripts/evaluate.sh                # smoke (10) + prompt + full (203) + report
 bash scripts/evaluate.sh --auto-full    # smoke → full → report, no prompt
 bash scripts/evaluate.sh --full-only    # full + report (skip smoke)
@@ -101,23 +119,22 @@ python run_gguf_eval.py \
 - `RESULTS/new_pipeline/` — legacy HF-backend baselines; kept for reference but not the current source of truth.
 - `RESULTS/llamacpp_pre_thinking_*` / `RESULTS/llamacpp_smoke_*` — archived runs from earlier pipeline iterations; never read by `build_report.py` unless `--include-archives` is passed.
 
-### Bootstrap (Dockerfile + scripts)
-- `.devcontainer/Dockerfile` — `nvidia/cuda:12.4.1-devel-ubuntu22.04` + Python 3.11 (deadsnakes) + heavy deps from `requirements.txt` + from-source CUDA build of `llama-cpp-python` (GitHub main branch — see Environment note).
-- `.devcontainer/devcontainer.json` — forwards `HF_TOKEN` from host, sets `HF_HOME=/workspaces/.../.hf_cache`, runs `.devcontainer/post-create.sh`.
-- `.devcontainer/post-create.sh` — runs once on container creation. Installs Claude Code, (re)creates `pf_docker/` venv if stale, runs `verify_gpu.py`.
-- `requirements.txt` — pinned versions for transformers / accelerate / huggingface_hub / lm_eval. torch and llama-cpp-python are NOT here (different install paths — see comments in the file).
-- `scripts/verify_gpu.py` — asserts `torch.cuda.is_available()` and that `llama-cpp-python` loads a GGUF with GPU offload. Run after each container creation by post-create.sh.
+### Bootstrap (native WSL2)
+- `scripts/setup_wsl.sh` — idempotent Python 3.11/CUDA environment bootstrap; installs the pinned evaluation and QLoRA stacks, then runs the real GGUF GPU-offload check.
+- `scripts/activate_wsl.sh` — shared activation for `.venv`; adds the local CUDA toolkit to `PATH` and keeps Hugging Face cache data on the Linux filesystem.
+- `requirements.txt` — exact versions for transformers / accelerate / huggingface_hub / lm_eval. Torch and llama-cpp-python are installed separately from CUDA-specific indexes; see comments in the file.
+- `scripts/verify_gpu.py` — asserts `torch.cuda.is_available()` and that `llama-cpp-python` loads a GGUF with GPU offload. Run after environment creation or dependency changes.
 - `scripts/fetch_models.sh` — `hf download` calls for the candidate-slate GGUFs. Sweeps `Q3_K_M, Q4_K_M, Q5_K_M, Q6_K, Q8_0` per model so any quant in the range is on disk for ad-hoc runs, even though the standard `evaluate.sh` sweep only uses `Q4_K_M` and `Q8_0`. Idempotent.
+- `.devcontainer/` — legacy reproducibility fallback only. The active workflow is native WSL2; no Docker image or container is required.
 
 ## Environment
-- **Docker dev container**: built from `nvidia/cuda:12.4.1-devel-ubuntu22.04`. Python 3.11 (deadsnakes), Node 20 (devcontainer feature), GPU passthrough via `runArgs: ["--gpus", "all"]`. Activate the workflow venv with `source pf_docker/bin/activate`.
-- **Hardware**: WSL2, NVIDIA RTX 4070 (12 GB VRAM), 32 GB RAM. Host driver 591.74 / max CUDA 13.1.
-- **`pf_docker/` is a `--system-site-packages` shim venv** created by `.devcontainer/post-create.sh`. Heavy deps (torch, transformers, llama-cpp-python, lm-eval) live in the image's system Python; the venv just inherits them and provides the activation entry point. Means rebuilds reconstruct it in seconds.
-- **GPU-backed `llama-cpp-python`**: the Dockerfile installs a pre-built CUDA 12.4 wheel (`llama-cpp-python==0.3.20` from `abetlen.github.io/llama-cpp-python/whl/cu124`). If a future rebuild silently regresses to CPU, verify the `--extra-index-url` in `.devcontainer/Dockerfile` still points to the correct CUDA wheel index.
-- **`HF_TOKEN` is required** for the gated Gemma tokenizer. Set on the WSL host (`echo 'export HF_TOKEN=hf_...' >> ~/.bashrc`); `devcontainer.json` forwards it via `containerEnv: {"HF_TOKEN": "${localEnv:HF_TOKEN}"}`. Tokenizer/model cache lives at `.hf_cache/` (gitignored, persisted across rebuilds via the workspace bind mount).
+- **Native WSL2**: Ubuntu 24.04, Python 3.11 in `.venv`, and direct NVIDIA GPU access. Activate with `source scripts/activate_wsl.sh` (the evaluation entry points do this automatically).
+- **Hardware visible to WSL**: NVIDIA RTX 4070 (12 GB VRAM), 15 GB RAM, 4 GB swap, CUDA 12.8 toolkit at `/usr/local/cuda`, and 829 GB free on the Linux filesystem at setup time. Keep training data/checkpoints under `/home`, not the nearly full `D:` mount.
+- **GPU-backed runtime**: PyTorch 2.6.0+cu124 and `llama-cpp-python==0.3.20` use CUDA 12.4 runtime wheels; the installed NVIDIA driver is backward-compatible. `scripts/verify_gpu.py` is the source-of-truth check.
+- **`HF_TOKEN` is required** for gated Gemma artifacts if they are not already cached. Tokenizer/model cache lives at `.hf_cache/` (gitignored and user-owned).
 
 ## Conventions
-- Pin every heavy dep in `requirements.txt` + the Dockerfile, not via ad-hoc `pip install` in the running container — manual installs don't survive rebuild.
+- Pin every heavy dependency in the native environment requirement files; do not rely on unrecorded ad-hoc installs.
 - Evaluation datasets in `DATA/`, results in `RESULTS/`, GGUF weights in `MODELS/` (gitignored).
 - **`lm-evaluation-harness/` is an upstream clone.** Prefer out-of-tree extensions — custom tasks via `--include_path`, custom models via `@register_model` in a module outside the clone — so it stays rebasable. Edit inside the clone only when the extension point genuinely doesn't exist.
 - Data files (csv, json, db, xlsx, gguf) are gitignored — never commit them.
@@ -130,4 +147,4 @@ python run_gguf_eval.py \
 - Output token counts (avg from smoke pass): Gemma-3-270M 53, Gemma-4-E2B 24, Qwen3-0.6B 361 (thinking), Qwen3-1.7B 521 (thinking, one outlier at 2103), **Qwen3.5-0.8B 3794** (thinking, almost always hits the 4096 cap), LFM2.5-1.2B 2 (over-rejects), arcee-lite 47.
 - See § Candidate models for the rest of the slate to evaluate.
 - SMS data covers 2021–2026 with coverage tapering after 2024.
-- Container deps (system Python): torch 2.7.0 (cu126), transformers 4.57.6, accelerate 1.13.0, huggingface_hub 1.12.0, lm-eval pinned to commit `c1c4bea3`, llama-cpp-python 0.3.20 (built from source with `-DGGML_CUDA=on`).
+- Native baseline environment: Python 3.11, torch 2.6.0+cu124, transformers 5.6.2, accelerate 1.13.0, huggingface_hub 1.12.0, lm-eval `9b2b9280`, and llama-cpp-python 0.3.20 CUDA wheel.

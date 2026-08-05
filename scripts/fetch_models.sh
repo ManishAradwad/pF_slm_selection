@@ -16,6 +16,7 @@
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
+source scripts/activate_wsl.sh
 mkdir -p MODELS
 
 dl() {

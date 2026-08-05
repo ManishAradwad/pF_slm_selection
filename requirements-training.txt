@@ -1,0 +1,9 @@
+# Additional native WSL2 dependencies for local LoRA/QLoRA experiments.
+# Install the CUDA-specific Torch wheel and requirements.txt first.
+
+datasets==5.0.1
+peft==0.20.0
+trl==1.9.2
+bitsandbytes==0.50.0
+sentencepiece==0.2.2
+rapidfuzz==3.14.5

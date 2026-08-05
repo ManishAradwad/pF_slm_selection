@@ -22,7 +22,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-source pf_docker/bin/activate
+source scripts/activate_wsl.sh
 
 GRAMMAR="${GRAMMAR:-DATA/sms_extraction.gbnf}"
 THINKING="${THINKING:-auto}"

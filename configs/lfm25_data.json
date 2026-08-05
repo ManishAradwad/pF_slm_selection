@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "source": "all_sms.json",
+  "allowed_source_names": [
+    "all_sms.json",
+    "all_sms.csv"
+  ],
+  "regression_dataset": "DATA/extraction_ds.jsonl",
+  "expected_regression_rows": 203,
+  "private_root": "PRIVATE_DATA/lfm25",
+  "outputs": {
+    "manifest": "split_manifest.jsonl",
+    "review_queue": "review_queue.jsonl",
+    "validation_report": "validation_report.json",
+    "materialization_report": "materialization_report.json",
+    "sft_prefix": "sft"
+  },
+  "source_fields": {
+    "id": "id",
+    "date": "date",
+    "sender": "sender",
+    "text": "text",
+    "is_from_me": "is_from_me"
+  },
+  "label_fields": [
+    "amount",
+    "counterparty",
+    "type",
+    "account"
+  ],
+  "near_relative": {
+    "threshold": 0.82,
+    "character_ngram_size": 3,
+    "minimum_template_characters": 12
+  },
+  "splits": {
+    "train": 0.8,
+    "dev": 0.1,
+    "test": 0.1,
+    "rule_version": "template-sender-component-time-v2"
+  },
+  "consensus_policy": {
+    "policy_version": "local-model-consensus-v1",
+    "eligible_splits": [
+      "train",
+      "dev"
+    ],
+    "test_requires_human_review": true,
+    "minimum_proposals": 3,
+    "minimum_agreeing_models": 2,
+    "minimum_independent_model_families": 2,
+    "minimum_proposal_confidence": 0.9,
+    "require_exact_four_fields": true
+  }
+}
