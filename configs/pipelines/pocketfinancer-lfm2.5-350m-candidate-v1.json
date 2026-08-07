@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "protocol": "candidate_protocol_v1",
+  "name": "pocketfinancer-lfm2.5-350m-candidate-protocol-v1",
+  "app_profile": "configs/contracts/pocketfinancer-candidate-v1.json",
+  "baseline_app_profile": "configs/contracts/pocketfinancer-android-current.json",
+  "runtime": {
+    "python": ".venv/bin/python"
+  },
+  "model": {
+    "id": "LiquidAI/LFM2.5-350M",
+    "local_path": "TRAINING_ARTIFACTS/base/LFM2.5-350M",
+    "lock": "configs/lfm25/model.lock.json",
+    "thinking_mode": false
+  },
+  "data": {
+    "input_dir": "PRIVATE_DATA/lfm25/pocketfinancer-android-a9b7df4-direct-v1",
+    "output_dir": "PRIVATE_DATA/lfm25/pocketfinancer-candidate-protocol-v1",
+    "train": "PRIVATE_DATA/lfm25/pocketfinancer-candidate-protocol-v1/candidate_protocol_v1_train.jsonl",
+    "dev": "PRIVATE_DATA/lfm25/pocketfinancer-candidate-protocol-v1/candidate_protocol_v1_dev.jsonl",
+    "report": "PRIVATE_DATA/lfm25/pocketfinancer-candidate-protocol-v1/candidate_protocol_v1_report.json",
+    "expected_rows": {
+      "train": 152,
+      "dev": 29
+    },
+    "builder": {
+      "script": "scripts/build_lfm25_candidate_protocol_v1.py"
+    }
+  },
+  "training": {
+    "method": "lora",
+    "objective": "completion_only",
+    "seeds": [
+      17,
+      29,
+      43
+    ],
+    "rank": 16,
+    "alpha": 32,
+    "dropout": 0.05,
+    "learning_rate": 0.0001,
+    "loss_mode": "per_example_completion_mean",
+    "first_supervised_token_weight": 3.0,
+    "warmup_ratio": 0.05,
+    "weight_decay": 0.01,
+    "early_stopping_patience": 2,
+    "arms": {
+      "direct": {
+        "script": "scripts/train_lfm25_lora.py",
+        "prompt_profile": "pocketfinancer",
+        "output_dir_template": "TRAINING_ARTIFACTS/pocketfinancer-candidate-v1/direct-r16-s{seed}",
+        "epochs": 6,
+        "batch_size": 2,
+        "eval_batch_size": 2,
+        "gradient_accumulation": 16,
+        "max_length": 2304
+      },
+      "selector": {
+        "script": "scripts/train_lfm25_candidate_protocol_v1.py",
+        "prompt_profile": "candidate_protocol_v1",
+        "output_dir_template": "TRAINING_ARTIFACTS/pocketfinancer-candidate-v1/selector-r16-s{seed}",
+        "epochs": 6,
+        "batch_size": 8,
+        "eval_batch_size": 8,
+        "gradient_accumulation": 4,
+        "max_length": 1024
+      }
+    }
+  },
+  "evaluation": {
+    "dataset": "DATA/extraction_ds.jsonl",
+    "status": "locked_reused_regression_not_fresh_test",
+    "deterministic": true,
+    "thinking_mode": false,
+    "arms": {
+      "direct": {
+        "hf_script": "scripts/evaluate_lfm25_android_hf.py",
+        "gguf_script": "scripts/evaluate_lfm25_android_gguf.py",
+        "n_ctx": 3072,
+        "max_new_tokens": 256,
+        "batch_size": 8,
+        "repeat_penalty": 1.0,
+        "hf_base_output_dir_template": "RESULTS/pocketfinancer-candidate-v1/direct-base-hf-s{seed}",
+        "hf_output_dir_template": "RESULTS/pocketfinancer-candidate-v1/direct-r16-hf-s{seed}",
+        "gguf_output_dir_template": "RESULTS/pocketfinancer-candidate-v1/direct-r16-q4-s{seed}"
+      },
+      "selector": {
+        "hf_script": "scripts/evaluate_lfm25_candidate_protocol_v1_hf.py",
+        "n_ctx": 1024,
+        "max_new_tokens": 64,
+        "batch_size": 8,
+        "repeat_penalty": 1.0,
+        "hf_base_output_dir_template": "RESULTS/pocketfinancer-candidate-v1/selector-base-hf-s{seed}",
+        "hf_output_dir_template": "RESULTS/pocketfinancer-candidate-v1/selector-r16-hf-s{seed}"
+      }
+    }
+  },
+  "export": {
+    "arms": {
+      "direct": {
+        "merged_dir_template": "TRAINING_ARTIFACTS/pocketfinancer-candidate-v1/direct-r16-merged-s{seed}",
+        "gguf_prefix_template": "TRAINING_ARTIFACTS/pocketfinancer-candidate-v1/gguf/direct-r16-s{seed}",
+        "deployable_gguf_template": "TRAINING_ARTIFACTS/pocketfinancer-candidate-v1/gguf/direct-r16-s{seed}-Q4_K_M.gguf"
+      },
+      "selector": {
+        "merged_dir_template": "TRAINING_ARTIFACTS/pocketfinancer-candidate-v1/selector-r16-merged-s{seed}",
+        "gguf_prefix_template": "TRAINING_ARTIFACTS/pocketfinancer-candidate-v1/gguf/selector-r16-s{seed}",
+        "deployable_gguf_template": "TRAINING_ARTIFACTS/pocketfinancer-candidate-v1/gguf/selector-r16-s{seed}-Q4_K_M.gguf"
+      }
+    }
+  },
+  "comparison": {
+    "script": "scripts/compare_lfm25_candidate_protocol_v1.py",
+    "output": "RESULTS/pocketfinancer-candidate-v1/controlled-hf-seed-matrix.json",
+    "aggregate_only": true,
+    "required_metric_files": 6,
+    "force_overwrite": false
+  },
+  "gates": {
+    "seed_matrix_decision": {
+      "status": "unmet",
+      "reason": "No aggregate three-seed comparison report has yet demonstrated every promotion criterion.",
+      "diagnostic_dataset_rows": 203,
+      "dataset_role": "locked_reused_diagnostic_only",
+      "required": {
+        "seeds": [
+          17,
+          29,
+          43
+        ],
+        "selector_transaction_exact_vs_direct": "strictly_greater_on_every_seed",
+        "selector_ghost_transactions_vs_direct": "not_greater_on_any_seed",
+        "strict_schema_acceptance": 1.0,
+        "selected_values_source_grounded": 1.0,
+        "oracle_coverage_floor": {
+          "amount": {
+            "covered": 114,
+            "total": 114
+          },
+          "account": {
+            "covered": 114,
+            "total": 114
+          },
+          "counterparty": {
+            "covered": 113,
+            "total": 114
+          },
+          "joint": {
+            "covered": 113,
+            "total": 114
+          }
+        }
+      }
+    },
+    "fresh_human_gold_product_gate": {
+      "status": "unmet",
+      "reason": "The required fresh, template/sender-held-out human-gold product evaluation has not run.",
+      "required_rows": 1436,
+      "dataset_role": "fresh_human_gold_template_sender_held_out",
+      "promotion_blocked": true
+    },
+    "selector_gguf_evaluation": {
+      "status": "unmet",
+      "reason": "No Candidate Protocol V1 GGUF evaluator exists; converted selector artifacts are not runtime evidence."
+    },
+    "android_runtime_parity": {
+      "status": "unmet",
+      "reason": "PocketFinancer Android does not implement the Candidate Protocol V1 wire contract."
+    },
+    "ios_runtime_parity": {
+      "status": "unmet",
+      "reason": "No iOS runtime implements or has been validated against the Candidate Protocol V1 wire contract."
+    },
+    "device_measurement": {
+      "status": "unmet",
+      "reason": "No instrumented Android phone run has measured Candidate Protocol V1 latency, memory, or persistence."
+    },
+    "ios_device_measurement": {
+      "status": "unmet",
+      "reason": "No instrumented iOS device run has measured Candidate Protocol V1 latency, memory, or persistence."
+    }
+  }
+}

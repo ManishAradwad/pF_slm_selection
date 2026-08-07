@@ -1,6 +1,8 @@
 from copy import deepcopy
+import hashlib
 import json
 import math
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -10,13 +12,18 @@ from lfm25.candidates import candidate_selector_messages
 from lfm25.training_loss import normalized_completion_cross_entropy
 from scripts.train_lfm25_lora import (
     ANDROID_CONTEXT_LENGTH,
+    CHECKPOINT_ARTIFACT_FORMAT,
     LEGACY_MAX_LENGTH,
     RESUME_PROVENANCE_FILENAME,
     CompletionCollator,
     CompletionDataset,
     OverlengthDatasetError,
+    _checkpoint_artifact_evidence,
+    _create_adapter_destination,
+    _locked_model_provenance,
     _local_hf_model_provenance,
     _messages,
+    _prepare_output_directory,
     _resume_provenance,
     _training_arguments_provenance,
     _trainer_state_provenance,
@@ -86,6 +93,41 @@ def test_profile_defaults_use_pocketfinancer_and_keep_historical_modes_explicit(
                 "android",
                 "--max-length",
                 str(ANDROID_CONTEXT_LENGTH + 1),
+            ]
+        )
+
+
+def test_candidate_bundle_requires_explicit_report_and_accepts_lock_flag() -> None:
+    candidate_cli = [
+        "--train",
+        "bundle/candidate_protocol_v1_train.jsonl",
+        "--eval",
+        "bundle/candidate_protocol_v1_dev.jsonl",
+        "--output-dir",
+        "out",
+    ]
+    with pytest.raises(SystemExit):
+        parse_args(candidate_cli)
+
+    args = parse_args(
+        [
+            *candidate_cli,
+            "--dataset-report",
+            "bundle/candidate_protocol_v1_report.json",
+            "--model-lock",
+            "configs/lfm25/model.lock.json",
+        ]
+    )
+
+    assert args.dataset_report.name == "candidate_protocol_v1_report.json"
+    assert args.model_lock.name == "model.lock.json"
+
+    with pytest.raises(SystemExit):
+        parse_args(
+            [
+                *candidate_cli,
+                "--dataset-report",
+                "bundle/private-message.json",
             ]
         )
 
@@ -240,6 +282,44 @@ def test_local_hf_provenance_hashes_shards_index_config_and_tokenizer(tmp_path) 
     assert all("sha256" in item for item in provenance["files"].values())
 
 
+def test_locked_model_provenance_uses_exact_runtime_subset_and_full_lock_hash(
+    tmp_path,
+) -> None:
+    runtime_files = {
+        "config.json": "1" * 64,
+        "generation_config.json": "2" * 64,
+        "chat_template.jinja": "3" * 64,
+        "model.safetensors": "4" * 64,
+        "tokenizer.json": "5" * 64,
+        "tokenizer_config.json": "6" * 64,
+    }
+    lock_path = tmp_path / "model.lock.json"
+    lock_payload = {
+        "model": {
+            "repo": "LiquidAI/LFM2.5-350M",
+            "files": {
+                "LICENSE": "7" * 64,
+                "README.md": "8" * 64,
+                **runtime_files,
+            },
+        }
+    }
+    lock_bytes = (json.dumps(lock_payload, sort_keys=True) + "\n").encode()
+    lock_path.write_bytes(lock_bytes)
+    base_model = {
+        "files": {name: {"bytes": 1, "sha256": digest} for name, digest in runtime_files.items()}
+    }
+
+    evidence = _locked_model_provenance(base_model, lock_path)
+
+    assert evidence["filename"] == "model.lock.json"
+    assert evidence["bytes"] == len(lock_bytes)
+    assert evidence["sha256"] == hashlib.sha256(lock_bytes).hexdigest()
+    base_model["files"]["unlocked.json"] = {"bytes": 1, "sha256": "9" * 64}
+    with pytest.raises(RuntimeError, match="files differ"):
+        _locked_model_provenance(base_model, lock_path)
+
+
 def test_trainer_state_provenance_links_best_log_and_restoration_to_checkpoint() -> None:
     best_checkpoint = "/tmp/run/checkpoint-10"
     trainer = SimpleNamespace(
@@ -338,6 +418,20 @@ def _resume_record() -> dict:
         },
         train_sha256="train-sha256",
         eval_sha256="eval-sha256",
+        dataset_report={
+            "filename": "candidate_protocol_v1_report.json",
+            "bytes": 321,
+            "sha256": "a" * 64,
+        },
+        model_lock={
+            "filename": "model.lock.json",
+            "bytes": 123,
+            "sha256": "b" * 64,
+        },
+        trainer_code_sha256={
+            "lfm25/training_provenance.py": "c" * 64,
+            "scripts/train_lfm25_lora.py": "d" * 64,
+        },
         contract={
             "profile": "android",
             "contract": "pocketfinancer_android",
@@ -355,6 +449,16 @@ def test_resume_provenance_covers_model_data_contract_and_material_training_sett
     assert provenance["datasets"] == {
         "train_sha256": "train-sha256",
         "eval_sha256": "eval-sha256",
+        "report": {
+            "filename": "candidate_protocol_v1_report.json",
+            "bytes": 321,
+            "sha256": "a" * 64,
+        },
+    }
+    assert provenance["model_lock"]["sha256"] == "b" * 64
+    assert provenance["trainer_code_sha256"] == {
+        "lfm25/training_provenance.py": "c" * 64,
+        "scripts/train_lfm25_lora.py": "d" * 64,
     }
     assert provenance["contract"]["prompt_sha256"] == "prompt-sha256"
     assert provenance["training"]["loss"]["first_supervised_token_weight"] == 3.0
@@ -382,9 +486,28 @@ def test_resume_provenance_covers_model_data_contract_and_material_training_sett
     assert optimization["optimizer"] == "adamw_torch"
 
 
+def _write_checkpoint_artifacts(checkpoint):
+    checkpoint.mkdir(parents=True)
+    files = {
+        "adapter_config.json": b"{}\n",
+        "adapter_model.safetensors": b"safe adapter weights",
+        "optimizer.pt": b"optimizer state",
+        "rng_state.pth": b"rng state",
+        "scheduler.pt": b"scheduler state",
+        "trainer_state.json": b"{}\n",
+        "training_args.bin": b"training arguments",
+    }
+    for name, payload in files.items():
+        (checkpoint / name).write_bytes(payload)
+    nested = checkpoint / "callback_state"
+    nested.mkdir()
+    (nested / "state.json").write_bytes(b'{"completed":true}\n')
+    return checkpoint
+
+
 def test_resume_checkpoint_requires_provenance_and_accepts_exact_match(tmp_path) -> None:
     checkpoint = tmp_path / "checkpoint-5"
-    checkpoint.mkdir()
+    _write_checkpoint_artifacts(checkpoint)
     provenance = _resume_record()
 
     with pytest.raises(RuntimeError, match="missing required provenance"):
@@ -393,6 +516,12 @@ def test_resume_checkpoint_requires_provenance_and_accepts_exact_match(tmp_path)
     written = _write_resume_provenance(checkpoint, provenance)
 
     assert written == checkpoint / RESUME_PROVENANCE_FILENAME
+    record = json.loads(written.read_text(encoding="utf-8"))
+    artifact = record["checkpoint_artifact"]
+    assert artifact["format"] == CHECKPOINT_ARTIFACT_FORMAT
+    assert artifact == _checkpoint_artifact_evidence(checkpoint)
+    assert len(record["checkpoint_artifact_binding_sha256"]) == 64
+    assert RESUME_PROVENANCE_FILENAME not in artifact["files"]
     assert _validate_resume_checkpoint_provenance(checkpoint, provenance) == checkpoint.resolve()
 
 
@@ -402,6 +531,12 @@ def test_resume_checkpoint_requires_provenance_and_accepts_exact_match(tmp_path)
         (("base_model_provenance", "files", "config.json", "sha256"), "other-base"),
         (("datasets", "train_sha256"), "other-train"),
         (("datasets", "eval_sha256"), "other-eval"),
+        (("datasets", "report", "sha256"), "e" * 64),
+        (("model_lock", "sha256"), "f" * 64),
+        (
+            ("trainer_code_sha256", "scripts/train_lfm25_lora.py"),
+            "0" * 64,
+        ),
         (("contract", "prompt_sha256"), "other-prompt"),
         (("training", "lora", "rank"), 8),
         (("training", "optimization", "learning_rate"), 1e-4),
@@ -413,17 +548,14 @@ def test_resume_checkpoint_rejects_each_provenance_class(
     replacement,
 ) -> None:
     checkpoint = tmp_path / "checkpoint-5"
-    checkpoint.mkdir()
+    _write_checkpoint_artifacts(checkpoint)
     expected = _resume_record()
     observed = deepcopy(expected)
     target = observed
     for key in field_path[:-1]:
         target = target[key]
     target[field_path[-1]] = replacement
-    (checkpoint / RESUME_PROVENANCE_FILENAME).write_text(
-        json.dumps(observed),
-        encoding="utf-8",
-    )
+    _write_resume_provenance(checkpoint, observed)
 
     expected_path = ".".join(field_path)
     with pytest.raises(RuntimeError, match="does not match") as caught:
@@ -432,12 +564,132 @@ def test_resume_checkpoint_rejects_each_provenance_class(
 
 
 def test_resume_provenance_writer_refuses_to_replace_incompatible_identity(tmp_path) -> None:
-    output_dir = tmp_path / "run"
-    output_dir.mkdir()
+    checkpoint = tmp_path / "checkpoint-5"
+    _write_checkpoint_artifacts(checkpoint)
     expected = _resume_record()
-    _write_resume_provenance(output_dir, expected)
+    _write_resume_provenance(checkpoint, expected)
     incompatible = deepcopy(expected)
     incompatible["training"]["seed"] = 99
 
-    with pytest.raises(RuntimeError, match="refusing to replace incompatible"):
-        _write_resume_provenance(output_dir, incompatible)
+    with pytest.raises(RuntimeError, match="does not match"):
+        _write_resume_provenance(checkpoint, incompatible)
+
+
+@pytest.mark.parametrize("mutation", ["modify", "delete", "add"])
+def test_resume_checkpoint_rejects_artifact_tree_mutation(tmp_path, mutation) -> None:
+    checkpoint = tmp_path / "checkpoint-5"
+    _write_checkpoint_artifacts(checkpoint)
+    expected = _resume_record()
+    _write_resume_provenance(checkpoint, expected)
+
+    if mutation == "modify":
+        (checkpoint / "optimizer.pt").write_bytes(b"changed optimizer state")
+    elif mutation == "delete":
+        (checkpoint / "scheduler.pt").unlink()
+    else:
+        (checkpoint / "unexpected.bin").write_bytes(b"unexpected state")
+
+    with pytest.raises(RuntimeError, match="checkpoint artifact"):
+        _validate_resume_checkpoint_provenance(checkpoint, expected)
+
+
+def test_checkpoint_artifact_requires_complete_regular_controlled_tree(tmp_path) -> None:
+    empty = tmp_path / "checkpoint-1"
+    empty.mkdir()
+    with pytest.raises(RuntimeError, match="checkpoint artifact set is empty"):
+        _checkpoint_artifact_evidence(empty)
+
+    checkpoint = tmp_path / "checkpoint-5"
+    _write_checkpoint_artifacts(checkpoint)
+    unsafe_name = checkpoint / "unsafe name.bin"
+    unsafe_name.write_bytes(b"unsafe")
+    with pytest.raises(RuntimeError, match="invalid relative filename"):
+        _checkpoint_artifact_evidence(checkpoint)
+    unsafe_name.unlink()
+
+    linked = checkpoint / "linked.bin"
+    linked.symlink_to("optimizer.pt")
+    with pytest.raises(RuntimeError, match="contains a symlink"):
+        _checkpoint_artifact_evidence(checkpoint)
+    linked.unlink()
+
+    fifo = checkpoint / "state.pipe"
+    os.mkfifo(fifo)
+    with pytest.raises(RuntimeError, match="contains a non-regular file"):
+        _checkpoint_artifact_evidence(checkpoint)
+
+
+def test_resume_sidecar_rejects_traversal_without_echoing_filename(tmp_path) -> None:
+    checkpoint = tmp_path / "checkpoint-5"
+    _write_checkpoint_artifacts(checkpoint)
+    expected = _resume_record()
+    sidecar = _write_resume_provenance(checkpoint, expected)
+    record = json.loads(sidecar.read_text(encoding="utf-8"))
+    evidence = record["checkpoint_artifact"]["files"].pop("optimizer.pt")
+    record["checkpoint_artifact"]["files"]["../private-id.bin"] = evidence
+    sidecar.write_text(json.dumps(record), encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="invalid relative filename") as caught:
+        _validate_resume_checkpoint_provenance(checkpoint, expected)
+    assert "private-id" not in str(caught.value)
+
+
+def test_resume_sidecar_rejects_artifact_binding_tamper(tmp_path) -> None:
+    checkpoint = tmp_path / "checkpoint-5"
+    _write_checkpoint_artifacts(checkpoint)
+    expected = _resume_record()
+    sidecar = _write_resume_provenance(checkpoint, expected)
+    record = json.loads(sidecar.read_text(encoding="utf-8"))
+    record["checkpoint_artifact_binding_sha256"] = "0" * 64
+    sidecar.write_text(json.dumps(record), encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="artifact binding is invalid"):
+        _validate_resume_checkpoint_provenance(checkpoint, expected)
+
+
+def test_output_directory_requires_explicit_in_place_resume(tmp_path) -> None:
+    fresh = tmp_path / "fresh"
+    output, checkpoint = _prepare_output_directory(fresh, None)
+    assert output == fresh.resolve()
+    assert checkpoint is None
+
+    nonempty = tmp_path / "nonempty"
+    nonempty.mkdir()
+    (nonempty / "partial.bin").write_bytes(b"partial")
+    with pytest.raises(RuntimeError, match="preexisting nonempty output"):
+        _prepare_output_directory(nonempty, None)
+
+    resume_root = tmp_path / "resume"
+    resume_checkpoint = _write_checkpoint_artifacts(resume_root / "checkpoint-5")
+    provenance = _resume_record()
+    _write_resume_provenance(resume_checkpoint, provenance)
+    output, checkpoint = _prepare_output_directory(resume_root, resume_checkpoint)
+    assert output == resume_root.resolve()
+    assert checkpoint == resume_checkpoint.resolve()
+    assert _validate_resume_checkpoint_provenance(checkpoint, provenance) == checkpoint
+
+    external_root = tmp_path / "external"
+    external_checkpoint = _write_checkpoint_artifacts(external_root / "checkpoint-9")
+    with pytest.raises(RuntimeError, match="direct child"):
+        _prepare_output_directory(resume_root, external_checkpoint)
+
+
+def test_resume_and_adapter_save_reject_stale_layout(tmp_path) -> None:
+    resume_root = tmp_path / "resume"
+    resume_checkpoint = _write_checkpoint_artifacts(resume_root / "checkpoint-5")
+    (resume_root / "adapter").mkdir()
+    with pytest.raises(RuntimeError, match="stale or unexpected layout"):
+        _prepare_output_directory(resume_root, resume_checkpoint)
+
+    fresh_root = tmp_path / "fresh"
+    output, _checkpoint = _prepare_output_directory(fresh_root, None)
+    adapter = _create_adapter_destination(output)
+    assert adapter == (fresh_root / "adapter").resolve()
+    with pytest.raises(RuntimeError, match="stale adapter or manifest layout"):
+        _create_adapter_destination(output)
+
+    manifest_root = tmp_path / "manifest"
+    manifest_root.mkdir()
+    (manifest_root / "run_manifest.json").write_text("{}\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="stale adapter or manifest layout"):
+        _create_adapter_destination(manifest_root)

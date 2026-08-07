@@ -12,6 +12,7 @@ GGUF/device evaluator.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -42,6 +43,175 @@ from lfm25.provenance import (  # noqa: E402
     fingerprint_file,
     fingerprint_named_files,
 )
+from lfm25.training_provenance import (  # noqa: E402
+    adapter_artifact_evidence,
+    training_run_manifest_evidence,
+)
+
+_MODEL_LOCK_DOCUMENTATION_FILES = {"LICENSE", "README.md"}
+_HF_RUNTIME_FIXED_FILES = {
+    "added_tokens.json",
+    "chat_template.jinja",
+    "config.json",
+    "generation_config.json",
+    "merges.txt",
+    "special_tokens_map.json",
+    "tokenizer.json",
+    "tokenizer.model",
+    "tokenizer_config.json",
+    "vocab.json",
+    "vocab.txt",
+}
+_HF_RUNTIME_WEIGHT_RE = re.compile(
+    r"(?:model|pytorch_model)(?:-\d{5}-of-\d{5})?\.(?:safetensors|bin)"
+    r"(?:\.index\.json)?"
+)
+
+
+def _safe_file_fingerprint(path: Path, *, filename: str) -> dict[str, Any]:
+    resolved = path.resolve(strict=True)
+    if resolved.name != filename:
+        raise ValueError(f"expected {filename}, got {resolved.name}")
+    payload = resolved.read_bytes()
+    return {
+        "filename": filename,
+        "bytes": len(payload),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+    }
+
+
+def _model_lock_runtime_files(model_lock: Path) -> tuple[dict[str, str], dict[str, Any]]:
+    resolved = model_lock.resolve(strict=True)
+    if resolved.name != "model.lock.json":
+        raise ValueError(f"expected model.lock.json, got {resolved.name}")
+    payload = resolved.read_bytes()
+    lock_evidence = {
+        "filename": "model.lock.json",
+        "bytes": len(payload),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+    }
+    try:
+        lock = json.loads(payload)
+    except (UnicodeError, json.JSONDecodeError) as error:
+        raise ValueError("model.lock.json is not valid UTF-8 JSON") from error
+    if not isinstance(lock, dict) or not isinstance(lock.get("model"), dict):
+        raise ValueError("model.lock.json has no model object")
+    raw_files = lock["model"].get("files")
+    if not isinstance(raw_files, dict):
+        raise ValueError("model.lock.json has no model.files object")
+
+    locked: dict[str, str] = {}
+    for name, digest in raw_files.items():
+        if (
+            not isinstance(name, str)
+            or not name
+            or Path(name).name != name
+            or not isinstance(digest, str)
+            or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest)
+        ):
+            raise ValueError("model.lock.json has an invalid model.files entry")
+        if name not in _MODEL_LOCK_DOCUMENTATION_FILES:
+            locked[name] = digest
+    if (
+        "config.json" not in locked
+        or not ({"tokenizer.json", "tokenizer.model"} & set(locked))
+        or not any(
+            _HF_RUNTIME_WEIGHT_RE.fullmatch(name) is not None and not name.endswith(".index.json")
+            for name in locked
+        )
+    ):
+        raise ValueError("model.lock.json does not bind a complete HF runtime")
+    return dict(sorted(locked.items())), lock_evidence
+
+
+def _local_model_root(model_spec: str) -> tuple[Path, str | None]:
+    model_path = Path(model_spec)
+    if model_path.is_dir():
+        return model_path.resolve(strict=True), None
+    if model_path.is_file():
+        raise ValueError("--model must be a local HF directory or cached identifier")
+
+    from transformers.utils import cached_file
+
+    cached_config = cached_file(model_spec, "config.json", local_files_only=True)
+    if cached_config is None:
+        raise RuntimeError(f"cannot resolve local model snapshot for provenance: {model_spec}")
+    return Path(cached_config).parent.resolve(strict=True), model_spec
+
+
+def _locked_hf_model_evidence(
+    model_spec: str, model_lock: Path
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    locked, lock_evidence = _model_lock_runtime_files(model_lock)
+    root, identifier = _local_model_root(model_spec)
+    present_runtime_files = {
+        path.name
+        for path in root.iterdir()
+        if path.is_file()
+        and (
+            path.name in _HF_RUNTIME_FIXED_FILES
+            or _HF_RUNTIME_WEIGHT_RE.fullmatch(path.name) is not None
+        )
+    }
+    unexpected = present_runtime_files - set(locked)
+    if unexpected:
+        raise ValueError(
+            "local model has runtime files absent from model.lock.json: "
+            + ", ".join(sorted(unexpected))
+        )
+
+    files: dict[str, dict[str, Any]] = {}
+    for name, expected_sha256 in locked.items():
+        candidate = root / name
+        if not candidate.is_file():
+            raise ValueError(f"local model is missing locked runtime file: {name}")
+        item = fingerprint_file(candidate)
+        if item["sha256"] != expected_sha256:
+            raise ValueError(f"local model file differs from model.lock.json: {name}")
+        files[name] = {"bytes": item["bytes"], "sha256": item["sha256"]}
+    evidence: dict[str, Any] = {"path": str(root), "files": files}
+    if identifier is not None:
+        evidence["identifier"] = identifier
+    return evidence, lock_evidence
+
+
+def _evaluation_input_evidence(
+    *,
+    model: str,
+    adapter: Path | None,
+    dataset: Path,
+    model_lock: Path,
+) -> dict[str, Any]:
+    model_evidence, lock_evidence = _locked_hf_model_evidence(model, model_lock)
+    return {
+        "model": model_evidence,
+        "adapter": adapter_artifact_evidence(adapter) if adapter is not None else None,
+        "training_run": training_run_manifest_evidence(adapter),
+        "dataset": fingerprint_file(dataset),
+        "model_lock": lock_evidence,
+    }
+
+
+def _assert_evaluation_inputs_unchanged(
+    expected: Mapping[str, Any],
+    *,
+    model: str,
+    adapter: Path | None,
+    dataset: Path,
+    model_lock: Path,
+) -> None:
+    try:
+        observed = _evaluation_input_evidence(
+            model=model,
+            adapter=adapter,
+            dataset=dataset,
+            model_lock=model_lock,
+        )
+    except (OSError, RuntimeError, ValueError) as error:
+        raise RuntimeError("evaluation inputs changed after the pre-inference snapshot") from error
+    if observed != expected:
+        raise RuntimeError("evaluation inputs changed after the pre-inference snapshot")
 
 
 def _read_rows(path: Path) -> list[dict[str, Any]]:
@@ -244,6 +414,19 @@ def _contract_metadata(contract: str) -> dict[str, Any]:
     }
 
 
+def _execution_contract_evidence(contract: str) -> dict[str, Any]:
+    return {
+        "profile": _contract_metadata(contract),
+        "evaluator": fingerprint_file(Path(__file__)),
+        "code_sha256": code_fingerprints(REPO_ROOT),
+    }
+
+
+def _assert_execution_contract_unchanged(expected: Mapping[str, Any], *, contract: str) -> None:
+    if _execution_contract_evidence(contract) != expected:
+        raise RuntimeError("evaluator code or contract changed during inference")
+
+
 def _context_summary(prompt_lengths: list[int]) -> dict[str, Any]:
     n_ctx = int(ANDROID_DECODE_DEFAULTS["n_ctx"])
     answer_tokens = int(ANDROID_DECODE_DEFAULTS["answer_max_tokens"])
@@ -313,6 +496,7 @@ def main() -> int:
     )
     parser.add_argument("--model", required=True)
     parser.add_argument("--adapter", type=Path)
+    parser.add_argument("--model-lock", required=True, type=Path)
     parser.add_argument("--dataset", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument(
@@ -404,6 +588,29 @@ def main() -> int:
         parser.error("--repeat-penalty must be positive")
     if n_ctx <= max_new_tokens:
         parser.error("--n-ctx must be greater than --max-new-tokens")
+    if args.limit is not None and args.limit < 0:
+        parser.error("--limit cannot be negative")
+
+    input_evidence = _evaluation_input_evidence(
+        model=args.model,
+        adapter=args.adapter,
+        dataset=args.dataset,
+        model_lock=args.model_lock,
+    )
+    execution_contract_evidence = _execution_contract_evidence(args.contract)
+    model_config_evidence = (
+        fingerprint_file(args.model_config) if args.model_config is not None else None
+    )
+    rows = _read_rows(args.dataset)
+    if args.limit is not None:
+        rows = rows[: args.limit]
+    _assert_evaluation_inputs_unchanged(
+        input_evidence,
+        model=args.model,
+        adapter=args.adapter,
+        dataset=args.dataset,
+        model_lock=args.model_lock,
+    )
 
     import torch
     import transformers
@@ -444,10 +651,6 @@ def main() -> int:
             suffix = input_ids[:, -len(self.stop_ids) :]
             stop = input_ids.new_tensor(self.stop_ids)
             return (suffix == stop).all(dim=1)
-
-    rows = _read_rows(args.dataset)
-    if args.limit is not None:
-        rows = rows[: args.limit]
 
     records_by_index: dict[int, dict[str, Any]] = {}
     pending: list[tuple[int, dict[str, Any]]] = []
@@ -767,14 +970,20 @@ def main() -> int:
         }
     )
 
-    model_evidence = _hf_model_evidence(args.model)
+    dataset_evidence = {
+        **input_evidence["dataset"],
+        "row_count": len(rows),
+        "row_limit": args.limit,
+    }
     scored["provenance"] = {
-        "profile": _contract_metadata(args.contract),
-        "evaluator": fingerprint_file(Path(__file__)),
-        "model": model_evidence,
-        "adapter": _hf_directory_evidence(args.adapter) if args.adapter else None,
-        "dataset": fingerprint_file(args.dataset),
-        "code_sha256": code_fingerprints(REPO_ROOT),
+        "profile": execution_contract_evidence["profile"],
+        "evaluator": execution_contract_evidence["evaluator"],
+        "model": input_evidence["model"],
+        "model_lock": input_evidence["model_lock"],
+        "adapter": input_evidence["adapter"],
+        "training_run": input_evidence["training_run"],
+        "dataset": dataset_evidence,
+        "code_sha256": execution_contract_evidence["code_sha256"],
         "decode": {
             "engine": "transformers_prompt_training_proxy",
             "android_runtime_parity": False,
@@ -796,13 +1005,9 @@ def main() -> int:
             else "strict_research_parser",
             "strict_raw_metrics_also_reported": True,
         },
-        "row_limit": args.limit,
-        "row_count": len(rows),
     }
 
-    scored["provenance"]["model_config"] = (
-        fingerprint_file(args.model_config) if args.model_config is not None else None
-    )
+    scored["provenance"]["model_config"] = model_config_evidence
     scored["provenance"]["decode"].update(
         {
             "transformers_version": transformers.__version__,
@@ -821,6 +1026,18 @@ def main() -> int:
             "thinking_context_capped_rows": context_capped_rows,
             "raw_reasoning_persistence": ("samples_jsonl_only" if thinking_enabled else None),
         }
+    )
+
+    _assert_evaluation_inputs_unchanged(
+        input_evidence,
+        model=args.model,
+        adapter=args.adapter,
+        dataset=args.dataset,
+        model_lock=args.model_lock,
+    )
+    _assert_execution_contract_unchanged(
+        execution_contract_evidence,
+        contract=args.contract,
     )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)

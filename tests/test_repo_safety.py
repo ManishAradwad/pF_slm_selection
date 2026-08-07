@@ -36,9 +36,7 @@ def test_private_and_generated_paths_are_rejected(path: str, category: str) -> N
         ("UPSTREAM/llama.cpp/examples/example.py", "UPSTREAM"),
     ],
 )
-def test_innocuous_names_cannot_bypass_protected_top_level_trees(
-    path: str, tree: str
-) -> None:
+def test_innocuous_names_cannot_bypass_protected_top_level_trees(path: str, tree: str) -> None:
     assert find_violations([path]) == [Violation(path, f"protected output tree: {tree}")]
 
 
@@ -59,6 +57,28 @@ def test_explicit_legacy_paths_are_allowed() -> None:
     ]
 
     assert find_violations(paths) == []
+
+
+def test_versioned_candidate_protocol_artifacts_have_exact_exceptions() -> None:
+    paths = [
+        "DATA/candidate_protocol_v1_golden.json",
+        "configs/contracts/pocketfinancer-candidate-v1.json",
+        "configs/pipelines/pocketfinancer-lfm2.5-350m-candidate-v1.json",
+    ]
+
+    assert find_violations(paths) == []
+
+    near_misses = [
+        "DATA/candidate_protocol_v1_golden-copy.json",
+        "configs/contracts/pocketfinancer-candidate-v1-copy.json",
+        "configs/pipelines/pocketfinancer-lfm2.5-350m-candidate-v1-copy.json",
+    ]
+
+    assert find_violations(near_misses) == [
+        Violation(near_misses[0], "raw export"),
+        Violation(near_misses[1], "raw export"),
+        Violation(near_misses[2], "raw export"),
+    ]
 
 
 def test_grandfather_exception_is_exact() -> None:

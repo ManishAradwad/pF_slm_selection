@@ -14,6 +14,7 @@ it does not pretend to be wire-compatible with the current Android prompt.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from decimal import Decimal, InvalidOperation
 import json
 import math
 import re
@@ -38,24 +39,26 @@ For everything else use {\"transaction\":0}. Never invent or copy a value; outpu
 
 _AMOUNT_RE = re.compile(
     r"(?ix)(?:₹|\brs\.?|\binr\b)\s*[:=\-]?\s*"
-    r"(?P<number>[+]?(?:\d{1,3}(?:,\d{2,3})+|\d+)(?:\.\d{1,3})?)"
+    r"(?P<number>[+]?(?:[0-9]{1,3}(?:,[0-9]{2,3})+|[0-9]+)(?:\.[0-9]+)?)"
+    r"(?![0-9A-Za-z_]|[.,][0-9A-Za-z_.,])",
+    flags=re.ASCII,
 )
 _ACCOUNT_PATTERNS = (
     re.compile(
-        r"(?ix)\b(?P<value>"
+        r"(?aix)\b(?P<value>"
         r"(?:credit\s+card|debit\s+card|card)"
         r"(?:\s*(?:no\.?|number|ending(?:\s+in)?|ended(?:\s+in)?))?"
         r"\s*[:#\-.]?\s*(?:x{2,}|\*{1,}|[x*]*\d)[x*\d\-]{2,})\b"
     ),
     re.compile(
-        r"(?ix)\b(?P<value>"
+        r"(?aix)\b(?P<value>"
         r"(?:a\s*/?\s*c|acct|account)"
         r"(?:\s*(?:no\.?|number))?\s*[:#\-.]?\s*"
         r"(?:x{2,}|\*{1,}|[x*]*\d)[x*\d\-]{2,})\b"
     ),
 )
 _CURRENCY_AMOUNT_MARKER_RE = re.compile(
-    r"(?i)(?:\b(?:inr|rs)\.?\s*[:=\-]?\s*\d|\u20b9\s*\d)"
+    r"(?ai)(?:\b(?:inr|rs)\.?\s*[:=\-]?\s*[0-9]|\u20b9\s*[0-9])"
 )
 _CP_STOP = (
     r"(?=\s+(?:at|to|by|from|towards|on|via|ref(?:erence)?(?:\s+no\.?)?|dated|"
@@ -66,79 +69,78 @@ _COUNTERPARTY_PATTERNS = (
     (
         "PL",
         re.compile(
-        r"(?ix)\bby\s+(?:a\s*/?\s*c\s+)?linked\s+to\s+(?:mobile|vpa)\s+"
-        r"(?P<value>[a-z0-9][a-z0-9@._*+\-]{1,64})"
+            r"(?aix)\bby\s+(?:a\s*/?\s*c\s+)?linked\s+to\s+(?:mobile|vpa)\s+"
+            r"(?P<value>[a-z0-9][a-z0-9@._*+\-]{1,64})"
         ),
     ),
     (
         "PV",
         re.compile(
-            r"(?ix)\b(?:from\s+vpa|linked\s+to\s+vpa)\s+"
+            r"(?aix)\b(?:from\s+vpa|linked\s+to\s+vpa)\s+"
             r"(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,72}?)" + _CP_STOP
         ),
     ),
     (
         "PA",
-        re.compile(
-            r"(?ix)\bat\s+(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,72}?)" + _CP_STOP
-        ),
+        re.compile(r"(?aix)\bat\s+(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,72}?)" + _CP_STOP),
     ),
     (
         "PT",
-        re.compile(
-            r"(?ix)\bto\s+(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,72}?)" + _CP_STOP
-        ),
+        re.compile(r"(?aix)\bto\s+(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,72}?)" + _CP_STOP),
     ),
     (
         "PB",
-        re.compile(
-            r"(?ix)\bby\s+(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,72}?)" + _CP_STOP
-        ),
+        re.compile(r"(?aix)\bby\s+(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,72}?)" + _CP_STOP),
     ),
     (
         "PF",
         re.compile(
-            r"(?ix)\b(?:transfer\s+from|from)\s+"
+            r"(?aix)\b(?:transfer\s+from|from)\s+"
             r"(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,72}?)" + _CP_STOP
         ),
     ),
     (
         "PW",
-        re.compile(
-            r"(?ix)\btowards\s+(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,96}?)"
-            + _CP_STOP
-        ),
+        re.compile(r"(?aix)\btowards\s+(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,96}?)" + _CP_STOP),
     ),
     (
         "PU",
         re.compile(
-            r"(?ix)\bfor\s+(?:upi|neft(?:\s+cr)?)(?:\s+to)?\s+"
+            r"(?aix)\bfor\s+(?:upi|neft(?:\s+cr)?)(?:\s+to)?\s+"
             r"(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,96}?)" + _CP_STOP
         ),
     ),
     (
         "PR",
-        re.compile(
-            r"(?ix)\bfor\s+(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,96}?)" + _CP_STOP
-        ),
+        re.compile(r"(?aix)\bfor\s+(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,96}?)" + _CP_STOP),
     ),
     (
         "PO",
-        re.compile(
-            r"(?ix)\bon\s+(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,96}?)" + _CP_STOP
-        ),
+        re.compile(r"(?aix)\bon\s+(?P<value>[a-z0-9][a-z0-9@._&*'\-/ ]{1,96}?)" + _CP_STOP),
     ),
 )
-_VPA_RE = re.compile(r"(?i)(?<![\w@])(?P<value>[a-z0-9._-]{2,}@[a-z][a-z0-9.-]{1,})(?![\w@])")
+_VPA_RE = re.compile(
+    r"(?ai)(?<![\w@])(?P<value>[a-z0-9._-]{2,}@[a-z][a-z0-9.-]{1,})(?![\w@])"
+)
 _TYPE_DEBIT_RE = re.compile(
     r"\b(?:spent|debited|withdrawn|paid|sent|used|purchase(?:d)?|drawn)\b",
-    re.IGNORECASE,
+    re.IGNORECASE | re.ASCII,
 )
 _TYPE_CREDIT_RE = re.compile(
     r"\b(?:credited|received|refunded|deposited|reversal|reversed|added)\b",
-    re.IGNORECASE,
+    re.IGNORECASE | re.ASCII,
 )
-_SPACE_RE = re.compile(r"\s+")
+_SPACE_RE = re.compile(r"[ \t\n\r\f\v]+")
+_ASCII_LOWER_TRANSLATION = str.maketrans(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    "abcdefghijklmnopqrstuvwxyz",
+)
+
+_SOURCE_DECIMAL_TOKEN_RE = re.compile(r"[+]?(?:[0-9]{1,3}(?:,[0-9]{2,3})+|[0-9]+)(?:\.[0-9]+)?\Z")
+COUNTERPARTY_SOURCE_TIE_BREAK_ORDER = tuple(prefix for prefix, _pattern in _COUNTERPARTY_PATTERNS)
+_COUNTERPARTY_SOURCE_TIE_BREAK_RANK = {
+    prefix: index for index, prefix in enumerate(COUNTERPARTY_SOURCE_TIE_BREAK_ORDER)
+}
 
 
 @dataclass(frozen=True)
@@ -184,7 +186,37 @@ class OracleSelection:
 
 
 def _normal_text(value: str) -> str:
-    return _SPACE_RE.sub(" ", value).strip()
+    return _SPACE_RE.sub(" ", value).strip(" \t\n\r\f\v")
+
+
+def _ascii_lower(value: str) -> str:
+    """Lowercase ASCII letters without host Unicode-version dependencies."""
+
+    return value.translate(_ASCII_LOWER_TRANSLATION)
+
+
+def canonical_amount_token(token: str) -> str:
+    """Return a positive source decimal without grouping or a leading plus.
+
+    The integer part is canonicalized while fractional precision is preserved.
+    This representation is suitable for exact Candidate Protocol identity and
+    deliberately performs no binary floating-point conversion.
+    """
+
+    if not isinstance(token, str) or not _SOURCE_DECIMAL_TOKEN_RE.fullmatch(token):
+        raise ValueError("amount token is not a supported source decimal")
+    ungrouped = token.replace(",", "")
+    if ungrouped.startswith("+"):
+        ungrouped = ungrouped[1:]
+    try:
+        value = Decimal(ungrouped)
+    except InvalidOperation as error:
+        raise ValueError("amount token is not a finite base-10 decimal") from error
+    if not value.is_finite() or value <= 0:
+        raise ValueError("amount token must be finite and positive")
+    whole, dot, fraction = ungrouped.partition(".")
+    canonical_whole = whole.lstrip("0") or "0"
+    return canonical_whole + (dot + fraction if dot else "")
 
 
 def _dedupe(candidates: Iterable[tuple[Any, str, int, int]], prefix: str) -> tuple[Candidate, ...]:
@@ -194,7 +226,7 @@ def _dedupe(candidates: Iterable[tuple[Any, str, int, int]], prefix: str) -> tup
         if isinstance(value, float):
             key = ("number", f"{value:.12g}")
         else:
-            key = ("text", _normal_text(str(value)).casefold())
+            key = ("text", _ascii_lower(_normal_text(str(value))))
         if key in seen:
             continue
         seen.add(key)
@@ -209,7 +241,7 @@ def _dedupe_semantic_counterparties(
     counts: dict[str, int] = {}
     answer: list[Candidate] = []
     for value, source_text, start, end, prefix in candidates:
-        key = _normal_text(value).casefold()
+        key = _ascii_lower(_normal_text(value))
         if key in seen:
             continue
         seen.add(key)
@@ -217,6 +249,141 @@ def _dedupe_semantic_counterparties(
         counts[prefix] = index + 1
         answer.append(Candidate(f"{prefix}{index}", value, source_text, start, end))
     return tuple(answer)
+
+
+def _dedupe_exact_amounts(
+    candidates: Iterable[tuple[str, str, int, int]],
+) -> tuple[Candidate, ...]:
+    """Deduplicate source decimals exactly and assign source-ordered IDs."""
+
+    ordered = sorted(
+        candidates,
+        key=lambda item: (
+            item[2],
+            item[3],
+            Decimal(item[0]),
+            item[0],
+            item[1],
+        ),
+    )
+    seen: set[Decimal] = set()
+    answer: list[Candidate] = []
+    for decimal_text, source_text, start, end in ordered:
+        identity = Decimal(decimal_text)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        answer.append(Candidate(f"A{len(answer)}", decimal_text, source_text, start, end))
+    return tuple(answer)
+
+
+def _dedupe_source_text_candidates(
+    candidates: Iterable[tuple[str, str, int, int]],
+    prefix: str,
+) -> tuple[Candidate, ...]:
+    """Deduplicate normalized text after deterministic source-span sorting."""
+
+    ordered = sorted(
+        candidates,
+        key=lambda item: (
+            item[2],
+            item[3],
+            _ascii_lower(_normal_text(item[0])),
+            _normal_text(item[0]),
+            item[1],
+        ),
+    )
+    seen: set[str] = set()
+    answer: list[Candidate] = []
+    for value, source_text, start, end in ordered:
+        identity = _ascii_lower(_normal_text(value))
+        if identity in seen:
+            continue
+        seen.add(identity)
+        answer.append(Candidate(f"{prefix}{len(answer)}", value, source_text, start, end))
+    return tuple(answer)
+
+
+def _dedupe_source_counterparties(
+    candidates: Iterable[tuple[str, str, int, int, str]],
+) -> tuple[Candidate, ...]:
+    """Deduplicate counterparties by earliest span with explicit tie-breaks."""
+
+    ordered = sorted(
+        candidates,
+        key=lambda item: (
+            item[2],
+            item[3],
+            _COUNTERPARTY_SOURCE_TIE_BREAK_RANK.get(
+                item[4], len(_COUNTERPARTY_SOURCE_TIE_BREAK_RANK)
+            ),
+            item[4],
+            _ascii_lower(_normal_text(item[0])),
+            _normal_text(item[0]),
+            item[1],
+        ),
+    )
+    seen: set[str] = set()
+    counts: dict[str, int] = {}
+    answer: list[Candidate] = []
+    for value, source_text, start, end, prefix in ordered:
+        identity = _ascii_lower(_normal_text(value))
+        if identity in seen:
+            continue
+        seen.add(identity)
+        index = counts.get(prefix, 0)
+        counts[prefix] = index + 1
+        answer.append(Candidate(f"{prefix}{index}", value, source_text, start, end))
+    return tuple(answer)
+
+
+def _raw_accounts(sms: str) -> list[tuple[str, str, int, int]]:
+    raw_accounts: list[tuple[str, str, int, int]] = []
+    for pattern in _ACCOUNT_PATTERNS:
+        for match in pattern.finditer(sms):
+            value = _normal_text(match.group("value"))
+            raw_accounts.append(
+                (value, match.group("value"), match.start("value"), match.end("value"))
+            )
+    return raw_accounts
+
+
+def _raw_counterparties(sms: str) -> list[tuple[str, str, int, int, str]]:
+    raw_counterparties: list[tuple[str, str, int, int, str]] = []
+    for prefix, pattern in _COUNTERPARTY_PATTERNS:
+        for match in pattern.finditer(sms):
+            source_text = match.group("value")
+            currency_marker = _CURRENCY_AMOUNT_MARKER_RE.search(source_text)
+            if currency_marker is not None:
+                source_text = source_text[: currency_marker.start()]
+            source_text = source_text.rstrip(" -:,.\n\t")
+            value = _normal_text(source_text).strip(" -:,.\n\t")
+            if value and _ascii_lower(value) not in {
+                "your account",
+                "your a/c",
+                "your card",
+            }:
+                start = match.start("value")
+                raw_counterparties.append(
+                    (value, source_text, start, start + len(source_text), prefix)
+                )
+    for match in _VPA_RE.finditer(sms):
+        source_text = match.group("value").rstrip(" -:,.\n\t")
+        if source_text:
+            start = match.start("value")
+            raw_counterparties.append(
+                (source_text, source_text, start, start + len(source_text), "PV")
+            )
+    return raw_counterparties
+
+
+def _type_hints(sms: str) -> tuple[Literal["D", "C"], ...]:
+    hints: list[Literal["D", "C"]] = []
+    if _TYPE_DEBIT_RE.search(sms):
+        hints.append("D")
+    if _TYPE_CREDIT_RE.search(sms):
+        hints.append("C")
+    return tuple(hints)
 
 
 def extract_candidates(sms: str) -> CandidateSet:
@@ -239,7 +406,9 @@ def extract_candidates(sms: str) -> CandidateSet:
     for pattern in _ACCOUNT_PATTERNS:
         for match in pattern.finditer(sms):
             value = _normal_text(match.group("value"))
-            raw_accounts.append((value, match.group("value"), match.start("value"), match.end("value")))
+            raw_accounts.append(
+                (value, match.group("value"), match.start("value"), match.end("value"))
+            )
 
     raw_counterparties: list[tuple[str, str, int, int, str]] = []
     for prefix, pattern in _COUNTERPARTY_PATTERNS:
@@ -250,10 +419,7 @@ def extract_candidates(sms: str) -> CandidateSet:
                 source_text = source_text[: currency_marker.start()]
             source_text = source_text.rstrip(" -:,.\n\t")
             value = _normal_text(source_text).strip(" -:,.\n\t")
-            if (
-                value
-                and value.casefold() not in {"your account", "your a/c", "your card"}
-            ):
+            if value and _ascii_lower(value) not in {"your account", "your a/c", "your card"}:
                 start = match.start("value")
                 raw_counterparties.append(
                     (
@@ -282,6 +448,30 @@ def extract_candidates(sms: str) -> CandidateSet:
         accounts=_dedupe(raw_accounts, "C"),
         counterparties=tuple(counterparties),
         type_hints=tuple(hints),
+    )
+
+
+def extract_protocol_candidates(sms: str) -> CandidateSet:
+    """Enumerate source-ordered V1 candidates without binary-float loss."""
+
+    if not isinstance(sms, str):
+        raise TypeError("sms must be text")
+
+    raw_amounts: list[tuple[str, str, int, int]] = []
+    for match in _AMOUNT_RE.finditer(sms):
+        try:
+            decimal_text = canonical_amount_token(match.group("number"))
+        except ValueError:
+            continue
+        raw_amounts.append((decimal_text, match.group(0), match.start(), match.end()))
+
+    counterparties = list(_dedupe_source_counterparties(_raw_counterparties(sms)))
+    counterparties.append(Candidate("PN", None, None, None, None))
+    return CandidateSet(
+        amounts=_dedupe_exact_amounts(raw_amounts),
+        accounts=_dedupe_source_text_candidates(_raw_accounts(sms), "C"),
+        counterparties=tuple(counterparties),
+        type_hints=_type_hints(sms),
     )
 
 
@@ -330,10 +520,10 @@ def oracle_selection(gold: Any, candidates: CandidateSet) -> OracleSelection:
             None,
         )
     else:
-        gold_counterparty = _normal_text(str(parsed["counterparty"])).casefold()
+        gold_counterparty = _ascii_lower(_normal_text(str(parsed["counterparty"])))
         matching_counterparties.sort(
             key=lambda item: (
-                _normal_text(str(item.value)).casefold() != gold_counterparty,
+                _ascii_lower(_normal_text(str(item.value))) != gold_counterparty,
                 abs(len(_normal_text(str(item.value))) - len(gold_counterparty)),
                 item.id,
             )
@@ -359,7 +549,9 @@ def selector_target(gold: Any, candidates: CandidateSet) -> dict[str, Any]:
     if parse_gold(gold) is None:
         return {"transaction": 0}
     if not selection.covered:
-        raise ValueError(f"gold fields absent from candidate set: {', '.join(selection.missing_fields)}")
+        raise ValueError(
+            f"gold fields absent from candidate set: {', '.join(selection.missing_fields)}"
+        )
     return {
         "transaction": 1,
         "type": selection.type_code,
@@ -369,13 +561,18 @@ def selector_target(gold: Any, candidates: CandidateSet) -> dict[str, Any]:
     }
 
 
-def reconstruct_transaction(selection: Mapping[str, Any], candidates: CandidateSet) -> dict[str, Any] | None:
+def reconstruct_transaction(
+    selection: Mapping[str, Any], candidates: CandidateSet
+) -> dict[str, Any] | None:
     """Resolve selector JSON to PocketFinancer's existing four-field object."""
 
     decision = selection.get("transaction")
-    if set(selection) == {"transaction"} and isinstance(decision, int) and not isinstance(
-        decision, bool
-    ) and decision == 0:
+    if (
+        set(selection) == {"transaction"}
+        and isinstance(decision, int)
+        and not isinstance(decision, bool)
+        and decision == 0
+    ):
         return None
     required = {"transaction", "type", "amount", "account", "counterparty"}
     if (
@@ -441,7 +638,7 @@ def counterparty_quality_penalty(candidate: Candidate) -> int:
 
     if candidate.value is None:
         return 4
-    value = _normal_text(str(candidate.value)).casefold()
+    value = _ascii_lower(_normal_text(str(candidate.value)))
     penalty = 0
     penalty += 5 * bool(re.search(r"\bbank\b", value))
     penalty += 5 * bool(re.search(r"\b(?:inr|rs)\b|\u20b9", value))
@@ -460,7 +657,7 @@ def counterparty_quality_penalty(candidate: Candidate) -> int:
 def _counterparty_has_currency_marker(candidate: Candidate) -> bool:
     if candidate.value is None:
         return False
-    value = _normal_text(str(candidate.value)).casefold()
+    value = _ascii_lower(_normal_text(str(candidate.value)))
     return bool(_CURRENCY_AMOUNT_MARKER_RE.search(value))
 
 
@@ -529,9 +726,7 @@ def resolve_selector_prediction(
 
     if not isinstance(text, str):
         return ParsedOutput("invalid", None, "", "prediction is not text"), ()
-    cleaned = re.sub(
-        r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE
-    ).strip()
+    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE).strip()
     candidate = _first_balanced_json_object(cleaned)
     if candidate is None:
         return ParsedOutput("invalid", None, cleaned, "no selector JSON object"), ()

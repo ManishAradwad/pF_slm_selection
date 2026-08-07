@@ -15,9 +15,11 @@ import importlib
 import json
 import math
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import platform
 import random
+import re
+import stat
 import statistics
 import sys
 import time
@@ -31,6 +33,13 @@ from lfm25.prompts import extraction_messages  # noqa: E402
 from lfm25.prompts import PRODUCTION_SYSTEM_PROMPT  # noqa: E402
 from lfm25.provenance import fingerprint_named_files  # noqa: E402
 from lfm25.training_loss import LOSS_MODE, normalized_completion_cross_entropy  # noqa: E402
+from lfm25.training_provenance import (  # noqa: E402
+    RUN_MANIFEST_FORMAT,
+    adapter_artifact_evidence,
+    trainer_code_fingerprints,
+    training_manifest_artifact_binding,
+)
+
 
 LORA_TARGETS = ["in_proj", "q_proj", "k_proj", "v_proj", "out_proj", "w1", "w2", "w3"]
 LEGACY_MAX_LENGTH = 512
@@ -70,7 +79,20 @@ HF_WEIGHT_INDEX_PATTERNS = (
     "pytorch_model*.bin.index.json",
 )
 RESUME_PROVENANCE_FILENAME = "resume_provenance.json"
-RESUME_PROVENANCE_FORMAT = "lfm25_lora_resume_provenance_v1"
+RESUME_PROVENANCE_FORMAT = "lfm25_lora_resume_provenance_v2"
+CHECKPOINT_ARTIFACT_FORMAT = "lfm25_checkpoint_artifact_v1"
+CHECKPOINT_RESUME_BINDING_FORMAT = "lfm25_checkpoint_resume_binding_v1"
+MODEL_LOCK_PATH = REPO_ROOT / "configs" / "lfm25" / "model.lock.json"
+_CHECKPOINT_DIRECTORY_RE = re.compile(r"checkpoint-[1-9]\d*")
+_CHECKPOINT_PATH_COMPONENT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+_CHECKPOINT_WEIGHT_RE = re.compile(
+    r"(?:adapter_model|model|pytorch_model)"
+    r"(?:-\d{5}-of-\d{5})?\.(?:safetensors|bin)"
+)
+_CHECKPOINT_RNG_RE = re.compile(r"rng_state(?:_\d+)?\.pth")
+_REQUIRED_CHECKPOINT_FILES = frozenset(
+    {"optimizer.pt", "scheduler.pt", "trainer_state.json", "training_args.bin"}
+)
 
 
 def _sha256(path: Path) -> str:
@@ -79,6 +101,88 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _file_fingerprint(path: Path, *, filename: str) -> dict[str, Any]:
+    payload = path.read_bytes()
+    return {
+        "filename": filename,
+        "bytes": len(payload),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+    }
+
+
+def _candidate_dataset_report_provenance(
+    train_path: Path,
+    eval_path: Path,
+    report_path: Path | None,
+) -> dict[str, Any] | None:
+    expected_train = "candidate_protocol_v1_train.jsonl"
+    expected_eval = "candidate_protocol_v1_dev.jsonl"
+    observes_candidate_name = train_path.name == expected_train or eval_path.name == expected_eval
+    if not observes_candidate_name:
+        if report_path is not None:
+            raise RuntimeError("--dataset-report requires the Candidate V1 train/dev bundle")
+        return None
+    if (
+        train_path.name != expected_train
+        or eval_path.name != expected_eval
+        or train_path.resolve(strict=True).parent != eval_path.resolve(strict=True).parent
+    ):
+        raise RuntimeError("Candidate V1 train/dev inputs are not a matched dataset bundle")
+    if report_path is None:
+        raise RuntimeError("--dataset-report is required for Candidate V1 training")
+    resolved_report = report_path.resolve(strict=True)
+    if (
+        resolved_report.name != "candidate_protocol_v1_report.json"
+        or resolved_report.parent != train_path.resolve(strict=True).parent
+    ):
+        raise RuntimeError("Candidate V1 dataset report must belong to the train/dev bundle")
+    return _file_fingerprint(
+        resolved_report,
+        filename="candidate_protocol_v1_report.json",
+    )
+
+
+def _locked_model_provenance(
+    base_model_provenance: dict[str, Any],
+    model_lock_path: Path,
+) -> dict[str, Any]:
+    resolved_lock = model_lock_path.resolve(strict=True)
+    if resolved_lock.name != "model.lock.json":
+        raise RuntimeError("--model-lock must name model.lock.json")
+    lock_bytes = resolved_lock.read_bytes()
+    try:
+        lock = json.loads(lock_bytes)
+        model = lock["model"]
+        locked_files = model["files"]
+    except (KeyError, TypeError, json.JSONDecodeError) as error:
+        raise RuntimeError("LFM2.5 model lock is malformed") from error
+    if model.get("repo") != "LiquidAI/LFM2.5-350M" or not isinstance(locked_files, dict):
+        raise RuntimeError("LFM2.5 model lock has an unexpected identity")
+    runtime_locked_files = {
+        name: digest
+        for name, digest in locked_files.items()
+        if name not in {"LICENSE", "README.md"}
+    }
+    observed_files = base_model_provenance.get("files")
+    if not isinstance(observed_files, dict) or set(observed_files) != set(runtime_locked_files):
+        raise RuntimeError("local base-model files differ from the immutable model lock")
+    for name, evidence in observed_files.items():
+        if not isinstance(evidence, dict) or runtime_locked_files.get(name) != evidence.get(
+            "sha256"
+        ):
+            raise RuntimeError("local base model differs from the immutable model lock")
+    return {
+        "filename": "model.lock.json",
+        "bytes": len(lock_bytes),
+        "sha256": hashlib.sha256(lock_bytes).hexdigest(),
+    }
+
+
+def _require_unchanged(label: str, expected: Any, observed: Any) -> None:
+    if observed != expected:
+        raise RuntimeError(f"{label} changed while training; refusing provenance output")
 
 
 def target_module_inventory(model: Any) -> dict[str, Any]:
@@ -126,9 +230,7 @@ def _local_hf_model_provenance(model_spec: str | Path) -> dict[str, Any]:
 
     model_root = _resolve_local_hf_root(model_spec)
     config_files = [name for name in HF_CONFIG_ASSETS if (model_root / name).is_file()]
-    tokenizer_files = [
-        name for name in HF_TOKENIZER_ASSETS if (model_root / name).is_file()
-    ]
+    tokenizer_files = [name for name in HF_TOKENIZER_ASSETS if (model_root / name).is_file()]
     weight_files = sorted(
         {
             path.name
@@ -222,9 +324,7 @@ def _trainer_state_provenance(trainer: Any) -> dict[str, Any]:
         }
 
     restored_checkpoint = getattr(trainer, "_restored_best_model_checkpoint", None)
-    restoration_completed = bool(
-        getattr(trainer, "_best_model_restoration_completed", False)
-    )
+    restoration_completed = bool(getattr(trainer, "_best_model_restoration_completed", False))
     restored_best = bool(
         trainer.args.load_best_model_at_end
         and restoration_completed
@@ -272,17 +372,25 @@ def _resume_provenance(
     base_model_provenance: dict[str, Any],
     train_sha256: str,
     eval_sha256: str,
+    dataset_report: dict[str, Any] | None,
+    model_lock: dict[str, Any],
+    trainer_code_sha256: dict[str, str],
     contract: dict[str, Any],
 ) -> dict[str, Any]:
     """Build the immutable identity required to continue a saved checkpoint."""
 
+    datasets = {
+        "train_sha256": train_sha256,
+        "eval_sha256": eval_sha256,
+    }
+    if dataset_report is not None:
+        datasets["report"] = dataset_report
     return {
         "format": RESUME_PROVENANCE_FORMAT,
         "base_model_provenance": base_model_provenance,
-        "datasets": {
-            "train_sha256": train_sha256,
-            "eval_sha256": eval_sha256,
-        },
+        "model_lock": model_lock,
+        "trainer_code_sha256": trainer_code_sha256,
+        "datasets": datasets,
         "contract": contract,
         "training": {
             "seed": args.seed,
@@ -320,6 +428,16 @@ def _resume_provenance(
     }
 
 
+def _canonical_json_sha256(value: Any) -> str:
+    payload = json.dumps(
+        value,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def _provenance_mismatch_paths(
     expected: Any,
     observed: Any,
@@ -328,73 +446,347 @@ def _provenance_mismatch_paths(
 ) -> list[str]:
     """Return value-free field paths that differ between provenance records."""
 
-    if isinstance(expected, dict) and isinstance(observed, dict):
+    if isinstance(expected, dict):
+        if not isinstance(observed, dict):
+            return [prefix or "<root>"]
         mismatches: list[str] = []
-        for key in sorted(set(expected) | set(observed)):
+        for key in sorted(expected):
             path = f"{prefix}.{key}" if prefix else str(key)
-            if key not in expected or key not in observed:
+            if key not in observed:
                 mismatches.append(path)
                 continue
             mismatches.extend(
-                _provenance_mismatch_paths(expected[key], observed[key], prefix=path)
+                _provenance_mismatch_paths(
+                    expected[key],
+                    observed[key],
+                    prefix=path,
+                )
             )
+        if set(observed) - set(expected):
+            mismatches.append(f"{prefix}.<unexpected>" if prefix else "<unexpected>")
         return mismatches
-    if isinstance(expected, list) and isinstance(observed, list):
-        if len(expected) != len(observed):
+    if isinstance(expected, list):
+        if not isinstance(observed, list) or len(expected) != len(observed):
             return [prefix or "<root>"]
         mismatches = []
         for index, (expected_item, observed_item) in enumerate(zip(expected, observed)):
             path = f"{prefix}[{index}]" if prefix else f"[{index}]"
             mismatches.extend(
-                _provenance_mismatch_paths(expected_item, observed_item, prefix=path)
+                _provenance_mismatch_paths(
+                    expected_item,
+                    observed_item,
+                    prefix=path,
+                )
             )
         return mismatches
     return [] if expected == observed and type(expected) is type(observed) else [prefix or "<root>"]
+
+
+def _mismatch_summary(mismatches: list[str]) -> str:
+    summary = ", ".join(mismatches[:12])
+    if len(mismatches) > 12:
+        summary += f", ... ({len(mismatches)} fields total)"
+    return summary
+
+
+def _safe_checkpoint_relative_path(value: Any) -> PurePosixPath:
+    if not isinstance(value, str) or not value or len(value) > 512 or "\\" in value:
+        raise RuntimeError("checkpoint artifact has an invalid relative filename")
+    relative = PurePosixPath(value)
+    if (
+        relative.is_absolute()
+        or relative.as_posix() != value
+        or not relative.parts
+        or any(
+            part in {"", ".", ".."} or _CHECKPOINT_PATH_COMPONENT_RE.fullmatch(part) is None
+            for part in relative.parts
+        )
+    ):
+        raise RuntimeError("checkpoint artifact has an invalid relative filename")
+    return relative
+
+
+def _resolve_checkpoint_root(checkpoint: str | Path) -> Path:
+    candidate = Path(checkpoint).expanduser()
+    if candidate.is_symlink():
+        raise RuntimeError("checkpoint directory must not be a symlink")
+    try:
+        resolved = candidate.resolve(strict=True)
+        mode = resolved.lstat().st_mode
+    except OSError as error:
+        raise RuntimeError("checkpoint directory does not exist") from error
+    if not stat.S_ISDIR(mode):
+        raise RuntimeError("checkpoint path is not a directory")
+    if _CHECKPOINT_DIRECTORY_RE.fullmatch(resolved.name) is None:
+        raise RuntimeError("checkpoint directory name is invalid")
+    return resolved
+
+
+def _checkpoint_tree_entries(root: Path) -> list[tuple[str, Path, tuple[int, int, int, int, int]]]:
+    entries: list[tuple[str, Path, tuple[int, int, int, int, int]]] = []
+    pending = [root]
+    while pending:
+        directory = pending.pop()
+        try:
+            with os.scandir(directory) as iterator:
+                children = sorted(iterator, key=lambda item: item.name)
+        except OSError as error:
+            raise RuntimeError("checkpoint artifact tree could not be read") from error
+        for child in children:
+            path = Path(child.path)
+            relative_text = path.relative_to(root).as_posix()
+            _safe_checkpoint_relative_path(relative_text)
+            try:
+                metadata = child.stat(follow_symlinks=False)
+            except OSError as error:
+                raise RuntimeError("checkpoint artifact entry could not be read") from error
+            mode = metadata.st_mode
+            if stat.S_ISLNK(mode):
+                raise RuntimeError("checkpoint artifact tree contains a symlink")
+            if stat.S_ISDIR(mode):
+                pending.append(path)
+                continue
+            if not stat.S_ISREG(mode):
+                raise RuntimeError("checkpoint artifact tree contains a non-regular file")
+            if relative_text == RESUME_PROVENANCE_FILENAME:
+                continue
+            entries.append((relative_text, path, _stable_stat_identity(metadata)))
+    return sorted(entries)
+
+
+def _stable_stat_identity(value: os.stat_result) -> tuple[int, int, int, int, int]:
+    return (
+        value.st_dev,
+        value.st_ino,
+        value.st_size,
+        value.st_mtime_ns,
+        value.st_ctime_ns,
+    )
+
+
+def _checkpoint_file_evidence(path: Path) -> dict[str, Any]:
+    try:
+        before = path.lstat()
+        if not stat.S_ISREG(before.st_mode):
+            raise RuntimeError("checkpoint artifact entry is not a regular file")
+        digest = hashlib.sha256()
+        total = 0
+        with path.open("rb") as handle:
+            opened = os.fstat(handle.fileno())
+            if not stat.S_ISREG(opened.st_mode) or _stable_stat_identity(
+                opened
+            ) != _stable_stat_identity(before):
+                raise RuntimeError("checkpoint artifact changed while hashing")
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                total += len(chunk)
+                digest.update(chunk)
+            after = os.fstat(handle.fileno())
+        current = path.lstat()
+    except OSError as error:
+        raise RuntimeError("checkpoint artifact changed while hashing") from error
+    if (
+        total != before.st_size
+        or _stable_stat_identity(after) != _stable_stat_identity(before)
+        or _stable_stat_identity(current) != _stable_stat_identity(before)
+    ):
+        raise RuntimeError("checkpoint artifact changed while hashing")
+    return {"bytes": total, "sha256": digest.hexdigest()}
+
+
+def _require_checkpoint_layout(files: dict[str, dict[str, Any]]) -> None:
+    names = set(files)
+    if not _REQUIRED_CHECKPOINT_FILES.issubset(names):
+        raise RuntimeError("checkpoint artifact set is incomplete")
+    if not any("/" not in name and _CHECKPOINT_WEIGHT_RE.fullmatch(name) for name in names):
+        raise RuntimeError("checkpoint artifact set has no model weights")
+    if not any("/" not in name and _CHECKPOINT_RNG_RE.fullmatch(name) for name in names):
+        raise RuntimeError("checkpoint artifact set has no RNG state")
+
+
+def _checkpoint_artifact_evidence(checkpoint: str | Path) -> dict[str, Any]:
+    """Fingerprint the deterministic recursive artifact set of one checkpoint."""
+
+    root = _resolve_checkpoint_root(checkpoint)
+    before_entries = _checkpoint_tree_entries(root)
+    files = {
+        relative: _checkpoint_file_evidence(path) for relative, path, _identity in before_entries
+    }
+    after_entries = _checkpoint_tree_entries(root)
+    before_snapshot = [(name, identity) for name, _path, identity in before_entries]
+    after_snapshot = [(name, identity) for name, _path, identity in after_entries]
+    if before_snapshot != after_snapshot:
+        raise RuntimeError("checkpoint artifact set changed while hashing")
+    if not files or sum(item["bytes"] for item in files.values()) <= 0:
+        raise RuntimeError("checkpoint artifact set is empty")
+    _require_checkpoint_layout(files)
+    identity_payload = {
+        "format": CHECKPOINT_ARTIFACT_FORMAT,
+        "files": files,
+        "file_count": len(files),
+        "bytes": sum(item["bytes"] for item in files.values()),
+    }
+    return {
+        **identity_payload,
+        "identity_sha256": _canonical_json_sha256(identity_payload),
+    }
+
+
+def _validate_checkpoint_artifact_evidence(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != {
+        "format",
+        "files",
+        "file_count",
+        "bytes",
+        "identity_sha256",
+    }:
+        raise RuntimeError("resume provenance has invalid checkpoint artifact evidence")
+    if value.get("format") != CHECKPOINT_ARTIFACT_FORMAT:
+        raise RuntimeError("resume provenance has invalid checkpoint artifact evidence")
+    raw_files = value.get("files")
+    if not isinstance(raw_files, dict) or not raw_files:
+        raise RuntimeError("resume provenance has invalid checkpoint artifact evidence")
+    if any(not isinstance(name, str) for name in raw_files):
+        raise RuntimeError("resume provenance has invalid checkpoint artifact evidence")
+
+    files: dict[str, dict[str, Any]] = {}
+    for name in sorted(raw_files):
+        _safe_checkpoint_relative_path(name)
+        raw_item = raw_files[name]
+        if not isinstance(raw_item, dict) or set(raw_item) != {"bytes", "sha256"}:
+            raise RuntimeError("resume provenance has invalid checkpoint artifact evidence")
+        size = raw_item.get("bytes")
+        digest = raw_item.get("sha256")
+        if (
+            isinstance(size, bool)
+            or not isinstance(size, int)
+            or size < 0
+            or not isinstance(digest, str)
+            or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest)
+        ):
+            raise RuntimeError("resume provenance has invalid checkpoint artifact evidence")
+        files[name] = {"bytes": size, "sha256": digest}
+
+    _require_checkpoint_layout(files)
+    identity_payload = {
+        "format": CHECKPOINT_ARTIFACT_FORMAT,
+        "files": files,
+        "file_count": len(files),
+        "bytes": sum(item["bytes"] for item in files.values()),
+    }
+    if (
+        isinstance(value.get("file_count"), bool)
+        or isinstance(value.get("bytes"), bool)
+        or identity_payload["bytes"] <= 0
+    ):
+        raise RuntimeError("resume provenance has invalid checkpoint artifact evidence")
+    if (
+        value.get("file_count") != identity_payload["file_count"]
+        or value.get("bytes") != identity_payload["bytes"]
+        or value.get("identity_sha256") != _canonical_json_sha256(identity_payload)
+    ):
+        raise RuntimeError("resume provenance has inconsistent checkpoint artifact evidence")
+    return {**identity_payload, "identity_sha256": value["identity_sha256"]}
 
 
 def _read_resume_provenance(path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        raise RuntimeError(f"invalid resume provenance metadata: {path}") from error
+        raise RuntimeError("invalid resume provenance metadata") from error
     if not isinstance(payload, dict):
-        raise RuntimeError(f"invalid resume provenance metadata: {path}")
+        raise RuntimeError("invalid resume provenance metadata")
     return payload
+
+
+def _checkpoint_resume_binding(
+    provenance: dict[str, Any],
+    artifact: dict[str, Any],
+) -> str:
+    return _canonical_json_sha256(
+        {
+            "format": CHECKPOINT_RESUME_BINDING_FORMAT,
+            "resume_identity": provenance,
+            "checkpoint_artifact": artifact,
+        }
+    )
+
+
+def _checkpoint_resume_record(
+    provenance: dict[str, Any],
+    artifact: dict[str, Any],
+) -> dict[str, Any]:
+    if provenance.get("format") != RESUME_PROVENANCE_FORMAT or "checkpoint_artifact" in provenance:
+        raise RuntimeError("invalid immutable resume identity")
+    return {
+        **provenance,
+        "checkpoint_artifact": artifact,
+        "checkpoint_artifact_binding_sha256": _checkpoint_resume_binding(provenance, artifact),
+    }
+
+
+def _validate_checkpoint_resume_record(
+    observed: dict[str, Any],
+    expected: dict[str, Any],
+    actual_artifact: dict[str, Any],
+) -> None:
+    expected_keys = set(expected) | {"checkpoint_artifact", "checkpoint_artifact_binding_sha256"}
+    if set(observed) != expected_keys:
+        raise RuntimeError("resume checkpoint provenance has unexpected fields")
+    observed_identity = {key: observed[key] for key in expected}
+    mismatches = _provenance_mismatch_paths(expected, observed_identity)
+    if mismatches:
+        raise RuntimeError(
+            "resume checkpoint provenance does not match the current run; "
+            f"mismatched fields: {_mismatch_summary(mismatches)}"
+        )
+    recorded_artifact = _validate_checkpoint_artifact_evidence(observed["checkpoint_artifact"])
+    recorded_binding = observed["checkpoint_artifact_binding_sha256"]
+    if (
+        not isinstance(recorded_binding, str)
+        or len(recorded_binding) != 64
+        or any(character not in "0123456789abcdef" for character in recorded_binding)
+        or recorded_binding != _checkpoint_resume_binding(expected, recorded_artifact)
+    ):
+        raise RuntimeError("resume checkpoint artifact binding is invalid")
+    if recorded_artifact != actual_artifact:
+        raise RuntimeError("resume checkpoint artifact bytes do not match provenance")
 
 
 def _write_resume_provenance(
     directory: str | Path,
     provenance: dict[str, Any],
 ) -> Path:
-    """Atomically write provenance without replacing an incompatible run identity."""
+    """Atomically bind immutable run identity to one complete checkpoint."""
 
-    root = Path(directory).expanduser().resolve(strict=True)
-    if not root.is_dir():
-        raise RuntimeError(f"resume provenance destination is not a directory: {root}")
+    root = _resolve_checkpoint_root(directory)
+    artifact = _checkpoint_artifact_evidence(root)
+    record = _checkpoint_resume_record(provenance, artifact)
     destination = root / RESUME_PROVENANCE_FILENAME
-    if destination.exists():
+    if os.path.lexists(destination):
+        try:
+            mode = destination.lstat().st_mode
+        except OSError as error:
+            raise RuntimeError("resume provenance sidecar could not be read") from error
+        if stat.S_ISLNK(mode) or not stat.S_ISREG(mode):
+            raise RuntimeError("resume provenance sidecar is not a regular file")
         observed = _read_resume_provenance(destination)
-        mismatches = _provenance_mismatch_paths(provenance, observed)
-        if mismatches:
-            summary = ", ".join(mismatches[:12])
-            if len(mismatches) > 12:
-                summary += f", ... ({len(mismatches)} fields total)"
-            raise RuntimeError(
-                "refusing to replace incompatible resume provenance; "
-                f"mismatched fields: {summary}"
-            )
+        _validate_checkpoint_resume_record(observed, provenance, artifact)
         return destination
 
     temporary = root / f".{RESUME_PROVENANCE_FILENAME}.{os.getpid()}.tmp"
+    if os.path.lexists(temporary):
+        raise RuntimeError("resume provenance temporary path already exists")
     try:
-        temporary.write_text(
-            json.dumps(provenance, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        with temporary.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
         os.replace(temporary, destination)
     finally:
-        if temporary.exists():
+        if os.path.lexists(temporary):
             temporary.unlink()
+
+    if _checkpoint_artifact_evidence(root) != artifact:
+        raise RuntimeError("checkpoint artifact changed while writing provenance")
     return destination
 
 
@@ -402,31 +794,100 @@ def _validate_resume_checkpoint_provenance(
     checkpoint: str | Path,
     expected: dict[str, Any],
 ) -> Path:
-    """Fail closed unless a checkpoint carries the exact current run identity."""
+    """Fail closed unless a checkpoint carries exact identity and artifact bytes."""
+
+    resolved = _resolve_checkpoint_root(checkpoint)
+    actual_artifact = _checkpoint_artifact_evidence(resolved)
+    metadata_path = resolved / RESUME_PROVENANCE_FILENAME
+    if not os.path.lexists(metadata_path):
+        raise RuntimeError("resume checkpoint is missing required provenance metadata")
+    try:
+        mode = metadata_path.lstat().st_mode
+    except OSError as error:
+        raise RuntimeError("resume provenance sidecar could not be read") from error
+    if stat.S_ISLNK(mode) or not stat.S_ISREG(mode):
+        raise RuntimeError("resume provenance sidecar is not a regular file")
+    observed = _read_resume_provenance(metadata_path)
+    _validate_checkpoint_resume_record(observed, expected, actual_artifact)
+    return resolved
+
+
+def _prepare_output_directory(
+    output_dir: str | Path,
+    resume_from_checkpoint: str | Path | None,
+) -> tuple[Path, Path | None]:
+    """Create a fresh output or validate a controlled in-place resume layout."""
+
+    candidate = Path(output_dir).expanduser()
+    if candidate.is_symlink():
+        raise RuntimeError("training output directory must not be a symlink")
+    if os.path.lexists(candidate):
+        try:
+            mode = candidate.lstat().st_mode
+        except OSError as error:
+            raise RuntimeError("training output directory could not be read") from error
+        if not stat.S_ISDIR(mode):
+            raise RuntimeError("training output path is not a directory")
+        root = candidate.resolve(strict=True)
+    else:
+        if resume_from_checkpoint is not None:
+            raise RuntimeError("resume requires an existing output directory")
+        candidate.mkdir(parents=True, exist_ok=False)
+        root = candidate.resolve(strict=True)
 
     try:
-        resolved = Path(checkpoint).expanduser().resolve(strict=True)
+        entries = sorted(root.iterdir(), key=lambda path: path.name)
     except OSError as error:
-        raise RuntimeError(f"resume checkpoint does not exist: {checkpoint}") from error
-    if not resolved.is_dir():
-        raise RuntimeError(f"resume checkpoint is not a directory: {resolved}")
-    metadata_path = resolved / RESUME_PROVENANCE_FILENAME
-    if not metadata_path.is_file():
-        raise RuntimeError(
-            "resume checkpoint is missing required provenance metadata: "
-            f"{metadata_path}"
-        )
-    observed = _read_resume_provenance(metadata_path)
-    mismatches = _provenance_mismatch_paths(expected, observed)
-    if mismatches:
-        summary = ", ".join(mismatches[:12])
-        if len(mismatches) > 12:
-            summary += f", ... ({len(mismatches)} fields total)"
-        raise RuntimeError(
-            "resume checkpoint provenance does not match the current run; "
-            f"mismatched fields: {summary}"
-        )
-    return resolved
+        raise RuntimeError("training output directory could not be read") from error
+    if resume_from_checkpoint is None:
+        if entries:
+            raise RuntimeError(
+                "refusing to use a preexisting nonempty output directory without "
+                "--resume-from-checkpoint"
+            )
+        return root, None
+
+    checkpoint = _resolve_checkpoint_root(resume_from_checkpoint)
+    if checkpoint.parent != root:
+        raise RuntimeError("resume checkpoint must be a direct child of the output directory")
+    if not entries:
+        raise RuntimeError("resume output directory is empty")
+    for entry in entries:
+        try:
+            mode = entry.lstat().st_mode
+        except OSError as error:
+            raise RuntimeError("resume output directory entry could not be read") from error
+        if (
+            stat.S_ISLNK(mode)
+            or not stat.S_ISDIR(mode)
+            or _CHECKPOINT_DIRECTORY_RE.fullmatch(entry.name) is None
+        ):
+            raise RuntimeError("resume output directory has a stale or unexpected layout")
+    return root, checkpoint
+
+
+def _create_adapter_destination(output_dir: str | Path) -> Path:
+    """Atomically reserve a new adapter directory without overwriting stale output."""
+
+    root_candidate = Path(output_dir).expanduser()
+    if root_candidate.is_symlink():
+        raise RuntimeError("training output directory must not be a symlink")
+    try:
+        root = root_candidate.resolve(strict=True)
+        mode = root.lstat().st_mode
+    except OSError as error:
+        raise RuntimeError("training output directory could not be read") from error
+    if not stat.S_ISDIR(mode):
+        raise RuntimeError("training output path is not a directory")
+    for name in ("adapter", "run_manifest.json"):
+        if os.path.lexists(root / name):
+            raise RuntimeError("training output has a stale adapter or manifest layout")
+    adapter = root / "adapter"
+    try:
+        adapter.mkdir(exist_ok=False)
+    except OSError as error:
+        raise RuntimeError("adapter destination could not be reserved") from error
+    return adapter.resolve(strict=True)
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -791,6 +1252,8 @@ class CompletionCollator:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="TRAINING_ARTIFACTS/base/LFM2.5-350M")
+    parser.add_argument("--model-lock", type=Path, default=MODEL_LOCK_PATH)
+    parser.add_argument("--dataset-report", type=Path)
     parser.add_argument("--train", required=True, type=Path)
     parser.add_argument("--eval", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
@@ -839,6 +1302,23 @@ def build_parser() -> argparse.ArgumentParser:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = build_parser()
     args = parser.parse_args(argv)
+    expected_train = "candidate_protocol_v1_train.jsonl"
+    expected_eval = "candidate_protocol_v1_dev.jsonl"
+    observes_candidate_name = args.train.name == expected_train or args.eval.name == expected_eval
+    candidate_bundle = args.train.name == expected_train and args.eval.name == expected_eval
+    if observes_candidate_name and not candidate_bundle:
+        parser.error("Candidate V1 training requires its matched train/dev filenames")
+    if candidate_bundle and args.dataset_report is None:
+        parser.error("--dataset-report is required for Candidate V1 training")
+    if not candidate_bundle and args.dataset_report is not None:
+        parser.error("--dataset-report requires the Candidate V1 train/dev bundle")
+    if (
+        args.dataset_report is not None
+        and args.dataset_report.name != "candidate_protocol_v1_report.json"
+    ):
+        parser.error("--dataset-report must name candidate_protocol_v1_report.json")
+    if args.model_lock.name != "model.lock.json":
+        parser.error("--model-lock must name model.lock.json")
     if args.max_length is None:
         args.max_length = (
             ANDROID_CONTEXT_LENGTH if args.prompt_profile == "android" else LEGACY_MAX_LENGTH
@@ -858,6 +1338,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    output_dir, resume_checkpoint = _prepare_output_directory(
+        args.output_dir,
+        args.resume_from_checkpoint,
+    )
+    args.output_dir = output_dir
+    args.resume_from_checkpoint = str(resume_checkpoint) if resume_checkpoint is not None else None
     run_started = time.perf_counter()
 
     os.environ.setdefault("WANDB_DISABLED", "true")
@@ -912,9 +1398,7 @@ def main(argv: list[str] | None = None) -> int:
 
         def on_save(self, training_args, state, control, **kwargs):
             del kwargs
-            checkpoint_dir = (
-                Path(training_args.output_dir) / f"checkpoint-{state.global_step}"
-            )
+            checkpoint_dir = Path(training_args.output_dir) / f"checkpoint-{state.global_step}"
             _write_resume_provenance(checkpoint_dir, self._provenance)
             return control
 
@@ -924,6 +1408,20 @@ def main(argv: list[str] | None = None) -> int:
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
     torch.cuda.reset_peak_memory_stats()
+
+    train_sha256 = _sha256(args.train)
+    eval_sha256 = _sha256(args.eval)
+    dataset_report = _candidate_dataset_report_provenance(
+        args.train, args.eval, args.dataset_report
+    )
+    training_arm = (
+        "selector"
+        if args.prompt_profile in {"candidate_protocol_v1", "candidate_selector"}
+        else "direct"
+    )
+    trainer_code_sha256 = trainer_code_fingerprints(REPO_ROOT, training_arm)
+    base_model_provenance = _local_hf_model_provenance(args.model)
+    model_lock = _locked_model_provenance(base_model_provenance, args.model_lock)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model, local_files_only=True)
     contract = _contract_provenance(args.prompt_profile)
@@ -958,7 +1456,6 @@ def main(argv: list[str] | None = None) -> int:
         local_files_only=True,
         dtype=torch.bfloat16,
     )
-    base_model_provenance = _local_hf_model_provenance(args.model)
     model.config.use_cache = False
     target_coverage = target_module_inventory(model)
     print(json.dumps({"lora_target_preflight": target_coverage}, sort_keys=True))
@@ -981,7 +1478,6 @@ def main(argv: list[str] | None = None) -> int:
         raise RuntimeError("LoRA attached no trainable parameters")
     model.print_trainable_parameters()
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
     batches_per_epoch = math.ceil(len(train_dataset) / args.batch_size)
     updates_per_epoch = max(1, math.ceil(batches_per_epoch / args.gradient_accumulation))
     total_updates = max(1, math.ceil(updates_per_epoch * args.epochs))
@@ -1018,14 +1514,15 @@ def main(argv: list[str] | None = None) -> int:
         dataloader_num_workers=0,
         use_cache=False,
     )
-    train_sha256 = _sha256(args.train)
-    eval_sha256 = _sha256(args.eval)
     resume_provenance = _resume_provenance(
         args,
         training_args,
         base_model_provenance=base_model_provenance,
         train_sha256=train_sha256,
         eval_sha256=eval_sha256,
+        dataset_report=dataset_report,
+        model_lock=model_lock,
+        trainer_code_sha256=trainer_code_sha256,
         contract=contract,
     )
     if args.resume_from_checkpoint is not None:
@@ -1035,7 +1532,6 @@ def main(argv: list[str] | None = None) -> int:
                 resume_provenance,
             )
         )
-    _write_resume_provenance(args.output_dir, resume_provenance)
     trainer = CompletionNormalizedTrainer(
         model=model,
         args=training_args,
@@ -1056,19 +1552,44 @@ def main(argv: list[str] | None = None) -> int:
     evaluation_wall_time_seconds = time.perf_counter() - evaluation_started
     trainer_state = _trainer_state_provenance(trainer)
 
-    adapter_dir = args.output_dir / "adapter"
+    adapter_dir = _create_adapter_destination(args.output_dir)
     model.save_pretrained(adapter_dir, safe_serialization=True)
     tokenizer.save_pretrained(adapter_dir)
+    _require_unchanged("training dataset", train_sha256, _sha256(args.train))
+    _require_unchanged("evaluation dataset", eval_sha256, _sha256(args.eval))
+    _require_unchanged(
+        "candidate dataset report",
+        dataset_report,
+        _candidate_dataset_report_provenance(args.train, args.eval, args.dataset_report),
+    )
+    current_base_model = _local_hf_model_provenance(args.model)
+    _require_unchanged("base model", base_model_provenance, current_base_model)
+    _require_unchanged(
+        "model lock",
+        model_lock,
+        _locked_model_provenance(current_base_model, args.model_lock),
+    )
+    _require_unchanged(
+        "trainer code",
+        trainer_code_sha256,
+        trainer_code_fingerprints(REPO_ROOT, training_arm),
+    )
+    adapter_artifact = adapter_artifact_evidence(adapter_dir)
     run_wall_time_seconds = time.perf_counter() - run_started
 
     manifest = {
         "base_model": str(Path(args.model).resolve()),
+        "manifest_format": RUN_MANIFEST_FORMAT,
         "base_model_provenance": base_model_provenance,
         "train_file": str(args.train.resolve()),
+        "model_lock": model_lock,
+        "adapter_artifact": adapter_artifact,
+        "trainer_code_sha256": trainer_code_sha256,
         "train_sha256": train_sha256,
         "eval_file": str(args.eval.resolve()),
         "eval_sha256": eval_sha256,
         "train_stats": train_dataset.stats,
+        **({"dataset_report": dataset_report} if dataset_report is not None else {}),
         "eval_stats": eval_dataset.stats,
         "contract": contract,
         "loss": {
@@ -1138,6 +1659,7 @@ def main(argv: list[str] | None = None) -> int:
             "raw_examples_logged": False,
         },
     }
+    manifest["artifact_binding_sha256"] = training_manifest_artifact_binding(manifest)
     (args.output_dir / "run_manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )

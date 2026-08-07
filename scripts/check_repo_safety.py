@@ -27,6 +27,18 @@ GRANDFATHERED_PATHS = frozenset(
 # basename/extension heuristic must never allow a force-added file beneath one
 # of them.  Case sensitivity is intentional: ordinary source packages such as
 # ``models/runtime.py`` remain valid.
+
+# These exact JSON files are reviewed, versioned protocol declarations or
+# invented-only conformance vectors. They are source artifacts, not private data
+# exports. Keep this allowlist narrow: similarly named files must still fail.
+VERSIONED_PUBLIC_ARTIFACT_PATHS = frozenset(
+    {
+        "DATA/candidate_protocol_v1_golden.json",
+        "configs/contracts/pocketfinancer-candidate-v1.json",
+        "configs/pipelines/pocketfinancer-lfm2.5-350m-candidate-v1.json",
+    }
+)
+
 _PROTECTED_TOP_LEVEL_TREES = frozenset(
     {
         "MODELS",
@@ -93,7 +105,17 @@ _MODEL_WEIGHT_ENDINGS = (
 _CHECKPOINT_DIRECTORIES = frozenset({"checkpoint", "checkpoints", "model_weights", "weights"})
 
 _RESULT_DIRECTORIES = frozenset(
-    {"artifacts", "logs", "output", "outputs", "predictions", "reports", "result", "results", "runs"}
+    {
+        "artifacts",
+        "logs",
+        "output",
+        "outputs",
+        "predictions",
+        "reports",
+        "result",
+        "results",
+        "runs",
+    }
 )
 _RESULT_ENDINGS = (
     ".arrow",
@@ -137,7 +159,7 @@ def classify_path(path: str) -> str | None:
     """Return the policy category for a tracked pathname, or ``None`` if safe."""
 
     normalized = _normalize_path(path)
-    if normalized in GRANDFATHERED_PATHS:
+    if normalized in GRANDFATHERED_PATHS or normalized in VERSIONED_PUBLIC_ARTIFACT_PATHS:
         return None
 
     pure_path = PurePosixPath(normalized)
@@ -162,14 +184,12 @@ def classify_path(path: str) -> str | None:
         return "model weight"
 
     if any(
-        part in _CHECKPOINT_DIRECTORIES or part.startswith("checkpoint-")
-        for part in directories
+        part in _CHECKPOINT_DIRECTORIES or part.startswith("checkpoint-") for part in directories
     ):
         return "checkpoint"
 
     if name.endswith(_RESULT_ENDINGS) and (
-        any(part in _RESULT_DIRECTORIES for part in directories)
-        or _RESULT_NAME.search(stem)
+        any(part in _RESULT_DIRECTORIES for part in directories) or _RESULT_NAME.search(stem)
     ):
         return "result artifact"
 
