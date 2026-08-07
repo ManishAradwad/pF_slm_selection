@@ -2,9 +2,11 @@
 """Evaluate a model with the PocketFinancer app input and output behavior.
 
 For a non-thinking model such as LFM2.5-350M this uses the same direct-answer
-shape as the app. Transformers still cannot reproduce the custom Android JNI,
-GGUF quantization, optional GBNF sampler, or phone performance, so final
-deployment validation belongs to the GGUF/device evaluator.
+shape as the app. Thinking models use the app-shaped two-pass path while
+respecting the model chat template's existing ``<think>`` opening. Transformers
+still cannot reproduce the custom Android JNI, GGUF quantization, optional GBNF
+sampler, or phone performance, so final deployment validation belongs to the
+GGUF/device evaluator.
 """
 
 from __future__ import annotations
@@ -12,10 +14,11 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import re
 import statistics
 import sys
 import time
-from typing import Any
+from typing import Any, Mapping
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
@@ -43,9 +46,7 @@ from lfm25.provenance import (  # noqa: E402
 
 def _read_rows(path: Path) -> list[dict[str, Any]]:
     return [
-        json.loads(line)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
 
 
@@ -65,6 +66,162 @@ def _percentile(values: list[float], proportion: float) -> float | None:
     ordered = sorted(values)
     index = min(len(ordered) - 1, max(0, round(proportion * (len(ordered) - 1))))
     return round(ordered[index], 3)
+
+
+_THINKING_KEYS = {
+    "has_thinking_mode",
+    "hasThinkingMode",
+    "thinking",
+    "always_reasons_before_answer",
+}
+
+
+def _thinking_flags(value: Any) -> list[bool]:
+    flags: list[bool] = []
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            if key in _THINKING_KEYS and isinstance(child, bool):
+                flags.append(child)
+            elif key == "thinking_mode" and isinstance(child, str):
+                normalized = child.strip().lower()
+                if normalized in {"on", "true", "thinking"}:
+                    flags.append(True)
+                elif normalized in {"off", "false", "direct"}:
+                    flags.append(False)
+            else:
+                flags.extend(_thinking_flags(child))
+    elif isinstance(value, list):
+        for child in value:
+            flags.extend(_thinking_flags(child))
+    return flags
+
+
+def _resolve_thinking_mode(
+    requested: str,
+    model_config: Mapping[str, Any] | None,
+    model: str | Path,
+) -> tuple[bool, str]:
+    if requested == "on":
+        return True, "cli"
+    if requested == "off":
+        return False, "cli"
+    if requested != "auto":
+        raise ValueError(f"unknown thinking mode: {requested!r}")
+
+    flags = _thinking_flags(model_config) if model_config is not None else []
+    if flags:
+        if len(set(flags)) != 1:
+            raise ValueError("model config contains conflicting thinking-mode flags")
+        return flags[0], "model_config"
+
+    identity = f"{model} {json.dumps(model_config or {}, sort_keys=True)}".lower()
+    compact = identity.replace("_", "").replace("-", "").replace(".", "")
+    if "lfm25350m" in compact:
+        return False, "lfm2.5-350m_non_thinking"
+    return False, "auto_safe_default_off"
+
+
+def _prepare_thinking_prompt(prompt: str) -> tuple[str, bool]:
+    """Open a thinking block only when the template did not already do so."""
+
+    if re.search(r"<think>\s*$", prompt):
+        return prompt, False
+    separator = "" if not prompt or prompt.endswith("\n") else "\n"
+    return f"{prompt}{separator}<think>\n", True
+
+
+def _split_at_token_sequence(token_ids: list[int], stop_ids: list[int]) -> tuple[list[int], bool]:
+    """Return tokens before the first exact stop sequence."""
+
+    if not stop_ids:
+        raise ValueError("stop token sequence cannot be empty")
+    final_start = len(token_ids) - len(stop_ids)
+    for start in range(max(0, final_start + 1)):
+        if token_ids[start : start + len(stop_ids)] == stop_ids:
+            return token_ids[:start], True
+    return token_ids, False
+
+
+def _thinking_context_budget(
+    prompt_tokens: int,
+    n_ctx: int,
+    answer_tokens: int,
+    closing_tokens: int,
+    requested_thinking_tokens: int,
+) -> dict[str, Any]:
+    """Reserve the final answer, then cap reasoning to remaining context."""
+
+    required_without_reasoning = prompt_tokens + closing_tokens + answer_tokens
+    if required_without_reasoning > n_ctx:
+        raise ValueError(
+            f"prompt ({prompt_tokens}) + thinking close ({closing_tokens}) + "
+            f"answer ({answer_tokens}) exceeds n_ctx={n_ctx}"
+        )
+    available = n_ctx - required_without_reasoning
+    effective = min(requested_thinking_tokens, available)
+    if effective <= 0:
+        raise ValueError(
+            f"prompt ({prompt_tokens}) + answer framing ({closing_tokens}) + "
+            f"answer ({answer_tokens}) leaves no thinking capacity in n_ctx={n_ctx}"
+        )
+    return {
+        "n_ctx": n_ctx,
+        "prompt_tokens": prompt_tokens,
+        "answer_max_tokens": answer_tokens,
+        "thinking_close_tokens": closing_tokens,
+        "requested_thinking_max_tokens": requested_thinking_tokens,
+        "available_thinking_tokens": available,
+        "effective_thinking_max_tokens": effective,
+        "thinking_capped_by_context": effective < requested_thinking_tokens,
+    }
+
+
+def _hf_directory_evidence(directory: Path) -> dict[str, Any]:
+    """Fingerprint every local HF weight shard/index and tokenizer metadata."""
+
+    resolved = directory.resolve(strict=True)
+    names = {
+        "config.json",
+        "generation_config.json",
+        "tokenizer.json",
+        "tokenizer.model",
+        "tokenizer_config.json",
+        "special_tokens_map.json",
+        "chat_template.jinja",
+        "adapter_config.json",
+    }
+    patterns = (
+        "*.safetensors",
+        "*.safetensors.index.json",
+        "pytorch_model*.bin",
+        "pytorch_model*.bin.index.json",
+    )
+    for pattern in patterns:
+        names.update(path.name for path in resolved.glob(pattern) if path.is_file())
+    return fingerprint_named_files(resolved, sorted(names))
+
+
+def _hf_model_evidence(model_spec: str) -> dict[str, Any]:
+    """Resolve identifiers to their local snapshot so weights are fingerprinted."""
+
+    model_path = Path(model_spec)
+    if model_path.is_dir():
+        return _hf_directory_evidence(model_path)
+    if model_path.is_file():
+        return fingerprint_file(model_path)
+
+    from transformers.utils import cached_file
+
+    cached_config = cached_file(
+        model_spec,
+        "config.json",
+        local_files_only=True,
+    )
+    if cached_config is None:
+        raise RuntimeError(f"cannot resolve local model snapshot for provenance: {model_spec}")
+    evidence = _hf_directory_evidence(Path(cached_config).parent)
+    evidence["identifier"] = model_spec
+    return evidence
 
 
 def _contract_metadata(contract: str) -> dict[str, Any]:
@@ -110,6 +267,43 @@ def _context_summary(prompt_lengths: list[int]) -> dict[str, Any]:
     }
 
 
+def _runtime_context_summary(
+    prompt_lengths: list[int],
+    n_ctx: int,
+    answer_tokens: int,
+    thinking_enabled: bool,
+    closing_tokens: int,
+    effective_budgets: list[int],
+) -> dict[str, Any]:
+    generation_reservation = answer_tokens + (closing_tokens if thinking_enabled else 0)
+    compatible = sum(
+        context_compatibility(
+            length,
+            n_ctx=n_ctx,
+            generation_tokens=generation_reservation,
+        )["compatible"]
+        for length in prompt_lengths
+    )
+    return {
+        "android_current_n_ctx": int(ANDROID_DECODE_DEFAULTS["n_ctx"]),
+        "configured_n_ctx": n_ctx,
+        "uses_android_current_3072_context": n_ctx == 3072,
+        "answer_budget_tokens": answer_tokens,
+        "android_current_answer_budget": answer_tokens,
+        "thinking_close_tokens": closing_tokens if thinking_enabled else 0,
+        "measured_rows": len(prompt_lengths),
+        "prompt_tokens_min": min(prompt_lengths) if prompt_lengths else None,
+        "prompt_tokens_max": max(prompt_lengths) if prompt_lengths else None,
+        "prompt_plus_answer_compatible_rows": compatible,
+        "prompt_plus_answer_incompatible_rows": len(prompt_lengths) - compatible,
+        "compatible_rows": compatible,
+        "incompatible_rows": len(prompt_lengths) - compatible,
+        "effective_thinking_budget_min": (min(effective_budgets) if effective_budgets else None),
+        "effective_thinking_budget_max": (max(effective_budgets) if effective_budgets else None),
+        "runtime_parity": False,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -130,9 +324,7 @@ def main() -> int:
         "--apply-prefilter",
         action=argparse.BooleanOptionalAction,
         default=None,
-        help=(
-            "PocketFinancer SMS prefilter; enabled by default for the app profile"
-        ),
+        help=("PocketFinancer SMS prefilter; enabled by default for the app profile"),
     )
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--max-new-tokens", type=int)
@@ -140,7 +332,36 @@ def main() -> int:
     parser.add_argument("--n-ctx", type=int)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--seed", type=int, default=17)
+    parser.add_argument(
+        "--model-config",
+        type=Path,
+        help="optional JSON model config containing an explicit thinking flag",
+    )
+    parser.add_argument(
+        "--thinking-mode",
+        choices=("auto", "on", "off"),
+        default="auto",
+        help=(
+            "auto reads an explicit model config and otherwise treats LFM2.5-350M as non-thinking"
+        ),
+    )
+    parser.add_argument(
+        "--thinking-tokens",
+        type=int,
+        help="phase-one maximum before the per-row n_ctx cap",
+    )
     args = parser.parse_args()
+
+    model_config = None
+    if args.model_config is not None:
+        model_config = json.loads(args.model_config.read_text(encoding="utf-8"))
+        if not isinstance(model_config, dict):
+            parser.error("--model-config must contain a JSON object")
+    thinking_enabled, thinking_mode_source = _resolve_thinking_mode(
+        args.thinking_mode,
+        model_config,
+        args.model,
+    )
 
     defaults = decode_defaults(args.contract)
     max_new_tokens = (
@@ -159,6 +380,22 @@ def main() -> int:
         "pocketfinancer",
         "android-prompt-proxy",
     }
+    if not pocketfinancer_profile:
+        thinking_enabled = False
+        thinking_mode_source = "legacy_contract"
+    if thinking_enabled:
+        thinking_tokens = (
+            args.thinking_tokens
+            if args.thinking_tokens is not None
+            else int(defaults["thinking_max_tokens"])
+        )
+    else:
+        thinking_tokens = 0
+
+    if args.thinking_tokens is not None and args.thinking_tokens < 0:
+        parser.error("--thinking-tokens cannot be negative")
+    if thinking_enabled and thinking_tokens <= 0:
+        parser.error("--thinking-tokens must be positive when thinking mode is on")
     if args.batch_size <= 0:
         parser.error("--batch-size must be positive")
     if max_new_tokens <= 0:
@@ -169,7 +406,13 @@ def main() -> int:
         parser.error("--n-ctx must be greater than --max-new-tokens")
 
     import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    import transformers
+    from transformers import (
+        AutoModelForCausalLM,
+        AutoTokenizer,
+        StoppingCriteria,
+        StoppingCriteriaList,
+    )
 
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
@@ -186,6 +429,21 @@ def main() -> int:
 
         model = PeftModel.from_pretrained(model, args.adapter, local_files_only=True)
     model.to("cuda").eval()
+
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    class StopOnTokenSequence(StoppingCriteria):
+        def __init__(self, stop_ids: list[int]):
+            self.stop_ids = stop_ids
+
+        def __call__(self, input_ids, scores, **kwargs):
+            del scores, kwargs
+            if input_ids.shape[1] < len(self.stop_ids):
+                return input_ids.new_zeros(input_ids.shape[0], dtype=torch.bool)
+            suffix = input_ids[:, -len(self.stop_ids) :]
+            stop = input_ids.new_tensor(self.stop_ids)
+            return (suffix == stop).all(dim=1)
 
     rows = _read_rows(args.dataset)
     if args.limit is not None:
@@ -231,14 +489,142 @@ def main() -> int:
     latencies_ms: list[float] = []
     output_lengths: list[int] = []
     prompt_lengths: list[int] = []
+    thinking_latencies_ms: list[float] = []
+    answer_latencies_ms: list[float] = []
+    thinking_lengths: list[int] = []
+    effective_thinking_budgets: list[int] = []
+    context_capped_rows = 0
+    template_think_appended_rows = 0
+
+    if thinking_enabled:
+        thinking_stop_ids = tokenizer.encode("</think>", add_special_tokens=False)
+        thinking_close_ids = tokenizer.encode("</think>\n", add_special_tokens=False)
+        if not thinking_stop_ids or not thinking_close_ids:
+            raise ValueError("tokenizer cannot encode the thinking close delimiter")
+
+        for index, row in pending:
+            messages = android_extraction_messages(
+                str(row.get("sender", "")), str(row.get("sms", ""))
+            )
+            rendered = tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+            if not isinstance(rendered, str):
+                raise TypeError("chat template did not render a string prompt")
+            rendered, template_think_appended = _prepare_thinking_prompt(rendered)
+            template_think_appended_rows += int(template_think_appended)
+            encoded = tokenizer(
+                rendered,
+                add_special_tokens=False,
+                return_tensors="pt",
+            )
+            encoded = {key: value.to("cuda") for key, value in encoded.items()}
+            prompt_length = int(encoded["attention_mask"].sum().item())
+            prompt_width = int(encoded["input_ids"].shape[1])
+            budget = _thinking_context_budget(
+                prompt_length,
+                n_ctx,
+                max_new_tokens,
+                len(thinking_close_ids),
+                thinking_tokens,
+            )
+            effective_budget = int(budget["effective_thinking_max_tokens"])
+            effective_thinking_budgets.append(effective_budget)
+            context_capped_rows += int(budget["thinking_capped_by_context"])
+
+            torch.cuda.synchronize()
+            thinking_started = time.perf_counter()
+            with torch.inference_mode():
+                phase_one = model.generate(
+                    **encoded,
+                    max_new_tokens=effective_budget,
+                    do_sample=False,
+                    repetition_penalty=repeat_penalty,
+                    pad_token_id=tokenizer.pad_token_id,
+                    eos_token_id=tokenizer.eos_token_id,
+                    stopping_criteria=StoppingCriteriaList(
+                        [StopOnTokenSequence(thinking_stop_ids)]
+                    ),
+                )
+            torch.cuda.synchronize()
+            thinking_latency_ms = (time.perf_counter() - thinking_started) * 1000
+            phase_one_ids = phase_one[0, prompt_width:].tolist()
+            reasoning_ids, thinking_stop_found = _split_at_token_sequence(
+                phase_one_ids, thinking_stop_ids
+            )
+            trailing_special = {tokenizer.eos_token_id, tokenizer.pad_token_id}
+            while reasoning_ids and reasoning_ids[-1] in trailing_special:
+                reasoning_ids.pop()
+            raw_reasoning = tokenizer.decode(reasoning_ids, skip_special_tokens=True).strip()
+
+            continuation_ids = reasoning_ids + thinking_close_ids
+            continuation = encoded["input_ids"].new_tensor([continuation_ids])
+            answer_input_ids = torch.cat([encoded["input_ids"], continuation], dim=1)
+            answer_attention_mask = torch.ones_like(answer_input_ids)
+            answer_prompt_length = int(answer_input_ids.shape[1])
+            if answer_prompt_length + max_new_tokens > n_ctx:
+                raise ValueError(
+                    f"answer prompt ({answer_prompt_length}) + answer "
+                    f"({max_new_tokens}) exceeds n_ctx={n_ctx}"
+                )
+
+            torch.cuda.synchronize()
+            answer_started = time.perf_counter()
+            with torch.inference_mode():
+                generated = model.generate(
+                    input_ids=answer_input_ids,
+                    attention_mask=answer_attention_mask,
+                    max_new_tokens=max_new_tokens,
+                    do_sample=False,
+                    repetition_penalty=repeat_penalty,
+                    pad_token_id=tokenizer.pad_token_id,
+                    eos_token_id=tokenizer.eos_token_id,
+                )
+            torch.cuda.synchronize()
+            answer_latency_ms = (time.perf_counter() - answer_started) * 1000
+            answer_ids = generated[0, answer_prompt_length:]
+            prediction = tokenizer.decode(answer_ids, skip_special_tokens=True).strip()
+
+            thinking_length = len(reasoning_ids)
+            thinking_generation_length = len(phase_one_ids)
+            answer_length = int(answer_ids.shape[0])
+            elapsed_ms = thinking_latency_ms + answer_latency_ms
+            latencies_ms.append(elapsed_ms)
+            thinking_latencies_ms.append(thinking_latency_ms)
+            answer_latencies_ms.append(answer_latency_ms)
+            thinking_lengths.append(thinking_length)
+            output_lengths.append(thinking_generation_length + answer_length)
+            prompt_lengths.append(prompt_length)
+            records_by_index[index].update(
+                {
+                    "prediction": prediction,
+                    "app_prediction": pocketfinancer_normalize_prediction(prediction),
+                    "raw_reasoning": raw_reasoning,
+                    "prompt_tokens": prompt_length,
+                    "answer_prompt_tokens": answer_prompt_length,
+                    "thinking_tokens": thinking_length,
+                    "thinking_generation_tokens": thinking_generation_length,
+                    "answer_tokens": answer_length,
+                    "output_tokens": thinking_generation_length + answer_length,
+                    "thinking_latency_ms": round(thinking_latency_ms, 3),
+                    "answer_latency_ms": round(answer_latency_ms, 3),
+                    "latency_ms_batch_amortized": round(elapsed_ms, 3),
+                    "thinking_stop_found": thinking_stop_found,
+                    "template_think_appended": template_think_appended,
+                    "thinking_context": budget,
+                }
+            )
+
+        pending = []
+
     for start in range(0, len(pending), args.batch_size):
         batch_items = pending[start : start + args.batch_size]
         batch = [row for _, row in batch_items]
         if args.contract in {"pocketfinancer", "android-prompt-proxy"}:
             chats = [
-                android_extraction_messages(
-                    str(row.get("sender", "")), str(row.get("sms", ""))
-                )
+                android_extraction_messages(str(row.get("sender", "")), str(row.get("sms", "")))
                 for row in batch
             ]
         else:
@@ -289,9 +675,7 @@ def main() -> int:
             records_by_index[index].update(
                 {
                     "prediction": prediction.strip(),
-                    "app_prediction": pocketfinancer_normalize_prediction(
-                        prediction.strip()
-                    )
+                    "app_prediction": pocketfinancer_normalize_prediction(prediction.strip())
                     if pocketfinancer_profile
                     else prediction.strip(),
                     "prompt_tokens": prompt_length,
@@ -302,12 +686,8 @@ def main() -> int:
 
     output_records = [records_by_index[index] for index in range(len(rows))]
     model_records = [record for record in output_records if record["model_invoked"]]
-    strict_whole_pipeline = score_records(
-        output_records, slice_keys=("template_family", "class")
-    )
-    strict_conditional_model = score_records(
-        model_records, slice_keys=("template_family", "class")
-    )
+    strict_whole_pipeline = score_records(output_records, slice_keys=("template_family", "class"))
+    strict_conditional_model = score_records(model_records, slice_keys=("template_family", "class"))
     if pocketfinancer_profile:
         whole_pipeline = score_records(
             output_records,
@@ -333,11 +713,16 @@ def main() -> int:
         "whole_pipeline": strict_whole_pipeline,
         "conditional_model": strict_conditional_model,
     }
-    scored["selection_prefilter"] = summarize_prefilter(
-        output_records, enabled=apply_prefilter
-    )
+    scored["selection_prefilter"] = summarize_prefilter(output_records, enabled=apply_prefilter)
     scored["prefilter"] = scored["selection_prefilter"]
-    scored["android_current_context_compatibility"] = _context_summary(prompt_lengths)
+    scored["android_current_context_compatibility"] = _runtime_context_summary(
+        prompt_lengths,
+        n_ctx,
+        max_new_tokens,
+        thinking_enabled,
+        len(thinking_close_ids) if thinking_enabled else 0,
+        effective_thinking_budgets,
+    )
     scored["runtime"] = {
         "profile": args.contract,
         "android_runtime_parity": False,
@@ -359,30 +744,35 @@ def main() -> int:
         "peak_vram_mib": round(torch.cuda.max_memory_allocated() / 1024**2, 1),
     }
 
-    model_path = Path(args.model)
-    if model_path.is_dir():
-        model_evidence: dict[str, Any] = fingerprint_named_files(
-            model_path,
-            (
-                "model.safetensors",
-                "config.json",
-                "generation_config.json",
-                "tokenizer.json",
-                "tokenizer_config.json",
-                "chat_template.jinja",
+    scored["runtime"].update(
+        {
+            "thinking_mode": thinking_enabled,
+            "thinking_mode_source": thinking_mode_source,
+            "generation_path": ("sequential_two_pass" if thinking_enabled else "batched_direct"),
+            "effective_batch_size": 1 if thinking_enabled else args.batch_size,
+            "thinking_max_tokens_requested": (thinking_tokens if thinking_enabled else None),
+            "thinking_context_capped_rows": context_capped_rows,
+            "thinking_stop_found_rows": sum(
+                int(record.get("thinking_stop_found", False)) for record in model_records
             ),
-        )
-    else:
-        model_evidence = {"identifier": args.model}
+            "template_think_appended_rows": template_think_appended_rows,
+            "thinking_tokens_mean": (
+                round(statistics.fmean(thinking_lengths), 2) if thinking_lengths else None
+            ),
+            "thinking_tokens_max": (max(thinking_lengths) if thinking_lengths else None),
+            "thinking_latency_ms_p50": _percentile(thinking_latencies_ms, 0.5),
+            "thinking_latency_ms_p95": _percentile(thinking_latencies_ms, 0.95),
+            "answer_latency_ms_p50": _percentile(answer_latencies_ms, 0.5),
+            "answer_latency_ms_p95": _percentile(answer_latencies_ms, 0.95),
+        }
+    )
+
+    model_evidence = _hf_model_evidence(args.model)
     scored["provenance"] = {
         "profile": _contract_metadata(args.contract),
         "evaluator": fingerprint_file(Path(__file__)),
         "model": model_evidence,
-        "adapter": fingerprint_named_files(
-            args.adapter, ("adapter_model.safetensors", "adapter_config.json")
-        )
-        if args.adapter
-        else None,
+        "adapter": _hf_directory_evidence(args.adapter) if args.adapter else None,
         "dataset": fingerprint_file(args.dataset),
         "code_sha256": code_fingerprints(REPO_ROOT),
         "decode": {
@@ -409,6 +799,29 @@ def main() -> int:
         "row_limit": args.limit,
         "row_count": len(rows),
     }
+
+    scored["provenance"]["model_config"] = (
+        fingerprint_file(args.model_config) if args.model_config is not None else None
+    )
+    scored["provenance"]["decode"].update(
+        {
+            "transformers_version": transformers.__version__,
+            "two_pass": thinking_enabled,
+            "thinking_mode_source": thinking_mode_source,
+            "thinking_max_tokens_requested": (thinking_tokens if thinking_enabled else None),
+            "thinking_budget_policy": (
+                "reserve_close_and_answer_then_cap_per_row" if thinking_enabled else None
+            ),
+            "thinking_stop": ["</think>"] if thinking_enabled else None,
+            "answer_stop": None,
+            "template_think_open_policy": (
+                "reuse_unclosed_template_tag_else_append_once" if thinking_enabled else None
+            ),
+            "template_think_appended_rows": template_think_appended_rows,
+            "thinking_context_capped_rows": context_capped_rows,
+            "raw_reasoning_persistence": ("samples_jsonl_only" if thinking_enabled else None),
+        }
+    )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     with (args.output_dir / "samples.jsonl").open("w", encoding="utf-8") as handle:

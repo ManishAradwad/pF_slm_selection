@@ -20,6 +20,20 @@ sender + SMS
 Training and evaluation must use this same boundary. A research score obtained with
 a different prompt, filter, parser, or decode path is diagnostic only.
 
+## Current 2.6B diagnostic status
+
+The 2026-08-05
+[LFM2.5-2.6B Base LoRA diagnostic](../experiments/POCKETFINANCER_LFM25_2_6B_R16_S17.md)
+is complete. A real BF16 rank-16 backward-pass probe passed at 7,351.9 MiB peak
+allocated VRAM, so the controlled run used ordinary LoRA rather than QLoRA. On
+the same 154-train / 29-dev silver materialization used for the 350M run, the
+adapter did not reliably improve the untouched Base model on the reused 203-row
+regression fixture.
+
+This is diagnostic evidence, not a promotion result. Fresh human-gold evaluation,
+Android-device validation, and deployment review remain open. Any 2.6B outputs
+used as teacher labels must still be source-grounded and human-reviewed.
+
 ## Phase 1: establish the direct-model ceiling
 
 Start with `LiquidAI/LFM2.5-350M` because it is small enough to make the mobile

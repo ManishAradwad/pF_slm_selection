@@ -17,6 +17,7 @@ from typing import Any, Mapping, Sequence
 PIPELINE_SCHEMA_VERSION = 1
 EXECUTION_STAGES = (
     "build-data",
+    "evaluate-base-hf",
     "train",
     "evaluate-hf",
     "merge",
@@ -114,7 +115,12 @@ def validate_pipeline_config(config: Mapping[str, Any]) -> None:
         )
 
     evaluation = _mapping(config.get("evaluation"), "evaluation")
-    for key in ("dataset", "hf_output_dir", "gguf_output_dir"):
+    for key in (
+        "dataset",
+        "hf_base_output_dir",
+        "hf_output_dir",
+        "gguf_output_dir",
+    ):
         _text(evaluation.get(key), f"evaluation.{key}")
     _number(evaluation.get("n_ctx"), "evaluation.n_ctx")
     if str(data["train"]) == str(evaluation["dataset"]):
@@ -197,6 +203,20 @@ def build_stage_commands(
     ):
         _option(train, flag, value)
 
+    thinking_mode = "on" if model["thinking_mode"] else "off"
+    evaluate_base_hf = [python, "scripts/evaluate_lfm25_android_hf.py"]
+    for flag, value in (
+        ("--model", model["local_path"]),
+        ("--dataset", evaluation["dataset"]),
+        ("--output-dir", evaluation["hf_base_output_dir"]),
+        ("--contract", "pocketfinancer"),
+        ("--thinking-mode", thinking_mode),
+        ("--n-ctx", evaluation["n_ctx"]),
+        ("--max-new-tokens", 256),
+        ("--seed", training["seed"]),
+    ):
+        _option(evaluate_base_hf, flag, value)
+
     adapter = f"{training['output_dir']}/adapter"
     evaluate_hf = [python, "scripts/evaluate_lfm25_android_hf.py"]
     for flag, value in (
@@ -205,6 +225,7 @@ def build_stage_commands(
         ("--dataset", evaluation["dataset"]),
         ("--output-dir", evaluation["hf_output_dir"]),
         ("--contract", "pocketfinancer"),
+        ("--thinking-mode", thinking_mode),
         ("--n-ctx", evaluation["n_ctx"]),
         ("--max-new-tokens", 256),
         ("--seed", training["seed"]),
@@ -233,7 +254,7 @@ def build_stage_commands(
         ("--dataset", evaluation["dataset"]),
         ("--output-dir", evaluation["gguf_output_dir"]),
         ("--contract", "pocketfinancer"),
-        ("--thinking-mode", "on" if model["thinking_mode"] else "off"),
+        ("--thinking-mode", thinking_mode),
         ("--seed", training["seed"]),
     ):
         _option(evaluate_gguf, flag, value)
@@ -245,6 +266,7 @@ def build_stage_commands(
 
     return {
         "build-data": build_data,
+        "evaluate-base-hf": evaluate_base_hf,
         "train": train,
         "evaluate-hf": evaluate_hf,
         "merge": merge,
@@ -285,6 +307,12 @@ def stage_requirements(
             InputRequirement("model", repo_root / str(model["local_path"])),
             InputRequirement("train", repo_root / str(data["train"])),
             InputRequirement("dev", repo_root / str(data["dev"])),
+        ]
+    if stage == "evaluate-base-hf":
+        return [
+            *common,
+            InputRequirement("model", repo_root / str(model["local_path"])),
+            InputRequirement("dataset", repo_root / str(evaluation["dataset"])),
         ]
     if stage == "evaluate-hf":
         return [

@@ -1,0 +1,559 @@
+{
+  "schema_version": 1,
+  "status": "evaluated_local_diagnostic_only",
+  "recorded_at": "2026-08-05",
+  "run_id": "lfm2.5-2.6b-base-direct-r16-s17",
+  "report": "docs/experiments/POCKETFINANCER_LFM25_2_6B_R16_S17.md",
+  "pipeline": "configs/pipelines/pocketfinancer-lfm2.5-2.6b-base.json",
+  "source_records": {
+    "training_manifest": "TRAINING_ARTIFACTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17/run_manifest.json",
+    "merge_manifest": "TRAINING_ARTIFACTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17-merged/merge_manifest.json",
+    "capacity_probe": "RESULTS/pocketfinancer/probes/lfm2.5-2.6b-base-bf16-lora-r16.json",
+    "blind_review_metadata": "PRIVATE_DATA/lfm25/blinded_test_review_metadata.json"
+  },
+  "models": {
+    "post_trained": {
+      "model_id": "LiquidAI/LFM2.5-2.6B",
+      "revision": "dca1825886789bd40b94368f53b1d9ada4c94598",
+      "lock": "configs/lfm25/model-2.6b-post.lock.json",
+      "parameters": 2697198592,
+      "generation_path": "sequential_two_pass_reasoning_then_answer"
+    },
+    "base": {
+      "model_id": "LiquidAI/LFM2.5-2.6B-Base",
+      "revision": "78f33a52fbe65f7665963f482179dcc3e75f0d9e",
+      "lock": "configs/lfm25/model-2.6b-base.lock.json",
+      "parameters": 2697198592,
+      "generation_path": "single_pass_direct_answer"
+    }
+  },
+  "contract": {
+    "path": "configs/contracts/pocketfinancer-android-current.json",
+    "profile": "pocketfinancer",
+    "profile_version": 3,
+    "android_source_revision": "a9b7df44be2183daac3a05cadbfd40b8f309cd4b",
+    "prompt_template_sha256": "94beadd0be5adb9312a6ec353ebee4128c3f22e20af3539ff5843ab6d0d02561",
+    "prefilter": "pocketfinancer_six_stage_prefilter",
+    "prefilter_sha256": "153129c8341d27997326560e077b3cfb6ce70a4569568a04723422d371fb96d2",
+    "n_ctx": 3072,
+    "answer_max_tokens": 256,
+    "grammar_default_enabled": false,
+    "primary_output_interpretation": "pocketfinancer_kotlin_parser"
+  },
+  "evaluation_boundary": {
+    "dataset": "DATA/extraction_ds.jsonl",
+    "rows": 203,
+    "transactions": 114,
+    "nulls": 89,
+    "bytes": 59598,
+    "sha256": "fec483b11cf458212b6a636f508632649790beacc91050efdd52abb2b590d44e",
+    "status": "locked_reused_regression_not_fresh_test",
+    "used_for_training": false,
+    "human_gold": false
+  },
+  "blinded_human_review": {
+    "metadata": "PRIVATE_DATA/lfm25/blinded_test_review_metadata.json",
+    "package_version": "lfm25-blinded-test-review-v1",
+    "rows": 1436,
+    "pending_rows": 1436,
+    "completed_rows": 0,
+    "status": "package_frozen_pending_human_review",
+    "human_gold": false,
+    "used_for_training": false,
+    "used_for_results": false
+  },
+  "training_data": {
+    "status": "silver_training_and_tuning_not_human_gold",
+    "human_gold": false,
+    "train": {
+      "path": "PRIVATE_DATA/lfm25/pocketfinancer-android-a9b7df4-direct-v1/private_sft_v2_train.jsonl",
+      "rows": 154,
+      "sha256": "66a5ffe1f0722a594838f6ee405cefa1f3adb8290dec92db222021c6a6e12f56"
+    },
+    "dev": {
+      "path": "PRIVATE_DATA/lfm25/pocketfinancer-android-a9b7df4-direct-v1/private_sft_v2_dev.jsonl",
+      "rows": 29,
+      "sha256": "126b9337e49ecbbbc437dbf68b113f0a51d00ad28fe5bb1b6590427f742f9513",
+      "role": "silver_checkpoint_selection_only"
+    }
+  },
+  "capacity_probe": {
+    "status": "passed",
+    "capacity_gate_only": true,
+    "quality_result": false,
+    "quantization_mode": "bf16",
+    "load_in_4bit": false,
+    "batch_size": 1,
+    "max_length": 2304,
+    "selected_sequence_tokens": 1912,
+    "selected_completion_tokens": 39,
+    "matched_lora_modules": 166,
+    "finite_gradient_tensors": 332,
+    "nonzero_gradient_tensors": 166,
+    "loss": 0.257812,
+    "wall_seconds": 9.972,
+    "peak_vram_mib": 7351.9
+  },
+  "training": {
+    "method": "lora",
+    "seed": 17,
+    "lora": {
+      "rank": 16,
+      "alpha": 32,
+      "dropout": 0.05,
+      "target_modules": [
+        "in_proj",
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "out_proj",
+        "w1",
+        "w2",
+        "w3"
+      ],
+      "target_module_coverage": {
+        "configured_leaf_names": [
+          "in_proj",
+          "q_proj",
+          "k_proj",
+          "v_proj",
+          "out_proj",
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "matched_leaf_counts": {
+          "in_proj": 22,
+          "q_proj": 8,
+          "k_proj": 8,
+          "v_proj": 8,
+          "out_proj": 30,
+          "w1": 30,
+          "w2": 30,
+          "w3": 30
+        },
+        "matched_module_count": 166
+      },
+      "trainable_parameters": 24461312,
+      "total_parameters_with_adapter": 2721659904,
+      "trainable_percent": 0.898764
+    },
+    "objective": {
+      "causal_shift": true,
+      "ignore_index": -100,
+      "mode": "per_example_completion_mean",
+      "token_reduction": "weighted_mean_per_example",
+      "example_reduction": "sample_weighted_mean",
+      "sample_weight_field": "sample_weight",
+      "default_sample_weight": 1.0,
+      "first_supervised_token_weight": 3.0,
+      "train_explicit_sample_weight_rows": 154,
+      "eval_explicit_sample_weight_rows": 29
+    },
+    "optimization": {
+      "optimizer": "adamw_torch",
+      "learning_rate": 0.0001,
+      "lr_scheduler_type": "cosine",
+      "warmup_ratio": 0.05,
+      "warmup_steps": 1,
+      "weight_decay": 0.01,
+      "max_grad_norm": 1.0,
+      "batch_size": 1,
+      "per_device_eval_batch_size": 1,
+      "gradient_accumulation": 32,
+      "effective_batch_size": 32,
+      "max_length": 2304,
+      "epochs_requested": 4.0,
+      "early_stopping_patience": 2,
+      "eval_strategy": "epoch",
+      "save_strategy": "epoch",
+      "prompt_profile": "android",
+      "loss_mode": "per_example_completion_mean",
+      "first_supervised_token_weight": 3.0,
+      "bf16": true,
+      "tf32": true,
+      "gradient_checkpointing": true,
+      "gradient_checkpointing_use_reentrant": false,
+      "full_determinism": true
+    },
+    "checkpoint_selection": {
+      "metric": "eval_loss",
+      "best_metric": 0.253326952457428,
+      "best_epoch": 1.0,
+      "best_step": 5,
+      "best_model_checkpoint": "TRAINING_ARTIFACTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17/checkpoint-5",
+      "final_epoch": 3.0,
+      "final_global_step": 15,
+      "load_best_model_at_end": true,
+      "restored_best_checkpoint": true
+    },
+    "recorded_metrics": {
+      "train_loss": 6.560931650797526,
+      "train_runtime_seconds": 1227.4517,
+      "train_samples_per_second": 0.502,
+      "train_steps_per_second": 0.016,
+      "total_flos": 12749820547332096,
+      "restored_checkpoint_eval_loss": 0.253326952457428,
+      "restored_checkpoint_eval_runtime_seconds": 20.0437,
+      "eval_samples_per_second": 1.447,
+      "eval_steps_per_second": 1.447
+    },
+    "timing": {
+      "training_wall_time_seconds": 1227.775,
+      "run_wall_time_seconds_through_adapter_save": 1258.523,
+      "final_evaluation_wall_time_seconds": 20.044
+    },
+    "peak_vram_mib": 8560.9,
+    "environment": {
+      "gpu": "NVIDIA GeForce RTX 4070",
+      "python": "3.11.14",
+      "torch": "2.6.0+cu124",
+      "transformers": "5.6.2",
+      "peft": "0.20.0"
+    },
+    "privacy": {
+      "report_to": "none",
+      "push_to_hub": false,
+      "raw_examples_logged": false
+    }
+  },
+  "artifacts": {
+    "status": "local_only_gitignored_not_released",
+    "adapter": {
+      "path": "TRAINING_ARTIFACTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17/adapter/adapter_model.safetensors",
+      "bytes": 97889536,
+      "sha256": "7e1f2d0f47ab901942b4e307b06e02d45f09393ff5d94a8e8aac45f149ce7b18"
+    },
+    "gguf": {
+      "bf16": {
+        "path": "TRAINING_ARTIFACTS/pocketfinancer/gguf/lfm2.5-2.6b-base-direct-r16-s17-BF16.gguf",
+        "bytes": 5403156736,
+        "sha256": "ad830af7b17bb2f90eecc70fedf7f939291dda5d267ce7cc58fee1d84d1cf7f5"
+      },
+      "q8_0": {
+        "path": "TRAINING_ARTIFACTS/pocketfinancer/gguf/lfm2.5-2.6b-base-direct-r16-s17-Q8_0.gguf",
+        "bytes": 2874777856,
+        "sha256": "fccdc839f5e3213a769b280abbd2d8ca9df375807105b9fb0683db673f1c6c74"
+      },
+      "q4_k_m": {
+        "path": "TRAINING_ARTIFACTS/pocketfinancer/gguf/lfm2.5-2.6b-base-direct-r16-s17-Q4_K_M.gguf",
+        "bytes": 1674453248,
+        "sha256": "9849f6377eab1a292665714b91819ef17ed2cf52cff20717713fa646e0f7f77c"
+      }
+    },
+    "official_post_q4_k_m_reference": {
+      "path": "MODELS/LFM2.5-2.6B-GGUF/LFM2.5-2.6B-Q4_K_M.gguf",
+      "bytes": 1674454848,
+      "sha256": "79fdf00351b46cf26f020aead28d01889886be87c55fa0eb907e6f9b00bfee14"
+    }
+  },
+  "results": [
+    {
+      "id": "post_trained_hf",
+      "metrics": "RESULTS/pocketfinancer/lfm2.5-2.6b-post-hf-base-s17/metrics.json",
+      "runtime": "transformers_hf_proxy",
+      "generation": "sequential_two_pass_reasoning_then_answer",
+      "bos_mode": "not_applicable",
+      "app_interpreted": {
+        "whole_exact": 174,
+        "whole_total": 203,
+        "transaction_exact": 86,
+        "transaction_total": 114,
+        "transaction_f1": 0.982301,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "strict_model_output": {
+        "whole_exact": 174,
+        "whole_total": 203,
+        "transaction_exact": 86,
+        "transaction_total": 114,
+        "transaction_f1": 0.986784,
+        "valid_outputs": 202,
+        "json_validity": 0.995074,
+        "schema_validity": 0.995074
+      },
+      "android_runtime_parity": false
+    },
+    {
+      "id": "post_trained_official_q4_single_bos",
+      "metrics": "RESULTS/pocketfinancer/lfm2.5-2.6b-post-q4-single-bos-gpu-s17/metrics.json",
+      "runtime": "llama_cpp_python_host_gpu",
+      "generation": "sequential_two_pass_reasoning_then_answer",
+      "bos_mode": "single",
+      "app_interpreted": {
+        "whole_exact": 176,
+        "whole_total": 203,
+        "transaction_exact": 88,
+        "transaction_total": 114,
+        "transaction_f1": 0.973214,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "strict_model_output": {
+        "whole_exact": 176,
+        "whole_total": 203,
+        "transaction_exact": 88,
+        "transaction_total": 114,
+        "transaction_f1": 0.973214,
+        "valid_outputs": 198,
+        "json_validity": 0.975369,
+        "schema_validity": 0.975369
+      },
+      "android_runtime_parity": false
+    },
+    {
+      "id": "base_untuned_hf",
+      "metrics": "RESULTS/pocketfinancer/lfm2.5-2.6b-base-untuned-hf/metrics.json",
+      "runtime": "transformers_hf_proxy",
+      "generation": "single_pass_direct_answer",
+      "bos_mode": "not_applicable",
+      "app_interpreted": {
+        "whole_exact": 186,
+        "whole_total": 203,
+        "transaction_exact": 98,
+        "transaction_total": 114,
+        "transaction_f1": 0.995633,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "strict_model_output": {
+        "whole_exact": 186,
+        "whole_total": 203,
+        "transaction_exact": 98,
+        "transaction_total": 114,
+        "transaction_f1": 0.995633,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "android_runtime_parity": false
+    },
+    {
+      "id": "base_lora_hf",
+      "metrics": "RESULTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17-hf/metrics.json",
+      "runtime": "transformers_hf_proxy",
+      "generation": "single_pass_direct_answer",
+      "bos_mode": "not_applicable",
+      "app_interpreted": {
+        "whole_exact": 184,
+        "whole_total": 203,
+        "transaction_exact": 96,
+        "transaction_total": 114,
+        "transaction_f1": 0.991228,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "strict_model_output": {
+        "whole_exact": 184,
+        "whole_total": 203,
+        "transaction_exact": 96,
+        "transaction_total": 114,
+        "transaction_f1": 0.995633,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "android_runtime_parity": false
+    },
+    {
+      "id": "base_lora_bf16_single_bos",
+      "metrics": "RESULTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17-bf16-single-bos-gpu/metrics.json",
+      "runtime": "llama_cpp_python_host_gpu",
+      "generation": "single_pass_direct_answer",
+      "bos_mode": "single",
+      "app_interpreted": {
+        "whole_exact": 184,
+        "whole_total": 203,
+        "transaction_exact": 96,
+        "transaction_total": 114,
+        "transaction_f1": 0.991228,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "strict_model_output": {
+        "whole_exact": 183,
+        "whole_total": 203,
+        "transaction_exact": 95,
+        "transaction_total": 114,
+        "transaction_f1": 0.995633,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "android_runtime_parity": false
+    },
+    {
+      "id": "base_lora_q8_single_bos",
+      "metrics": "RESULTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17-q8-single-bos-gpu/metrics.json",
+      "runtime": "llama_cpp_python_host_gpu",
+      "generation": "single_pass_direct_answer",
+      "bos_mode": "single",
+      "app_interpreted": {
+        "whole_exact": 184,
+        "whole_total": 203,
+        "transaction_exact": 96,
+        "transaction_total": 114,
+        "transaction_f1": 0.991228,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "strict_model_output": {
+        "whole_exact": 183,
+        "whole_total": 203,
+        "transaction_exact": 95,
+        "transaction_total": 114,
+        "transaction_f1": 0.995633,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "android_runtime_parity": false
+    },
+    {
+      "id": "base_lora_q4_android_current",
+      "metrics": "RESULTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17-q4/metrics.json",
+      "runtime": "llama_cpp_python_host_cpu",
+      "generation": "single_pass_direct_answer",
+      "bos_mode": "android_current_duplicate_leading_bos",
+      "app_interpreted": {
+        "whole_exact": 166,
+        "whole_total": 203,
+        "transaction_exact": 78,
+        "transaction_total": 114,
+        "transaction_f1": 0.949772,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "strict_model_output": {
+        "whole_exact": 166,
+        "whole_total": 203,
+        "transaction_exact": 78,
+        "transaction_total": 114,
+        "transaction_f1": 0.949772,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "android_runtime_parity": false
+    },
+    {
+      "id": "base_lora_q4_single_bos",
+      "metrics": "RESULTS/pocketfinancer/lfm2.5-2.6b-base-direct-r16-s17-q4-single-bos/metrics.json",
+      "runtime": "llama_cpp_python_host_cpu",
+      "generation": "single_pass_direct_answer",
+      "bos_mode": "single_diagnostic",
+      "app_interpreted": {
+        "whole_exact": 173,
+        "whole_total": 203,
+        "transaction_exact": 85,
+        "transaction_total": 114,
+        "transaction_f1": 0.959276,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "strict_model_output": {
+        "whole_exact": 173,
+        "whole_total": 203,
+        "transaction_exact": 85,
+        "transaction_total": 114,
+        "transaction_f1": 0.959276,
+        "valid_outputs": 203,
+        "json_validity": 1.0,
+        "schema_validity": 1.0
+      },
+      "android_runtime_parity": false
+    }
+  ],
+  "paired_comparisons": [
+    {
+      "id": "post_trained_hf_vs_post_trained_official_q4_single_bos",
+      "source": "RESULTS/pocketfinancer/lfm2.5-2.6b-post-hf-vs-q4-single-bos-app.json",
+      "first_only_correct": 8,
+      "second_only_correct": 10,
+      "ties": 185,
+      "n": 203,
+      "mcnemar_exact_p": 0.81452942
+    },
+    {
+      "id": "post_trained_hf_vs_base_untuned_hf",
+      "source": "RESULTS/pocketfinancer/lfm2.5-2.6b-post-vs-base-app.json",
+      "first_only_correct": 3,
+      "second_only_correct": 15,
+      "ties": 185,
+      "n": 203,
+      "mcnemar_exact_p": 0.00753784
+    },
+    {
+      "id": "base_untuned_hf_vs_base_lora_hf",
+      "source": "RESULTS/pocketfinancer/lfm2.5-2.6b-base-vs-lora-app.json",
+      "first_only_correct": 5,
+      "second_only_correct": 3,
+      "ties": 195,
+      "n": 203,
+      "mcnemar_exact_p": 0.7265625
+    },
+    {
+      "id": "base_lora_hf_vs_bf16_single_bos",
+      "source": "RESULTS/pocketfinancer/lfm2.5-2.6b-lora-hf-vs-bf16-single-bos-app.json",
+      "first_only_correct": 0,
+      "second_only_correct": 0,
+      "ties": 203,
+      "n": 203,
+      "mcnemar_exact_p": 1.0
+    },
+    {
+      "id": "bf16_single_bos_vs_q8_single_bos",
+      "source": "RESULTS/pocketfinancer/lfm2.5-2.6b-bf16-vs-q8-single-bos-app.json",
+      "first_only_correct": 0,
+      "second_only_correct": 0,
+      "ties": 203,
+      "n": 203,
+      "mcnemar_exact_p": 1.0
+    },
+    {
+      "id": "q4_android_current_vs_q4_single_bos",
+      "source": "RESULTS/pocketfinancer/lfm2.5-2.6b-q4-bos-pair-app.json",
+      "first_only_correct": 1,
+      "second_only_correct": 8,
+      "ties": 194,
+      "n": 203,
+      "mcnemar_exact_p": 0.0390625
+    },
+    {
+      "id": "base_lora_hf_vs_q4_single_bos",
+      "source": "RESULTS/pocketfinancer/lfm2.5-2.6b-lora-hf-vs-q4-single-bos-app.json",
+      "first_only_correct": 13,
+      "second_only_correct": 2,
+      "ties": 188,
+      "n": 203,
+      "mcnemar_exact_p": 0.00738525
+    }
+  ],
+  "parity": {
+    "runtime": false,
+    "android": false,
+    "device": false,
+    "deployment": false
+  },
+  "support": {
+    "android": false,
+    "deployment": false,
+    "production": false
+  },
+  "decision": {
+    "base": "quality_ceiling_evidence_on_reused_regression_only",
+    "promote_lora": false,
+    "q8": "single_bos_host_output_parity_with_bf16",
+    "q4_and_bos": "unresolved_shipping_blocker",
+    "ship": false
+  }
+}

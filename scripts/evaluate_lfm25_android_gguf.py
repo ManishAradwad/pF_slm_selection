@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import resource
 import statistics
 import subprocess
@@ -212,17 +213,173 @@ def _render_chat_prompt(
                 "utf-8", errors="replace"
             )
 
+        compatible_template, normalized_tags = (
+            _normalize_chat_template_generation_tags(template)
+        )
         formatter = Jinja2ChatFormatter(
-            template=template,
+            template=compatible_template,
             eos_token=special(model.token_eos()),
             bos_token=special(model.token_bos()),
             add_generation_prompt=True,
         )
-        return formatter(messages=messages).prompt, "gguf_builtin"
+        source = (
+            "gguf_builtin_generation_tags_normalized"
+            if normalized_tags
+            else "gguf_builtin"
+        )
+        return formatter(messages=messages).prompt, source
     return (
         _fallback_chat_prompt(messages, enable_thinking=enable_thinking),
         "qwen3_manual_fallback",
     )
+
+
+def _prepare_thinking_prompt(prompt: str) -> tuple[str, bool]:
+    """Reuse a template's trailing thinking opener or append exactly one."""
+
+    if re.search(r"<think>\s*$", prompt):
+        return prompt, False
+    separator = "" if not prompt or prompt.endswith("\n") else "\n"
+    return f"{prompt}{separator}<think>\n", True
+
+
+_GENERATION_TAG_PATTERN = re.compile(
+    r"{%(?P<left>-?)\s*(?P<tag>endgeneration|generation)\s*(?P<right>-?)%}"
+)
+
+
+def _normalize_chat_template_generation_tags(template: str) -> tuple[str, int]:
+    """Turn Transformers-only generation blocks into no-output Jinja comments."""
+
+    def replacement(match: re.Match[str]) -> str:
+        left = match.group("left")
+        right = match.group("right")
+        tag = match.group("tag")
+        return "{#" + left + " " + tag + " " + right + "#}"
+
+    return _GENERATION_TAG_PATTERN.subn(replacement, template)
+
+
+def _load_llama_with_template_compatibility(
+    llama_class: Any, **kwargs: Any
+) -> tuple[Any, int]:
+    """Load a GGUF while normalizing unsupported generation blocks in handlers."""
+
+    from llama_cpp import llama_chat_format
+
+    formatter_class = llama_chat_format.Jinja2ChatFormatter
+    original_init = formatter_class.__init__
+    normalized_tags = 0
+
+    def compatible_init(
+        formatter_self: Any,
+        template: str,
+        eos_token: str,
+        bos_token: str,
+        add_generation_prompt: bool = True,
+        stop_token_ids: list[int] | None = None,
+    ) -> None:
+        nonlocal normalized_tags
+        compatible_template, count = _normalize_chat_template_generation_tags(
+            template
+        )
+        normalized_tags += count
+        original_init(
+            formatter_self,
+            template=compatible_template,
+            eos_token=eos_token,
+            bos_token=bos_token,
+            add_generation_prompt=add_generation_prompt,
+            stop_token_ids=stop_token_ids,
+        )
+
+    formatter_class.__init__ = compatible_init
+    try:
+        model = llama_class(**kwargs)
+    finally:
+        formatter_class.__init__ = original_init
+    return model, normalized_tags
+
+
+def _completion_prompt_token_count(model: Any, prompt: str) -> int:
+    """Mirror llama-cpp-python's string-prompt BOS/EOS framing.
+
+    ``create_completion`` tokenizes the string without BOS, then conditionally
+    adds the model's configured BOS/CLS and EOS/SEP. Counting the same framing
+    before generation prevents llama-cpp-python from silently shrinking a
+    requested completion at the context boundary.
+    """
+
+    prompt_tokens = model.tokenize(
+        prompt.encode("utf-8"), add_bos=False, special=True
+    )
+    backend = getattr(model, "_model", None)
+    if backend is None:
+        raise RuntimeError(
+            "cannot preflight llama-cpp BOS/EOS framing without _model metadata"
+        )
+
+    token_cls = getattr(backend, "token_cls", lambda: -1)()
+    bos_token = token_cls if token_cls != -1 else model.token_bos()
+    add_bos = bool(getattr(backend, "add_bos_token", lambda: False)())
+
+    token_sep = getattr(backend, "token_sep", lambda: -1)()
+    eos_token = token_sep if token_sep != -1 else model.token_eos()
+    add_eos = token_sep != -1 or bool(
+        getattr(backend, "add_eos_token", lambda: False)()
+    )
+
+    return (
+        len(prompt_tokens)
+        + int(add_bos and bos_token != -1)
+        + int(add_eos and eos_token != -1)
+    )
+
+
+def _thinking_context_budget(
+    prompt_tokens: int,
+    n_ctx: int,
+    answer_tokens: int,
+    closing_tokens: int,
+    requested_thinking_tokens: int,
+) -> dict[str, Any]:
+    """Reserve the thinking close and full answer, then cap reasoning."""
+
+    required_without_reasoning = prompt_tokens + closing_tokens + answer_tokens
+    if required_without_reasoning > n_ctx:
+        raise ValueError(
+            f"prompt ({prompt_tokens}) + thinking close ({closing_tokens}) + "
+            f"answer ({answer_tokens}) exceeds n_ctx={n_ctx}"
+        )
+    available = n_ctx - required_without_reasoning
+    effective = min(requested_thinking_tokens, available)
+    if effective <= 0:
+        raise ValueError(
+            f"prompt ({prompt_tokens}) + answer framing ({closing_tokens}) + "
+            f"answer ({answer_tokens}) leaves no thinking capacity in n_ctx={n_ctx}"
+        )
+    return {
+        "n_ctx": n_ctx,
+        "prompt_tokens": prompt_tokens,
+        "answer_max_tokens": answer_tokens,
+        "thinking_close_tokens": closing_tokens,
+        "requested_thinking_max_tokens": requested_thinking_tokens,
+        "available_thinking_tokens": available,
+        "effective_thinking_max_tokens": effective,
+        "thinking_capped_by_context": effective < requested_thinking_tokens,
+    }
+
+
+def _require_completion_capacity(
+    prompt_tokens: int, n_ctx: int, completion_tokens: int, *, phase: str
+) -> None:
+    """Fail rather than let llama-cpp-python silently reduce max_tokens."""
+
+    if prompt_tokens + completion_tokens > n_ctx:
+        raise ValueError(
+            f"{phase} prompt ({prompt_tokens}) + completion ({completion_tokens}) "
+            f"exceeds n_ctx={n_ctx}"
+        )
 
 
 def _remove_template_bos(model: Any, prompt: str) -> tuple[str, bool]:
@@ -423,29 +580,52 @@ def main() -> int:
             }
 
     latencies_ms: list[float] = []
+    thinking_latencies_ms: list[float] = []
+    answer_latencies_ms: list[float] = []
     prompt_tokens: list[int] = []
     output_tokens: list[int] = []
+    thinking_token_counts: list[int] = []
+    thinking_generation_token_counts: list[int] = []
+    answer_token_counts: list[int] = []
+    effective_thinking_budgets: list[int] = []
     total_elapsed = 0.0
     total_prompt_tokens = 0
     total_output_tokens = 0
     template_bos_removed_rows = 0
+    template_think_appended_rows = 0
+    chat_template_generation_tag_rows = 0
+    thinking_context_capped_rows = 0
+    thinking_finish_reason_counts: dict[str, int] = {}
+    thinking_stop_status_counts: dict[str, int] = {}
+    answer_finish_reason_counts: dict[str, int] = {}
+    thinking_close_tokens: int | None = None
 
     with GpuMemorySampler() as gpu_sampler:
         load_started = time.perf_counter()
-        model = Llama(
-            model_path=str(args.gguf.resolve()),
-            n_ctx=n_ctx,
-            n_gpu_layers=n_gpu_layers,
-            n_threads=n_threads,
-            n_threads_batch=n_threads,
-            n_batch=defaults.get("n_batch", 512),
-            n_ubatch=defaults.get("n_ubatch", 256),
-            flash_attn=defaults.get("flash_attention", False),
-            use_mmap=defaults.get("use_mmap", True),
-            seed=args.seed,
-            verbose=False,
+        model, loader_generation_tags_normalized = (
+            _load_llama_with_template_compatibility(
+                Llama,
+                model_path=str(args.gguf.resolve()),
+                n_ctx=n_ctx,
+                n_gpu_layers=n_gpu_layers,
+                n_threads=n_threads,
+                n_threads_batch=n_threads,
+                n_batch=defaults.get("n_batch", 512),
+                n_ubatch=defaults.get("n_ubatch", 256),
+                flash_attn=defaults.get("flash_attention", False),
+                use_mmap=defaults.get("use_mmap", True),
+                seed=args.seed,
+                verbose=False,
+            )
         )
         load_seconds = time.perf_counter() - load_started
+
+        if thinking_enabled:
+            thinking_close_tokens = len(
+                model.tokenize(b"</think>\n", add_bos=False, special=True)
+            )
+            if thinking_close_tokens <= 0:
+                raise ValueError("GGUF tokenizer cannot encode </think>\\n")
 
         for model_index, (index, row) in enumerate(pending):
             if pocketfinancer_profile:
@@ -461,28 +641,112 @@ def main() -> int:
                 messages,
                 enable_thinking=thinking_enabled,
             )
+            chat_template_generation_tag_rows += int(
+                chat_template_source
+                == "gguf_builtin_generation_tags_normalized"
+            )
             template_bos_removed = False
             if args.bos_mode == "single":
                 prompt, template_bos_removed = _remove_template_bos(model, prompt)
                 template_bos_removed_rows += int(template_bos_removed)
             started = time.perf_counter()
             thinking_count = 0
+            thinking_generation_count = 0
+            thinking_latency_ms = 0.0
+            thinking_finish_reason: str | None = None
+            thinking_stop_status: str | None = None
+            thinking_context: dict[str, Any] | None = None
+            template_think_appended = False
+            raw_reasoning: str | None = None
+
             if thinking_enabled:
-                think_prompt = prompt + "<think>\n"
+                assert thinking_close_tokens is not None
+                think_prompt, template_think_appended = _prepare_thinking_prompt(
+                    prompt
+                )
+                template_think_appended_rows += int(template_think_appended)
+                prompt_count = _completion_prompt_token_count(model, think_prompt)
+                thinking_context = _thinking_context_budget(
+                    prompt_count,
+                    n_ctx,
+                    max_tokens,
+                    thinking_close_tokens,
+                    thinking_tokens,
+                )
+                effective_thinking_tokens = int(
+                    thinking_context["effective_thinking_max_tokens"]
+                )
+                effective_thinking_budgets.append(effective_thinking_tokens)
+                thinking_context_capped_rows += int(
+                    thinking_context["thinking_capped_by_context"]
+                )
+
+                thinking_started = time.perf_counter()
                 think_response = model.create_completion(
                     prompt=think_prompt,
                     temperature=0.0,
-                    max_tokens=thinking_tokens,
+                    max_tokens=effective_thinking_tokens,
                     stop=["</think>"],
                     echo=False,
                     repeat_penalty=repeat_penalty,
                     seed=args.seed,
                 )
-                think_text = str(think_response["choices"][0]["text"])
-                thinking_count = int(
-                    think_response.get("usage", {}).get("completion_tokens", 0)
+                thinking_latency_ms = (
+                    time.perf_counter() - thinking_started
+                ) * 1000
+                think_usage = think_response.get("usage", {})
+                actual_thinking_prompt_tokens = int(
+                    think_usage.get("prompt_tokens", 0)
                 )
-                answer_prompt = think_prompt + think_text + "</think>\n"
+                if actual_thinking_prompt_tokens != prompt_count:
+                    raise RuntimeError(
+                        "thinking prompt preflight token count "
+                        f"({prompt_count}) did not match llama-cpp usage "
+                        f"({actual_thinking_prompt_tokens})"
+                    )
+                thinking_generation_count = int(
+                    think_usage.get("completion_tokens", 0)
+                )
+                if thinking_generation_count > effective_thinking_tokens:
+                    raise RuntimeError(
+                        "llama-cpp exceeded the effective thinking token budget"
+                    )
+                think_choice = think_response["choices"][0]
+                raw_reasoning = str(think_choice["text"])
+                thinking_count = len(
+                    model.tokenize(
+                        raw_reasoning.encode("utf-8"),
+                        add_bos=False,
+                        special=True,
+                    )
+                )
+                thinking_finish_reason = str(
+                    think_choice.get("finish_reason") or "unknown"
+                )
+                if thinking_finish_reason == "stop":
+                    thinking_stop_status = "stop_or_eog"
+                elif thinking_finish_reason == "length":
+                    thinking_stop_status = "budget_exhausted"
+                else:
+                    thinking_stop_status = "other"
+                thinking_finish_reason_counts[thinking_finish_reason] = (
+                    thinking_finish_reason_counts.get(thinking_finish_reason, 0) + 1
+                )
+                thinking_stop_status_counts[thinking_stop_status] = (
+                    thinking_stop_status_counts.get(thinking_stop_status, 0) + 1
+                )
+
+                answer_prompt = think_prompt + raw_reasoning + "</think>\n"
+                answer_prompt_count = _completion_prompt_token_count(
+                    model, answer_prompt
+                )
+                _require_completion_capacity(
+                    answer_prompt_count,
+                    n_ctx,
+                    max_tokens,
+                    phase="answer",
+                )
+                answer_started = time.perf_counter()
                 response = model.create_completion(
                     prompt=answer_prompt,
                     temperature=0.0,
@@ -492,7 +756,17 @@ def main() -> int:
                     grammar=grammar,
                     seed=args.seed,
                 )
+                answer_latency_ms = (time.perf_counter() - answer_started) * 1000
             else:
+                prompt_count = _completion_prompt_token_count(model, prompt)
+                _require_completion_capacity(
+                    prompt_count,
+                    n_ctx,
+                    max_tokens,
+                    phase="direct",
+                )
+                answer_prompt_count = prompt_count
+                answer_started = time.perf_counter()
                 response = model.create_completion(
                     prompt=prompt,
                     temperature=0.0,
@@ -502,35 +776,78 @@ def main() -> int:
                     grammar=grammar,
                     seed=args.seed,
                 )
+                answer_latency_ms = (time.perf_counter() - answer_started) * 1000
+
             elapsed = time.perf_counter() - started
             usage = response.get("usage", {})
-            prompt_count = int(usage.get("prompt_tokens", 0))
+            actual_answer_prompt_tokens = int(usage.get("prompt_tokens", 0))
+            if actual_answer_prompt_tokens != answer_prompt_count:
+                raise RuntimeError(
+                    "answer prompt preflight token count "
+                    f"({answer_prompt_count}) did not match llama-cpp usage "
+                    f"({actual_answer_prompt_tokens})"
+                )
             answer_count = int(usage.get("completion_tokens", 0))
-            output_count = thinking_count + answer_count
-            prediction = str(response["choices"][0]["text"]).strip()
+            output_count = thinking_generation_count + answer_count
+            answer_choice = response["choices"][0]
+            answer_finish_reason = str(
+                answer_choice.get("finish_reason") or "unknown"
+            )
+            answer_finish_reason_counts[answer_finish_reason] = (
+                answer_finish_reason_counts.get(answer_finish_reason, 0) + 1
+            )
+            prediction = str(answer_choice["text"]).strip()
+
             if model_index >= args.warmup:
                 latencies_ms.append(elapsed * 1000)
+                answer_latencies_ms.append(answer_latency_ms)
                 prompt_tokens.append(prompt_count)
                 output_tokens.append(output_count)
+                answer_token_counts.append(answer_count)
+                if thinking_enabled:
+                    thinking_latencies_ms.append(thinking_latency_ms)
+                    thinking_token_counts.append(thinking_count)
+                    thinking_generation_token_counts.append(
+                        thinking_generation_count
+                    )
                 total_elapsed += elapsed
                 total_prompt_tokens += prompt_count
                 total_output_tokens += output_count
-            records_by_index[index].update(
-                {
-                    "prediction": prediction,
-                    "app_prediction": pocketfinancer_normalize_prediction(prediction)
-                    if pocketfinancer_profile
-                    else prediction,
-                    "prompt_tokens": prompt_count,
-                    "thinking_tokens": thinking_count,
-                    "answer_tokens": answer_count,
-                    "output_tokens": output_count,
-                    "latency_ms": round(elapsed * 1000, 3),
-                    "chat_template_source": chat_template_source,
-                    "bos_mode": args.bos_mode,
-                    "template_bos_removed": template_bos_removed,
-                }
-            )
+
+            generation_record: dict[str, Any] = {
+                "prediction": prediction,
+                "app_prediction": pocketfinancer_normalize_prediction(prediction)
+                if pocketfinancer_profile
+                else prediction,
+                "prompt_tokens": prompt_count,
+                "answer_prompt_tokens": actual_answer_prompt_tokens,
+                "answer_tokens": answer_count,
+                "output_tokens": output_count,
+                "answer_latency_ms": round(answer_latency_ms, 3),
+                "latency_ms": round(elapsed * 1000, 3),
+                "answer_finish_reason": answer_finish_reason,
+                "chat_template_source": chat_template_source,
+                "bos_mode": args.bos_mode,
+                "template_bos_removed": template_bos_removed,
+            }
+            if thinking_enabled:
+                generation_record.update(
+                    {
+                        "raw_reasoning": raw_reasoning,
+                        "thinking_tokens": thinking_count,
+                        "thinking_generation_tokens": thinking_generation_count,
+                        "thinking_latency_ms": round(thinking_latency_ms, 3),
+                        "thinking_finish_reason": thinking_finish_reason,
+                        "thinking_stop_status": thinking_stop_status,
+                        "thinking_max_tokens_requested": thinking_tokens,
+                        "thinking_max_tokens_effective": int(
+                            thinking_context["effective_thinking_max_tokens"]
+                        ),
+                        "thinking_context": thinking_context,
+                        "template_think_appended": template_think_appended,
+                    }
+                )
+            records_by_index[index].update(generation_record)
 
     records = [records_by_index[index] for index in range(len(rows))]
     model_records = [record for record in records if record["model_invoked"]]
@@ -593,9 +910,46 @@ def main() -> int:
         "thinking_mode_source": thinking_mode_source,
         "bos_mode": args.bos_mode,
         "template_bos_removed_rows": template_bos_removed_rows,
-        "thinking_max_tokens": thinking_tokens
-        if thinking_enabled
-        else None,
+        "template_think_appended_rows": template_think_appended_rows,
+        "chat_template_generation_tag_rows": (
+            chat_template_generation_tag_rows
+        ),
+        "loader_generation_tags_normalized": (
+            loader_generation_tags_normalized
+        ),
+        "thinking_max_tokens": thinking_tokens if thinking_enabled else None,
+        "thinking_max_tokens_requested": (
+            thinking_tokens if thinking_enabled else None
+        ),
+        "thinking_max_tokens_effective_min": (
+            min(effective_thinking_budgets)
+            if effective_thinking_budgets
+            else None
+        ),
+        "thinking_max_tokens_effective_max": (
+            max(effective_thinking_budgets)
+            if effective_thinking_budgets
+            else None
+        ),
+        "thinking_max_tokens_effective_mean": (
+            round(statistics.fmean(effective_thinking_budgets), 2)
+            if effective_thinking_budgets
+            else None
+        ),
+        "thinking_close_tokens": thinking_close_tokens,
+        "thinking_context_capped_rows": thinking_context_capped_rows,
+        "thinking_finish_reason_counts": dict(
+            sorted(thinking_finish_reason_counts.items())
+        ),
+        "thinking_stop_status_counts": dict(
+            sorted(thinking_stop_status_counts.items())
+        ),
+        "thinking_stop_or_eog_rows": thinking_stop_status_counts.get(
+            "stop_or_eog", 0
+        ),
+        "answer_finish_reason_counts": dict(
+            sorted(answer_finish_reason_counts.items())
+        ),
         "answer_max_tokens": max_tokens,
         "warmup_model_calls_excluded_from_timing": min(args.warmup, len(model_records)),
         "timed_model_calls": measured,
@@ -604,6 +958,46 @@ def main() -> int:
         "end_to_end_latency_ms_mean": round(statistics.fmean(latencies_ms), 3)
         if latencies_ms
         else None,
+        "thinking_latency_ms_p50": _percentile(thinking_latencies_ms, 0.5),
+        "thinking_latency_ms_p95": _percentile(thinking_latencies_ms, 0.95),
+        "thinking_latency_ms_mean": (
+            round(statistics.fmean(thinking_latencies_ms), 3)
+            if thinking_latencies_ms
+            else None
+        ),
+        "answer_latency_ms_p50": _percentile(answer_latencies_ms, 0.5),
+        "answer_latency_ms_p95": _percentile(answer_latencies_ms, 0.95),
+        "answer_latency_ms_mean": (
+            round(statistics.fmean(answer_latencies_ms), 3)
+            if answer_latencies_ms
+            else None
+        ),
+        "thinking_tokens_mean": (
+            round(statistics.fmean(thinking_token_counts), 2)
+            if thinking_token_counts
+            else None
+        ),
+        "thinking_tokens_max": (
+            max(thinking_token_counts) if thinking_token_counts else None
+        ),
+        "thinking_generation_tokens_mean": (
+            round(statistics.fmean(thinking_generation_token_counts), 2)
+            if thinking_generation_token_counts
+            else None
+        ),
+        "thinking_generation_tokens_max": (
+            max(thinking_generation_token_counts)
+            if thinking_generation_token_counts
+            else None
+        ),
+        "answer_tokens_mean": (
+            round(statistics.fmean(answer_token_counts), 2)
+            if answer_token_counts
+            else None
+        ),
+        "answer_tokens_max": (
+            max(answer_token_counts) if answer_token_counts else None
+        ),
         "prompt_tokens_mean": round(statistics.fmean(prompt_tokens), 2)
         if prompt_tokens
         else None,
@@ -646,9 +1040,27 @@ def main() -> int:
             "answer_grammar_constrained": grammar_enabled,
             "temperature": 0.0,
             "repeat_penalty": repeat_penalty,
-            "thinking_max_tokens": thinking_tokens
-            if thinking_enabled
-            else None,
+            "thinking_max_tokens": thinking_tokens if thinking_enabled else None,
+            "thinking_max_tokens_requested": (
+                thinking_tokens if thinking_enabled else None
+            ),
+            "thinking_max_tokens_effective_min": (
+                min(effective_thinking_budgets)
+                if effective_thinking_budgets
+                else None
+            ),
+            "thinking_max_tokens_effective_max": (
+                max(effective_thinking_budgets)
+                if effective_thinking_budgets
+                else None
+            ),
+            "thinking_budget_policy": (
+                "reserve_close_and_answer_then_cap_per_row"
+                if thinking_enabled
+                else None
+            ),
+            "thinking_close": "</think>\n" if thinking_enabled else None,
+            "thinking_close_tokens": thinking_close_tokens,
             "answer_max_tokens": max_tokens,
             "n_ctx": n_ctx,
             "n_gpu_layers": n_gpu_layers,
@@ -661,10 +1073,41 @@ def main() -> int:
             "seed": args.seed,
             "bos_mode": args.bos_mode,
             "template_bos_removed_rows": template_bos_removed_rows,
-            "thinking_stop": ["</think>"]
-            if thinking_enabled
-            else None,
+            "template_think_open_policy": (
+                "reuse_trailing_template_tag_else_append_once"
+                if thinking_enabled
+                else None
+            ),
+            "template_think_appended_rows": template_think_appended_rows,
+            "chat_template_compatibility_policy": (
+                "generation_blocks_to_no_output_jinja_comments"
+            ),
+            "chat_template_generation_tag_rows": (
+                chat_template_generation_tag_rows
+            ),
+            "loader_generation_tags_normalized": (
+                loader_generation_tags_normalized
+            ),
+            "thinking_context_capped_rows": thinking_context_capped_rows,
+            "thinking_finish_reason_counts": dict(
+                sorted(thinking_finish_reason_counts.items())
+            ),
+            "thinking_stop_status_counts": dict(
+                sorted(thinking_stop_status_counts.items())
+            ),
+            "thinking_stop_status_semantics": (
+                "finish_reason_stop_includes_stop_string_or_eog"
+                if thinking_enabled
+                else None
+            ),
+            "thinking_stop": ["</think>"] if thinking_enabled else None,
+            "answer_finish_reason_counts": dict(
+                sorted(answer_finish_reason_counts.items())
+            ),
             "answer_stop": None,
+            "raw_reasoning_persistence": (
+                "samples_jsonl_only" if thinking_enabled else None
+            ),
         },
         "selection_prefilter": {
             "applied": apply_prefilter,
@@ -676,6 +1119,10 @@ def main() -> int:
             if pocketfinancer_profile
             else "strict_research_parser",
             "strict_raw_metrics_also_reported": True,
+            "scored_generation_phase": "answer_only",
+            "raw_reasoning_location": (
+                "samples_jsonl_only" if thinking_enabled else None
+            ),
         },
         "parity_gaps": [
             "llama-cpp-python stop strings exclude </think>; Android JNI returns it",

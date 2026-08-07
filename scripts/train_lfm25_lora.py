@@ -9,6 +9,7 @@ available solely to reproduce earlier experiments.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import hashlib
 import importlib
 import json
@@ -19,6 +20,7 @@ import platform
 import random
 import statistics
 import sys
+import time
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -27,6 +29,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from lfm25.contract import parse_gold, parse_prediction  # noqa: E402
 from lfm25.prompts import extraction_messages  # noqa: E402
 from lfm25.prompts import PRODUCTION_SYSTEM_PROMPT  # noqa: E402
+from lfm25.provenance import fingerprint_named_files  # noqa: E402
 from lfm25.training_loss import LOSS_MODE, normalized_completion_cross_entropy  # noqa: E402
 
 LORA_TARGETS = ["in_proj", "q_proj", "k_proj", "v_proj", "out_proj", "w1", "w2", "w3"]
@@ -43,6 +46,31 @@ PROMPT_PROFILE_ALIASES = {
     "candidate_selector": "candidate_selector",
     "selector": "candidate_selector",
 }
+HF_CONFIG_ASSETS = (
+    "config.json",
+    "generation_config.json",
+)
+HF_TOKENIZER_ASSETS = (
+    "added_tokens.json",
+    "chat_template.jinja",
+    "merges.txt",
+    "special_tokens_map.json",
+    "tokenizer.json",
+    "tokenizer.model",
+    "tokenizer_config.json",
+    "vocab.json",
+    "vocab.txt",
+)
+HF_WEIGHT_PATTERNS = (
+    "*.safetensors",
+    "pytorch_model*.bin",
+)
+HF_WEIGHT_INDEX_PATTERNS = (
+    "*.safetensors.index.json",
+    "pytorch_model*.bin.index.json",
+)
+RESUME_PROVENANCE_FILENAME = "resume_provenance.json"
+RESUME_PROVENANCE_FORMAT = "lfm25_lora_resume_provenance_v1"
 
 
 def _sha256(path: Path) -> str:
@@ -51,6 +79,354 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def target_module_inventory(model: Any) -> dict[str, Any]:
+    """Return aggregate LoRA leaf-name coverage and reject an empty match."""
+
+    counts = Counter(
+        name.rsplit(".", 1)[-1]
+        for name, _module in model.named_modules()
+        if name and name.rsplit(".", 1)[-1] in LORA_TARGETS
+    )
+    inventory = {
+        "configured_leaf_names": list(LORA_TARGETS),
+        "matched_module_count": sum(counts.values()),
+        "matched_leaf_counts": {name: counts.get(name, 0) for name in LORA_TARGETS},
+    }
+    if inventory["matched_module_count"] <= 0:
+        raise RuntimeError("LoRA target inspection found no matching modules")
+    return inventory
+
+
+def _resolve_local_hf_root(model_spec: str | Path) -> Path:
+    candidate = Path(model_spec).expanduser()
+    if candidate.is_dir():
+        return candidate.resolve(strict=True)
+
+    try:
+        from transformers.utils import cached_file
+
+        cached_config = cached_file(
+            str(model_spec),
+            "config.json",
+            local_files_only=True,
+        )
+    except (OSError, ValueError) as error:
+        raise RuntimeError(
+            f"cannot resolve local Hugging Face model snapshot: {model_spec}"
+        ) from error
+    if cached_config is None:
+        raise RuntimeError(f"cannot resolve local Hugging Face model snapshot: {model_spec}")
+    return Path(cached_config).parent.resolve(strict=True)
+
+
+def _local_hf_model_provenance(model_spec: str | Path) -> dict[str, Any]:
+    """Fingerprint the exact local weights, indexes, config, and tokenizer assets."""
+
+    model_root = _resolve_local_hf_root(model_spec)
+    config_files = [name for name in HF_CONFIG_ASSETS if (model_root / name).is_file()]
+    tokenizer_files = [
+        name for name in HF_TOKENIZER_ASSETS if (model_root / name).is_file()
+    ]
+    weight_files = sorted(
+        {
+            path.name
+            for pattern in HF_WEIGHT_PATTERNS
+            for path in model_root.glob(pattern)
+            if path.is_file()
+        }
+    )
+    weight_index_files = sorted(
+        {
+            path.name
+            for pattern in HF_WEIGHT_INDEX_PATTERNS
+            for path in model_root.glob(pattern)
+            if path.is_file()
+        }
+    )
+    if "config.json" not in config_files:
+        raise RuntimeError(f"local Hugging Face model has no config.json: {model_root}")
+    if not tokenizer_files:
+        raise RuntimeError(f"local Hugging Face model has no tokenizer assets: {model_root}")
+    if not weight_files:
+        raise RuntimeError(f"local Hugging Face model has no weight files: {model_root}")
+
+    names = sorted({*config_files, *tokenizer_files, *weight_files, *weight_index_files})
+    evidence = fingerprint_named_files(model_root, names)
+    evidence.update(
+        {
+            "format": "local_hf_assets_v1",
+            "config_files": config_files,
+            "tokenizer_files": tokenizer_files,
+            "weight_files": weight_files,
+            "weight_index_files": weight_index_files,
+        }
+    )
+    return evidence
+
+
+def _trainer_state_provenance(trainer: Any) -> dict[str, Any]:
+    """Summarize best-checkpoint selection and final Trainer state."""
+
+    state = trainer.state
+    best_checkpoint = state.best_model_checkpoint
+    best_metric = state.best_metric
+    metric_name = str(trainer.args.metric_for_best_model)
+    if not metric_name.startswith("eval_"):
+        metric_name = f"eval_{metric_name}"
+
+    checkpoint_step: int | None = None
+    if best_checkpoint:
+        checkpoint_leaf = Path(str(best_checkpoint)).name
+        prefix = "checkpoint-"
+        if checkpoint_leaf.startswith(prefix):
+            try:
+                checkpoint_step = int(checkpoint_leaf[len(prefix) :])
+            except ValueError:
+                checkpoint_step = None
+
+    eval_entries = [
+        entry for entry in state.log_history if metric_name in entry and "step" in entry
+    ]
+    matching_entries = (
+        [entry for entry in eval_entries if int(entry["step"]) == checkpoint_step]
+        if checkpoint_step is not None
+        else []
+    )
+    if best_metric is not None:
+        metric_matches = [
+            entry
+            for entry in eval_entries
+            if math.isclose(
+                float(entry[metric_name]),
+                float(best_metric),
+                rel_tol=1e-12,
+                abs_tol=1e-12,
+            )
+        ]
+        if matching_entries:
+            exact_matches = [entry for entry in matching_entries if entry in metric_matches]
+            if exact_matches:
+                matching_entries = exact_matches
+        elif metric_matches:
+            matching_entries = metric_matches
+    best_eval_entry = matching_entries[-1] if matching_entries else None
+    best_eval_log = None
+    if best_eval_entry is not None:
+        best_eval_log = {
+            "metric_name": metric_name,
+            "metric_value": best_eval_entry[metric_name],
+            "epoch": best_eval_entry.get("epoch"),
+            "step": best_eval_entry["step"],
+        }
+
+    restored_checkpoint = getattr(trainer, "_restored_best_model_checkpoint", None)
+    restoration_completed = bool(
+        getattr(trainer, "_best_model_restoration_completed", False)
+    )
+    restored_best = bool(
+        trainer.args.load_best_model_at_end
+        and restoration_completed
+        and best_checkpoint
+        and str(restored_checkpoint) == str(best_checkpoint)
+    )
+    return {
+        "best_model_checkpoint": best_checkpoint,
+        "best_metric": best_metric,
+        "best_eval_log": best_eval_log,
+        "final_global_step": state.global_step,
+        "final_epoch": state.epoch,
+        "load_best_model_at_end": bool(trainer.args.load_best_model_at_end),
+        "restored_best_model_checkpoint": restored_checkpoint,
+        "load_best_model_at_end_restored_best_checkpoint": restored_best,
+    }
+
+
+def _training_arguments_provenance(training_args: Any) -> dict[str, Any]:
+    """Select manifest-safe values from the constructed TrainingArguments."""
+
+    def enum_value(value: Any) -> str:
+        return str(getattr(value, "value", value))
+
+    checkpointing_kwargs = training_args.gradient_checkpointing_kwargs or {}
+    return {
+        "optimizer": enum_value(training_args.optim),
+        "lr_scheduler_type": enum_value(training_args.lr_scheduler_type),
+        "max_grad_norm": float(training_args.max_grad_norm),
+        "bf16": bool(training_args.bf16),
+        "tf32": bool(training_args.tf32),
+        "gradient_checkpointing": bool(training_args.gradient_checkpointing),
+        "gradient_checkpointing_use_reentrant": checkpointing_kwargs.get("use_reentrant"),
+        "full_determinism": bool(training_args.full_determinism),
+        "eval_strategy": enum_value(training_args.eval_strategy),
+        "save_strategy": enum_value(training_args.save_strategy),
+        "per_device_eval_batch_size": int(training_args.per_device_eval_batch_size),
+    }
+
+
+def _resume_provenance(
+    args: argparse.Namespace,
+    training_args: Any,
+    *,
+    base_model_provenance: dict[str, Any],
+    train_sha256: str,
+    eval_sha256: str,
+    contract: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the immutable identity required to continue a saved checkpoint."""
+
+    return {
+        "format": RESUME_PROVENANCE_FORMAT,
+        "base_model_provenance": base_model_provenance,
+        "datasets": {
+            "train_sha256": train_sha256,
+            "eval_sha256": eval_sha256,
+        },
+        "contract": contract,
+        "training": {
+            "seed": args.seed,
+            "loss": {
+                "mode": args.loss_mode,
+                "causal_shift": True,
+                "ignore_index": -100,
+                "token_reduction": "weighted_mean_per_example",
+                "example_reduction": "sample_weighted_mean",
+                "first_supervised_token_weight": args.first_supervised_token_weight,
+            },
+            "lora": {
+                "rank": args.rank,
+                "alpha": args.alpha,
+                "dropout": args.dropout,
+                "target_modules": list(LORA_TARGETS),
+                "bias": "none",
+                "task_type": "CAUSAL_LM",
+            },
+            "optimization": {
+                "learning_rate": args.learning_rate,
+                "epochs_requested": args.epochs,
+                "batch_size": args.batch_size,
+                "eval_batch_size": args.eval_batch_size,
+                "gradient_accumulation": args.gradient_accumulation,
+                "max_length": args.max_length,
+                "prompt_profile": args.prompt_profile,
+                "warmup_ratio": args.warmup_ratio,
+                "warmup_steps": int(training_args.warmup_steps),
+                "weight_decay": args.weight_decay,
+                "early_stopping_patience": args.early_stopping_patience,
+                **_training_arguments_provenance(training_args),
+            },
+        },
+    }
+
+
+def _provenance_mismatch_paths(
+    expected: Any,
+    observed: Any,
+    *,
+    prefix: str = "",
+) -> list[str]:
+    """Return value-free field paths that differ between provenance records."""
+
+    if isinstance(expected, dict) and isinstance(observed, dict):
+        mismatches: list[str] = []
+        for key in sorted(set(expected) | set(observed)):
+            path = f"{prefix}.{key}" if prefix else str(key)
+            if key not in expected or key not in observed:
+                mismatches.append(path)
+                continue
+            mismatches.extend(
+                _provenance_mismatch_paths(expected[key], observed[key], prefix=path)
+            )
+        return mismatches
+    if isinstance(expected, list) and isinstance(observed, list):
+        if len(expected) != len(observed):
+            return [prefix or "<root>"]
+        mismatches = []
+        for index, (expected_item, observed_item) in enumerate(zip(expected, observed)):
+            path = f"{prefix}[{index}]" if prefix else f"[{index}]"
+            mismatches.extend(
+                _provenance_mismatch_paths(expected_item, observed_item, prefix=path)
+            )
+        return mismatches
+    return [] if expected == observed and type(expected) is type(observed) else [prefix or "<root>"]
+
+
+def _read_resume_provenance(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"invalid resume provenance metadata: {path}") from error
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"invalid resume provenance metadata: {path}")
+    return payload
+
+
+def _write_resume_provenance(
+    directory: str | Path,
+    provenance: dict[str, Any],
+) -> Path:
+    """Atomically write provenance without replacing an incompatible run identity."""
+
+    root = Path(directory).expanduser().resolve(strict=True)
+    if not root.is_dir():
+        raise RuntimeError(f"resume provenance destination is not a directory: {root}")
+    destination = root / RESUME_PROVENANCE_FILENAME
+    if destination.exists():
+        observed = _read_resume_provenance(destination)
+        mismatches = _provenance_mismatch_paths(provenance, observed)
+        if mismatches:
+            summary = ", ".join(mismatches[:12])
+            if len(mismatches) > 12:
+                summary += f", ... ({len(mismatches)} fields total)"
+            raise RuntimeError(
+                "refusing to replace incompatible resume provenance; "
+                f"mismatched fields: {summary}"
+            )
+        return destination
+
+    temporary = root / f".{RESUME_PROVENANCE_FILENAME}.{os.getpid()}.tmp"
+    try:
+        temporary.write_text(
+            json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, destination)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+    return destination
+
+
+def _validate_resume_checkpoint_provenance(
+    checkpoint: str | Path,
+    expected: dict[str, Any],
+) -> Path:
+    """Fail closed unless a checkpoint carries the exact current run identity."""
+
+    try:
+        resolved = Path(checkpoint).expanduser().resolve(strict=True)
+    except OSError as error:
+        raise RuntimeError(f"resume checkpoint does not exist: {checkpoint}") from error
+    if not resolved.is_dir():
+        raise RuntimeError(f"resume checkpoint is not a directory: {resolved}")
+    metadata_path = resolved / RESUME_PROVENANCE_FILENAME
+    if not metadata_path.is_file():
+        raise RuntimeError(
+            "resume checkpoint is missing required provenance metadata: "
+            f"{metadata_path}"
+        )
+    observed = _read_resume_provenance(metadata_path)
+    mismatches = _provenance_mismatch_paths(expected, observed)
+    if mismatches:
+        summary = ", ".join(mismatches[:12])
+        if len(mismatches) > 12:
+            summary += f", ... ({len(mismatches)} fields total)"
+        raise RuntimeError(
+            "resume checkpoint provenance does not match the current run; "
+            f"mismatched fields: {summary}"
+        )
+    return resolved
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -482,6 +858,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    run_started = time.perf_counter()
 
     os.environ.setdefault("WANDB_DISABLED", "true")
 
@@ -494,10 +871,16 @@ def main(argv: list[str] | None = None) -> int:
         AutoTokenizer,
         EarlyStoppingCallback,
         Trainer,
+        TrainerCallback,
         TrainingArguments,
     )
 
     class CompletionNormalizedTrainer(Trainer):
+        def __init__(self, *trainer_args, **trainer_kwargs):
+            super().__init__(*trainer_args, **trainer_kwargs)
+            self._best_model_restoration_completed = False
+            self._restored_best_model_checkpoint = None
+
         def compute_loss(
             self,
             model,
@@ -517,6 +900,23 @@ def main(argv: list[str] | None = None) -> int:
                 first_supervised_token_weight=args.first_supervised_token_weight,
             )
             return (loss, outputs) if return_outputs else loss
+
+        def _load_best_model(self):
+            super()._load_best_model()
+            self._best_model_restoration_completed = True
+            self._restored_best_model_checkpoint = self.state.best_model_checkpoint
+
+    class ResumeProvenanceCallback(TrainerCallback):
+        def __init__(self, provenance: dict[str, Any]):
+            self._provenance = provenance
+
+        def on_save(self, training_args, state, control, **kwargs):
+            del kwargs
+            checkpoint_dir = (
+                Path(training_args.output_dir) / f"checkpoint-{state.global_step}"
+            )
+            _write_resume_provenance(checkpoint_dir, self._provenance)
+            return control
 
     if not torch.cuda.is_available():
         raise SystemExit("CUDA is required for BF16 LoRA training")
@@ -558,7 +958,10 @@ def main(argv: list[str] | None = None) -> int:
         local_files_only=True,
         dtype=torch.bfloat16,
     )
+    base_model_provenance = _local_hf_model_provenance(args.model)
     model.config.use_cache = False
+    target_coverage = target_module_inventory(model)
+    print(json.dumps({"lora_target_preflight": target_coverage}, sort_keys=True))
     model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     model.enable_input_require_grads()
     lora_config = LoraConfig(
@@ -615,6 +1018,24 @@ def main(argv: list[str] | None = None) -> int:
         dataloader_num_workers=0,
         use_cache=False,
     )
+    train_sha256 = _sha256(args.train)
+    eval_sha256 = _sha256(args.eval)
+    resume_provenance = _resume_provenance(
+        args,
+        training_args,
+        base_model_provenance=base_model_provenance,
+        train_sha256=train_sha256,
+        eval_sha256=eval_sha256,
+        contract=contract,
+    )
+    if args.resume_from_checkpoint is not None:
+        args.resume_from_checkpoint = str(
+            _validate_resume_checkpoint_provenance(
+                args.resume_from_checkpoint,
+                resume_provenance,
+            )
+        )
+    _write_resume_provenance(args.output_dir, resume_provenance)
     trainer = CompletionNormalizedTrainer(
         model=model,
         args=training_args,
@@ -622,21 +1043,31 @@ def main(argv: list[str] | None = None) -> int:
         eval_dataset=eval_dataset,
         data_collator=CompletionCollator(tokenizer),
         processing_class=tokenizer,
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=args.early_stopping_patience)],
+        callbacks=[
+            EarlyStoppingCallback(early_stopping_patience=args.early_stopping_patience),
+            ResumeProvenanceCallback(resume_provenance),
+        ],
     )
+    training_started = time.perf_counter()
     train_result = trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
+    training_wall_time_seconds = time.perf_counter() - training_started
+    evaluation_started = time.perf_counter()
     eval_metrics = trainer.evaluate()
+    evaluation_wall_time_seconds = time.perf_counter() - evaluation_started
+    trainer_state = _trainer_state_provenance(trainer)
 
     adapter_dir = args.output_dir / "adapter"
     model.save_pretrained(adapter_dir, safe_serialization=True)
     tokenizer.save_pretrained(adapter_dir)
+    run_wall_time_seconds = time.perf_counter() - run_started
 
     manifest = {
         "base_model": str(Path(args.model).resolve()),
+        "base_model_provenance": base_model_provenance,
         "train_file": str(args.train.resolve()),
-        "train_sha256": _sha256(args.train),
+        "train_sha256": train_sha256,
         "eval_file": str(args.eval.resolve()),
-        "eval_sha256": _sha256(args.eval),
+        "eval_sha256": eval_sha256,
         "train_stats": train_dataset.stats,
         "eval_stats": eval_dataset.stats,
         "contract": contract,
@@ -664,6 +1095,7 @@ def main(argv: list[str] | None = None) -> int:
             "alpha": args.alpha,
             "dropout": args.dropout,
             "target_modules": LORA_TARGETS,
+            "target_module_coverage": target_coverage,
             "trainable_parameters": trainable,
             "total_parameters_with_adapter": total,
             "trainable_percent": round(100 * trainable / total, 6),
@@ -682,9 +1114,16 @@ def main(argv: list[str] | None = None) -> int:
             "warmup_steps": warmup_steps,
             "weight_decay": args.weight_decay,
             "early_stopping_patience": args.early_stopping_patience,
+            **_training_arguments_provenance(training_args),
         },
         "train_metrics": train_result.metrics,
         "eval_metrics": eval_metrics,
+        "trainer_state": trainer_state,
+        "timing": {
+            "run_wall_time_seconds_through_adapter_save": round(run_wall_time_seconds, 3),
+            "training_wall_time_seconds": round(training_wall_time_seconds, 3),
+            "final_evaluation_wall_time_seconds": round(evaluation_wall_time_seconds, 3),
+        },
         "peak_vram_mib": round(torch.cuda.max_memory_allocated() / 1024**2, 1),
         "environment": {
             "python": platform.python_version(),

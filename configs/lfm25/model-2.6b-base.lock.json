@@ -1,0 +1,28 @@
+{
+  "model": {
+    "repo": "LiquidAI/LFM2.5-2.6B-Base",
+    "revision": "78f33a52fbe65f7665963f482179dcc3e75f0d9e",
+    "architecture": "Lfm2ForCausalLM",
+    "model_type": "lfm2",
+    "parameters": 2697198592,
+    "dtype": "BF16",
+    "license_identifier_from_model_card": "lfm1.0",
+    "files": {
+      "LICENSE": "4d28ca14dedc0b3d0fcc2b3339f0e79931faa33874f3d24f522183a8fc70068c",
+      "README.md": "0edf059a28863c99fb1d80d07cf12b4cfcbc05c122df5eb27ebe1bb8895cc29f",
+      "chat_template.jinja": "46cd92afe7fee81fc1d71c19a140fd74d89e5e971b272230c5444475aa1b0bf9",
+      "config.json": "d895ced7075e30746708407cf788b89af692794a8ab53d5582f005d51f783d8c",
+      "generation_config.json": "8b9c36bf5e4c8a8254ec8292914834faa69b295a1e98e0fd93e3025a466730a6",
+      "model.safetensors": "3331a7db7672c4d6feb91352ae17bc62ae8b6b3263b4c290886ac452402e0551",
+      "tokenizer.json": "c4687c0046da6579aba6f9aa713e9bed61e5fd210b0e012028ae57751d028689",
+      "tokenizer_config.json": "11f1de897317b489dd09199284528382eeb17f566398b16e2039bb2266d26b09"
+    }
+  },
+  "runtime": {
+    "python": "3.11.14",
+    "torch": "2.6.0+cu124",
+    "transformers": "5.6.2",
+    "peft": "0.20.0",
+    "llama_cpp_python": "0.3.20"
+  }
+}

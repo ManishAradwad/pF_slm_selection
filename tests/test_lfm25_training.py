@@ -1,5 +1,7 @@
+from copy import deepcopy
 import json
 import math
+from types import SimpleNamespace
 
 import pytest
 
@@ -9,11 +11,19 @@ from lfm25.training_loss import normalized_completion_cross_entropy
 from scripts.train_lfm25_lora import (
     ANDROID_CONTEXT_LENGTH,
     LEGACY_MAX_LENGTH,
+    RESUME_PROVENANCE_FILENAME,
     CompletionCollator,
     CompletionDataset,
     OverlengthDatasetError,
+    _local_hf_model_provenance,
     _messages,
+    _resume_provenance,
+    _training_arguments_provenance,
+    _trainer_state_provenance,
+    _validate_resume_checkpoint_provenance,
+    _write_resume_provenance,
     parse_args,
+    target_module_inventory,
 )
 
 
@@ -177,3 +187,257 @@ def test_loss_ignores_zero_weight_examples_and_rejects_empty_supervision() -> No
     assert weighted.item() == pytest.approx(math.log1p(math.exp(-4.0)), abs=1e-7)
     with pytest.raises(ValueError, match="at least one supervised"):
         normalized_completion_cross_entropy(logits, torch.full_like(labels, -100))
+
+
+def test_target_inventory_reports_aggregate_leaf_coverage_and_rejects_none() -> None:
+    class FakeModel:
+        @staticmethod
+        def named_modules():
+            return iter(
+                (
+                    ("", object()),
+                    ("model.layers.0.in_proj", object()),
+                    ("model.layers.1.in_proj", object()),
+                    ("model.layers.1.q_proj", object()),
+                    ("model.layers.1.unrelated", object()),
+                )
+            )
+
+    inventory = target_module_inventory(FakeModel())
+
+    assert inventory["matched_module_count"] == 3
+    assert inventory["matched_leaf_counts"]["in_proj"] == 2
+    assert inventory["matched_leaf_counts"]["q_proj"] == 1
+    assert "model.layers.0.in_proj" not in str(inventory)
+
+    with pytest.raises(RuntimeError, match="no matching modules"):
+        target_module_inventory(SimpleNamespace(named_modules=lambda: iter((("", object()),))))
+
+
+def test_local_hf_provenance_hashes_shards_index_config_and_tokenizer(tmp_path) -> None:
+    assets = {
+        "config.json": "{}",
+        "generation_config.json": "{}",
+        "tokenizer.json": "tokenizer",
+        "tokenizer_config.json": "{}",
+        "chat_template.jinja": "{{ messages }}",
+        "model-00001-of-00002.safetensors": "first",
+        "model-00002-of-00002.safetensors": "second",
+        "model.safetensors.index.json": "{}",
+    }
+    for name, content in assets.items():
+        (tmp_path / name).write_text(content, encoding="utf-8")
+
+    provenance = _local_hf_model_provenance(tmp_path)
+
+    assert provenance["format"] == "local_hf_assets_v1"
+    assert set(provenance["files"]) == set(assets)
+    assert provenance["weight_files"] == [
+        "model-00001-of-00002.safetensors",
+        "model-00002-of-00002.safetensors",
+    ]
+    assert provenance["weight_index_files"] == ["model.safetensors.index.json"]
+    assert all("sha256" in item for item in provenance["files"].values())
+
+
+def test_trainer_state_provenance_links_best_log_and_restoration_to_checkpoint() -> None:
+    best_checkpoint = "/tmp/run/checkpoint-10"
+    trainer = SimpleNamespace(
+        args=SimpleNamespace(
+            metric_for_best_model="eval_loss",
+            load_best_model_at_end=True,
+        ),
+        state=SimpleNamespace(
+            best_model_checkpoint=best_checkpoint,
+            best_metric=0.25,
+            global_step=15,
+            epoch=3.0,
+            log_history=[
+                {"eval_loss": 0.4, "epoch": 1.0, "step": 5},
+                {"eval_loss": 0.25, "epoch": 2.0, "step": 10},
+                {"eval_loss": 0.3, "epoch": 3.0, "step": 15},
+                {"eval_loss": 0.25, "epoch": 3.0, "step": 15},
+            ],
+        ),
+        _best_model_restoration_completed=True,
+        _restored_best_model_checkpoint=best_checkpoint,
+    )
+
+    provenance = _trainer_state_provenance(trainer)
+
+    assert provenance["best_model_checkpoint"] == best_checkpoint
+    assert provenance["best_metric"] == 0.25
+    assert provenance["best_eval_log"] == {
+        "metric_name": "eval_loss",
+        "metric_value": 0.25,
+        "epoch": 2.0,
+        "step": 10,
+    }
+    assert provenance["final_global_step"] == 15
+    assert provenance["final_epoch"] == 3.0
+    assert provenance["load_best_model_at_end_restored_best_checkpoint"] is True
+
+
+def test_training_arguments_provenance_uses_constructed_values() -> None:
+    training_args = SimpleNamespace(
+        optim=SimpleNamespace(value="adafactor"),
+        lr_scheduler_type=SimpleNamespace(value="linear"),
+        max_grad_norm=0.75,
+        bf16=False,
+        tf32=True,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": True},
+        full_determinism=False,
+        eval_strategy=SimpleNamespace(value="steps"),
+        save_strategy=SimpleNamespace(value="steps"),
+        per_device_eval_batch_size=3,
+    )
+
+    assert _training_arguments_provenance(training_args) == {
+        "optimizer": "adafactor",
+        "lr_scheduler_type": "linear",
+        "max_grad_norm": 0.75,
+        "bf16": False,
+        "tf32": True,
+        "gradient_checkpointing": True,
+        "gradient_checkpointing_use_reentrant": True,
+        "full_determinism": False,
+        "eval_strategy": "steps",
+        "save_strategy": "steps",
+        "per_device_eval_batch_size": 3,
+    }
+
+
+def _resume_record() -> dict:
+    args = parse_args(_required_cli())
+    training_args = SimpleNamespace(
+        warmup_steps=4,
+        optim=SimpleNamespace(value="adamw_torch"),
+        lr_scheduler_type=SimpleNamespace(value="cosine"),
+        max_grad_norm=1.0,
+        bf16=True,
+        tf32=True,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
+        full_determinism=True,
+        eval_strategy=SimpleNamespace(value="epoch"),
+        save_strategy=SimpleNamespace(value="epoch"),
+        per_device_eval_batch_size=args.eval_batch_size,
+    )
+    return _resume_provenance(
+        args,
+        training_args,
+        base_model_provenance={
+            "format": "local_hf_assets_v1",
+            "files": {
+                "config.json": {
+                    "bytes": 2,
+                    "sha256": "base-config-sha256",
+                }
+            },
+        },
+        train_sha256="train-sha256",
+        eval_sha256="eval-sha256",
+        contract={
+            "profile": "android",
+            "contract": "pocketfinancer_android",
+            "prompt_sha256": "prompt-sha256",
+        },
+    )
+
+
+def test_resume_provenance_covers_model_data_contract_and_material_training_settings() -> None:
+    provenance = _resume_record()
+
+    assert provenance["base_model_provenance"]["files"]["config.json"]["sha256"] == (
+        "base-config-sha256"
+    )
+    assert provenance["datasets"] == {
+        "train_sha256": "train-sha256",
+        "eval_sha256": "eval-sha256",
+    }
+    assert provenance["contract"]["prompt_sha256"] == "prompt-sha256"
+    assert provenance["training"]["loss"]["first_supervised_token_weight"] == 3.0
+    assert provenance["training"]["lora"] == {
+        "rank": 16,
+        "alpha": 32,
+        "dropout": 0.05,
+        "target_modules": [
+            "in_proj",
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "out_proj",
+            "w1",
+            "w2",
+            "w3",
+        ],
+        "bias": "none",
+        "task_type": "CAUSAL_LM",
+    }
+    optimization = provenance["training"]["optimization"]
+    assert optimization["learning_rate"] == 2e-4
+    assert optimization["epochs_requested"] == 12.0
+    assert optimization["warmup_steps"] == 4
+    assert optimization["optimizer"] == "adamw_torch"
+
+
+def test_resume_checkpoint_requires_provenance_and_accepts_exact_match(tmp_path) -> None:
+    checkpoint = tmp_path / "checkpoint-5"
+    checkpoint.mkdir()
+    provenance = _resume_record()
+
+    with pytest.raises(RuntimeError, match="missing required provenance"):
+        _validate_resume_checkpoint_provenance(checkpoint, provenance)
+
+    written = _write_resume_provenance(checkpoint, provenance)
+
+    assert written == checkpoint / RESUME_PROVENANCE_FILENAME
+    assert _validate_resume_checkpoint_provenance(checkpoint, provenance) == checkpoint.resolve()
+
+
+@pytest.mark.parametrize(
+    ("field_path", "replacement"),
+    [
+        (("base_model_provenance", "files", "config.json", "sha256"), "other-base"),
+        (("datasets", "train_sha256"), "other-train"),
+        (("datasets", "eval_sha256"), "other-eval"),
+        (("contract", "prompt_sha256"), "other-prompt"),
+        (("training", "lora", "rank"), 8),
+        (("training", "optimization", "learning_rate"), 1e-4),
+    ],
+)
+def test_resume_checkpoint_rejects_each_provenance_class(
+    tmp_path,
+    field_path,
+    replacement,
+) -> None:
+    checkpoint = tmp_path / "checkpoint-5"
+    checkpoint.mkdir()
+    expected = _resume_record()
+    observed = deepcopy(expected)
+    target = observed
+    for key in field_path[:-1]:
+        target = target[key]
+    target[field_path[-1]] = replacement
+    (checkpoint / RESUME_PROVENANCE_FILENAME).write_text(
+        json.dumps(observed),
+        encoding="utf-8",
+    )
+
+    expected_path = ".".join(field_path)
+    with pytest.raises(RuntimeError, match="does not match") as caught:
+        _validate_resume_checkpoint_provenance(checkpoint, expected)
+    assert expected_path in str(caught.value)
+
+
+def test_resume_provenance_writer_refuses_to_replace_incompatible_identity(tmp_path) -> None:
+    output_dir = tmp_path / "run"
+    output_dir.mkdir()
+    expected = _resume_record()
+    _write_resume_provenance(output_dir, expected)
+    incompatible = deepcopy(expected)
+    incompatible["training"]["seed"] = 99
+
+    with pytest.raises(RuntimeError, match="refusing to replace incompatible"):
+        _write_resume_provenance(output_dir, incompatible)

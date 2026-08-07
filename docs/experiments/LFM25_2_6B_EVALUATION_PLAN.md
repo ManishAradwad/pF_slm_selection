@@ -1,3 +1,6 @@
+> **Execution update (2026-08-05):** This proposal has been executed.
+> [The completed run report](POCKETFINANCER_LFM25_2_6B_R16_S17.md) supersedes it for results and decisions; the original plan is preserved below.
+
 # Future LFM2.5-2.6B evaluation plan
 
 Status: proposed only; no model download, baseline, or fine-tuning run has been

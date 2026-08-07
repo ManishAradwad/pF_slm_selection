@@ -1,11 +1,23 @@
 {
   "schema_version": 1,
-  "status": "candidate_not_downloaded",
+  "status": "evaluated_local_diagnostic_only",
   "recorded_at": "2026-08-05",
+  "locks": {
+    "post_trained": "configs/lfm25/model-2.6b-post.lock.json",
+    "base": "configs/lfm25/model-2.6b-base.lock.json"
+  },
+  "artifacts": {
+    "weights": "local_only",
+    "gitignored": true
+  },
+  "support": {
+    "android": false,
+    "deployment": false
+  },
   "post_trained": {
     "model_id": "LiquidAI/LFM2.5-2.6B",
     "revision": "dca1825886789bd40b94368f53b1d9ada4c94598",
-    "parameters": 2690000000,
+    "parameters": 2697198592,
     "context_length": 131072,
     "vocabulary_size": 128000,
     "library": "transformers",
@@ -14,7 +26,8 @@
   },
   "base": {
     "model_id": "LiquidAI/LFM2.5-2.6B-Base",
-    "revision": null
+    "revision": "78f33a52fbe65f7665963f482179dcc3e75f0d9e",
+    "parameters": 2697198592
   },
   "gguf": {
     "repo_id": "LiquidAI/LFM2.5-2.6B-GGUF",
