@@ -51,19 +51,48 @@ an Android device, and is not Android runtime-performance evidence.
 |---|---|
 | `python scripts/review_lfm25_blinded_test.py export` | Freeze all test rows into a reviewer-blind, test-only local package |
 | `python scripts/review_lfm25_blinded_test.py validate` | Validate complete or resumable partial human annotations without writing outputs |
-| `python scripts/review_lfm25_blinded_test.py import` | Write completed labels to a separate reviewed manifest plus aggregate-only report |
+| `python scripts/run_lfm25_annotation_workbench.py blinded --reviewer <stable-id> --batch-size 50` | Review the frozen test package in a strictly local browser and durable blinded-test database |
+| `python scripts/run_lfm25_annotation_workbench.py training --reviewer <stable-id> --pool <private-jsonl> --batch-size 50` | Curate an explicit train/dev-only pool in an isolated local database |
+| `python scripts/run_lfm25_annotation_workbench.py export-training --reviewer <stable-id> --pool <private-jsonl>` | Export reviewed training curation plus an aggregate-only report without overwriting nonempty outputs |
+| `python scripts/review_lfm25_blinded_test.py import --workbench-db PRIVATE_DATA/lfm25/annotation_workbench/blinded_test.sqlite3` | Write completed test labels only after the durable workbench and required delayed-QC gate pass |
+| `python scripts/evaluate_lfm25_components.py --input DATA/annotation_component_v1_synthetic.jsonl --dry-run` | Validate the invented paired fixture and print aggregate component metrics only |
 | `python scripts/build_lfm25_private_sft_v2.py` | Rebuild the private source-grounded direct SFT set |
 | `python scripts/build_lfm25_candidate_sft.py` | Convert grounded direct rows to candidate-selector rows |
 | `python scripts/build_lfm25_candidate_curriculum.py` | Build low-weight semantic curriculum and mixed training data |
 | `python scripts/audit_lfm25_candidate_coverage.py` | Audit deterministic candidate coverage without training |
 
-The blinded workflow writes only below ignored `PRIVATE_DATA/lfm25`. Give reviewers
-only `blinded_test_review.jsonl`; the ID map and provenance metadata are internal.
-Untouched rows stay blank so review can resume later. Import never edits the frozen
-`split_manifest.jsonl`: it writes `split_manifest_human_reviewed.jsonl` and an
-aggregate report separately. Existing nonempty outputs require an explicit
-`--force`. Package metadata and the import report are committed last as validity
-markers; a detected source change rolls the group back to its prior state.
+The workbench binds only to `127.0.0.1`; do not tunnel or share its URL. It writes
+state and rolling backups only below ignored `PRIVATE_DATA/lfm25`. Relaunch with
+the same mode, reviewer, database, batch size, and (for training) pool to resume.
+
+Training mode's generic `active_learning` filter deterministically prioritizes the
+ten documented category classes from the frozen pool/order, never from test. It
+hides the applicable category reasons until the first complete blind label; after
+completion the UI can show those local reasons, while proposal details still
+require an explicit **Reveal proposal** action.
+After all primary rows are complete and uncertainty is resolved, use **Start
+delayed QC pass** in the UI; a later relaunch of the same database resumes that QC
+session. Pending QC hides the previous annotation and event history; actionable
+initial/QC/adjudication history appears only after that blindness lifts. See the
+[local workbench operating guide](../docs/guides/LOCAL_ANNOTATION_WORKBENCH.md) for
+the ten category definitions, 50-row attention boundary, recovery command, and
+final gates.
+
+Give reviewers only `blinded_test_review.jsonl`; the ID map and provenance
+metadata are internal. Import never edits the frozen `split_manifest.jsonl`: it
+writes `split_manifest_human_reviewed.jsonl` and an aggregate report separately.
+It now requires the matching completed workbench database, no unresolved rows,
+and every required delayed-QC row to have passed. Existing nonempty outputs require
+an explicit `--force`. Package metadata and the import report are committed last
+as validity markers; a detected source change rolls the group back to its prior
+state.
+
+The final blinded reviewed manifest and reviewed training export preserve a
+`human_annotation_workbench` object with the generic annotation and event
+provenance. Private component-evaluation builders may pass its `annotation` field
+to `lfm25.component_evaluation.adapt_workbench_annotation(...)`; raw source rows,
+annotations, spans, event hashes, and per-row results must stay out of console
+output and Git.
 
 For each completed row, set `decision` to `transaction` or `not_transaction`,
 then fill `reviewer` and an ISO-8601 `reviewed_at` timestamp with a timezone.
@@ -71,6 +100,11 @@ Transactions also require a numeric `amount`, `type` (`debit` or `credit`), and
 nonempty `account`; `counterparty` may be null. Non-transactions keep all four
 extraction fields null. Leave every annotation field null on untouched rows;
 `notes` is optional only after a decision is complete.
+
+Never put raw messages, spans, notes, row-level output, or screenshots in a
+terminal transcript, issue, pull request, or documentation. The workbench and
+component evaluator intentionally emit aggregate/status JSON only; keep their
+private inputs and outputs local.
 
 The filenames preserve compatibility with historical manifests. Dataset status and
 actual semantic versions are recorded in [the experiment catalog](../docs/experiments/EXPERIMENT_CATALOG.md).

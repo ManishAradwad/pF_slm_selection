@@ -34,6 +34,7 @@ GRANDFATHERED_PATHS = frozenset(
 VERSIONED_PUBLIC_ARTIFACT_PATHS = frozenset(
     {
         "DATA/candidate_protocol_v1_golden.json",
+        "DATA/annotation_component_v1_synthetic.jsonl",
         "configs/contracts/pocketfinancer-candidate-v1.json",
         "configs/pipelines/pocketfinancer-lfm2.5-350m-candidate-v1.json",
     }

@@ -10,18 +10,27 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
+import os
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Mapping, Sequence
 
+from .annotation_workbench import (
+    DEFAULT_BLINDED_DB,
+    WORKBENCH_CONTRACT,
+    WORKBENCH_SCHEMA_VERSION,
+    exact_json_dumps,
+    exact_json_loads,
+    validate_annotation,
+)
 from .private_data import (
     PrivateDataError,
     _atomic_write_json,
     _atomic_write_jsonl,
-    canonical_label,
     ensure_within,
     file_sha256,
     read_jsonl,
@@ -38,6 +47,7 @@ DEFAULT_MAPPING_FILE = PRIVATE_ROOT / "blinded_test_review_internal_map.jsonl"
 DEFAULT_METADATA_FILE = PRIVATE_ROOT / "blinded_test_review_metadata.json"
 DEFAULT_REVIEWED_MANIFEST = PRIVATE_ROOT / "split_manifest_human_reviewed.jsonl"
 DEFAULT_IMPORT_REPORT = PRIVATE_ROOT / "blinded_test_review_import_report.json"
+DEFAULT_WORKBENCH_DB = DEFAULT_BLINDED_DB
 
 REVIEW_FIELDS = (
     "review_id",
@@ -170,10 +180,49 @@ def resolve_review_paths(
 
 
 def _jsonl_bytes(rows: Sequence[Mapping[str, Any]]) -> bytes:
-    return "".join(
-        json.dumps(dict(row), ensure_ascii=False, separators=(",", ":")) + "\n"
-        for row in rows
-    ).encode("utf-8")
+    return "".join(exact_json_dumps(dict(row)) + "\n" for row in rows).encode("utf-8")
+
+
+def _read_exact_jsonl(path: Path) -> list[dict[str, Any]]:
+    """Read reviewer JSONL while preserving fractional numbers as Decimal."""
+
+    rows: list[dict[str, Any]] = []
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for row_number, line in enumerate(handle, start=1):
+                if not line.strip():
+                    continue
+                value = exact_json_loads(line)
+                if not isinstance(value, dict):
+                    raise BlindedReviewError(f"reviewer-facing row {row_number} is not an object")
+                rows.append(value)
+    except BlindedReviewError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise BlindedReviewError("the reviewer-facing annotation file could not be parsed") from exc
+    return rows
+
+
+def _atomic_write_exact_jsonl(
+    path: Path,
+    rows: Sequence[Mapping[str, Any]],
+) -> None:
+    """Atomically write JSONL without converting Decimal values through float."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(_jsonl_bytes(rows))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_name, path)
+    except BaseException:
+        try:
+            os.unlink(temporary_name)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def _sha256_bytes(value: bytes) -> str:
@@ -495,6 +544,37 @@ def _valid_reviewed_at(value: Any) -> bool:
     return parsed.tzinfo is not None and parsed.utcoffset() is not None
 
 
+def _canonical_review_label(row: Mapping[str, Any]) -> dict[str, Any]:
+    invalid_message = "a review row contains an invalid canonical transaction label"
+    amount = row["amount"]
+    if isinstance(amount, bool) or not isinstance(amount, (int, float, Decimal)):
+        raise BlindedReviewError(invalid_message)
+    try:
+        exact_amount = Decimal(str(amount)) if isinstance(amount, float) else Decimal(amount)
+    except (TypeError, ValueError):
+        raise BlindedReviewError(invalid_message) from None
+    if not exact_amount.is_finite() or exact_amount <= 0:
+        raise BlindedReviewError(invalid_message)
+    counterparty = row["counterparty"]
+    account = row["account"]
+    if (
+        (
+            counterparty is not None
+            and (not isinstance(counterparty, str) or not counterparty.strip())
+        )
+        or row["type"] not in {"debit", "credit"}
+        or not isinstance(account, str)
+        or not account.strip()
+    ):
+        raise BlindedReviewError(invalid_message)
+    return {
+        "amount": exact_amount,
+        "counterparty": counterparty,
+        "type": row["type"],
+        "account": account,
+    }
+
+
 def _validate_annotation(row: Mapping[str, Any]) -> ReviewAnnotation:
     review_id = str(row["review_id"])
     decision = row["decision"]
@@ -520,16 +600,7 @@ def _validate_annotation(row: Mapping[str, Any]) -> ReviewAnnotation:
             )
         label = None
     else:
-        try:
-            label = canonical_label({field: row[field] for field in _EXTRACTION_FIELDS})
-        except PrivateDataError as exc:
-            raise BlindedReviewError(
-                "a review row contains an invalid canonical transaction label"
-            ) from exc
-        if label is None or not math.isfinite(float(label["amount"])):
-            raise BlindedReviewError(
-                "a review row contains an invalid canonical transaction label"
-            )
+        label = _canonical_review_label(row)
     return ReviewAnnotation(review_id, str(decision), label, reviewer, reviewed_at, notes)
 
 
@@ -605,7 +676,7 @@ def _validate_package(repo_root: Path, paths: ReviewPaths) -> _ValidatedPackage:
         raise BlindedReviewError("the blinded-review template provenance is invalid")
     _validate_mapping(mapping_rows, expected_mapping)
     source_by_hash = {str(record["record_hash"]): record for record in test_records}
-    review_rows = read_jsonl(paths.review_file)
+    review_rows = _read_exact_jsonl(paths.review_file)
     annotations = _validate_review_rows(review_rows, mapping_rows, source_by_hash)
 
     completed = [annotation for annotation in annotations if annotation.completed]
@@ -662,7 +733,77 @@ def run_validate(
     return dict(_validate_package(repo_root, paths).report)
 
 
-def _merge_annotations(package: _ValidatedPackage) -> list[dict[str, Any]]:
+def _load_workbench_annotations_for_import(
+    repo_root: Path,
+    package: _ValidatedPackage,
+    db_path: Path,
+) -> dict[str, dict[str, Any]]:
+    from .annotation_sources import load_blinded_workspace
+    from .annotation_store import WorkbenchStore
+
+    definition = load_blinded_workspace(
+        repo_root,
+        source_manifest=package.paths.source_manifest,
+        review_file=package.paths.review_file,
+        mapping_file=package.paths.mapping_file,
+        metadata_file=package.paths.metadata_file,
+        include_initial_annotations=False,
+    )
+    result: dict[str, dict[str, Any]] = {}
+    with WorkbenchStore(
+        db_path,
+        workspace_binding=definition.binding,
+    ) as store:
+        rows = store.get_rows(limit=definition.row_count + 1)
+        if len(rows) != definition.row_count:
+            raise BlindedReviewError("workbench provenance row count does not match")
+        for stored, mapping in zip(
+            rows,
+            package.mapping_rows,
+            strict=True,
+        ):
+            if stored["row_id"] != mapping["review_id"]:
+                raise BlindedReviewError("workbench provenance ordering does not match")
+            if stored["status"] != "completed":
+                raise BlindedReviewError("workbench provenance is incomplete")
+            fields = stored["reviewer_fields"]
+            annotation = validate_annotation(
+                stored["annotation"],
+                str(fields["sms"]),
+                require_complete=True,
+            )
+            history = store.get_history(str(stored["row_id"]))
+            if not history:
+                raise BlindedReviewError("workbench provenance history is missing")
+            record_hash = str(mapping["record_hash"])
+            result[record_hash] = {
+                "contract": WORKBENCH_CONTRACT,
+                "schema_version": WORKBENCH_SCHEMA_VERSION,
+                "annotation": annotation,
+                "reviewer": stored["reviewer"],
+                "reviewed_at": stored["recorded_at"],
+                "blind_first_event_hash": stored["initial_event_hash"],
+                "final_event_hash": history[-1]["event_hash"],
+                "final_phase": stored["phase"],
+                "history_event_count": len(history),
+                "qc_required": stored["qc_required"],
+                "qc_status": stored["qc_status"],
+                "qc_event_hash": stored["qc_event_hash"],
+                "qc_for_initial_hash": stored["qc_for_initial_hash"],
+            }
+    expected_hashes = {
+        str(mapping["record_hash"])
+        for mapping in package.mapping_rows
+    }
+    if set(result) != expected_hashes:
+        raise BlindedReviewError("workbench provenance identity set does not match")
+    return result
+
+
+def _merge_annotations(
+    package: _ValidatedPackage,
+    workbench_annotations: Mapping[str, Mapping[str, Any]],
+) -> list[dict[str, Any]]:
     annotation_by_hash = {
         str(mapping["record_hash"]): annotation
         for mapping, annotation in zip(
@@ -674,14 +815,19 @@ def _merge_annotations(package: _ValidatedPackage) -> list[dict[str, Any]]:
     merged: list[dict[str, Any]] = []
     for source in package.source_records:
         row = dict(source)
-        annotation = annotation_by_hash.get(str(source["record_hash"]))
+        record_hash = str(source["record_hash"])
+        annotation = annotation_by_hash.get(record_hash)
         if annotation is not None and annotation.completed:
+            workbench = workbench_annotations.get(record_hash)
+            if workbench is None:
+                raise BlindedReviewError("workbench annotation provenance is missing")
             row["review_status"] = "human_approved"
             row["human_review_required"] = True
             row["human_label"] = annotation.label
             row["human_reviewer"] = annotation.reviewer
             row["human_reviewed_at"] = annotation.reviewed_at
             row["human_review_notes"] = annotation.notes
+            row["human_annotation_workbench"] = dict(workbench)
         merged.append(row)
     return merged
 
@@ -695,6 +841,7 @@ def run_import(
     metadata_file: Path = DEFAULT_METADATA_FILE,
     reviewed_manifest: Path = DEFAULT_REVIEWED_MANIFEST,
     import_report: Path = DEFAULT_IMPORT_REPORT,
+    workbench_db: Path = DEFAULT_WORKBENCH_DB,
     force: bool = False,
 ) -> dict[str, Any]:
     """Validate annotations and write a separate reviewed manifest and report."""
@@ -709,8 +856,47 @@ def run_import(
         import_report=import_report,
     )
     package = _validate_package(repo_root, paths)
+    if not package.report["ready_for_evaluation"]:
+        raise BlindedReviewError(
+            "final import requires every reviewer-facing annotation to be completed"
+        )
+    resolved_workbench_db = _resolve_path(repo_root, paths.private_root, workbench_db)
+    if resolved_workbench_db in vars(paths).values():
+        raise BlindedReviewError(
+            "the workbench database must be distinct from review package artifacts"
+        )
+    if not resolved_workbench_db.is_file() or resolved_workbench_db.stat().st_size == 0:
+        raise BlindedReviewError("the blinded-test workbench database is missing or empty")
     _require_replaceable((paths.reviewed_manifest, paths.import_report), force)
-    merged = _merge_annotations(package)
+    from .annotation_service import validate_blinded_import_gate
+
+    gate_report = validate_blinded_import_gate(
+        repo_root,
+        db_path=resolved_workbench_db,
+        source_manifest=paths.source_manifest,
+        review_file=paths.review_file,
+        mapping_file=paths.mapping_file,
+        metadata_file=paths.metadata_file,
+    )
+    qc_required_rows = gate_report.get("qc_required_rows")
+    if (
+        gate_report.get("valid") is not True
+        or gate_report.get("ready_for_import") is not True
+        or gate_report.get("completed_rows") != len(package.annotations)
+        or gate_report.get("pending_rows") != 0
+        or gate_report.get("unresolved_uncertain_rows") != 0
+        or isinstance(qc_required_rows, bool)
+        or not isinstance(qc_required_rows, int)
+        or qc_required_rows < 0
+        or gate_report.get("qc_passed_rows") != qc_required_rows
+    ):
+        raise BlindedReviewError("the blinded-test workbench final import gate did not pass")
+    workbench_annotations = _load_workbench_annotations_for_import(
+        repo_root,
+        package,
+        resolved_workbench_db,
+    )
+    merged = _merge_annotations(package, workbench_annotations)
     with TemporaryDirectory(
         prefix=".blinded-review-import.",
         dir=paths.private_root,
@@ -718,7 +904,7 @@ def run_import(
         staging = Path(temporary_name)
         staged_manifest = staging / paths.reviewed_manifest.name
         staged_report = staging / paths.import_report.name
-        _atomic_write_jsonl(staged_manifest, merged)
+        _atomic_write_exact_jsonl(staged_manifest, merged)
         reviewed_hash = file_sha256(staged_manifest)
         report = dict(package.report)
         report.update(
@@ -728,6 +914,12 @@ def run_import(
                 "reviewed_manifest_sha256": reviewed_hash,
                 "source_manifest_sha256": package.source_manifest_sha256,
                 "source_manifest_unchanged": True,
+                "workbench_gate_passed": True,
+                "workbench_annotation_contract": WORKBENCH_CONTRACT,
+                "workbench_annotation_rows": len(workbench_annotations),
+                "unresolved_uncertain_rows": gate_report["unresolved_uncertain_rows"],
+                "qc_required_rows": gate_report["qc_required_rows"],
+                "qc_passed_rows": gate_report["qc_passed_rows"],
             }
         )
         _atomic_write_json(staged_report, report)
@@ -761,6 +953,12 @@ def safe_console_summary(report: Mapping[str, Any]) -> dict[str, Any]:
         "transaction_rows",
         "not_transaction_rows",
         "ready_for_evaluation",
+        "workbench_gate_passed",
+        "workbench_annotation_contract",
+        "workbench_annotation_rows",
+        "unresolved_uncertain_rows",
+        "qc_required_rows",
+        "qc_passed_rows",
         "wrote_files",
         "source_manifest_unchanged",
     )

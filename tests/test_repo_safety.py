@@ -62,6 +62,7 @@ def test_explicit_legacy_paths_are_allowed() -> None:
 def test_versioned_candidate_protocol_artifacts_have_exact_exceptions() -> None:
     paths = [
         "DATA/candidate_protocol_v1_golden.json",
+        "DATA/annotation_component_v1_synthetic.jsonl",
         "configs/contracts/pocketfinancer-candidate-v1.json",
         "configs/pipelines/pocketfinancer-lfm2.5-350m-candidate-v1.json",
     ]
@@ -70,6 +71,7 @@ def test_versioned_candidate_protocol_artifacts_have_exact_exceptions() -> None:
 
     near_misses = [
         "DATA/candidate_protocol_v1_golden-copy.json",
+        "DATA/annotation_component_v1_synthetic-copy.jsonl",
         "configs/contracts/pocketfinancer-candidate-v1-copy.json",
         "configs/pipelines/pocketfinancer-lfm2.5-350m-candidate-v1-copy.json",
     ]
@@ -78,6 +80,7 @@ def test_versioned_candidate_protocol_artifacts_have_exact_exceptions() -> None:
         Violation(near_misses[0], "raw export"),
         Violation(near_misses[1], "raw export"),
         Violation(near_misses[2], "raw export"),
+        Violation(near_misses[3], "raw export"),
     ]
 
 

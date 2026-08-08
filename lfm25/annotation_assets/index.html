@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>PocketFinancer Local Annotation Workbench</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">PocketFinancer · strictly local</p>
+        <h1>Annotation Workbench</h1>
+      </div>
+      <div class="save-state" id="save-state" role="status" aria-live="polite">Loading…</div>
+    </header>
+
+    <main>
+      <section class="dashboard" aria-label="Progress dashboard">
+        <div><span>Mode</span><strong id="mode">—</strong></div>
+        <div><span>Reviewer</span><strong id="reviewer">—</strong></div>
+        <div><span>Completed</span><strong id="completed">0 / 0</strong></div>
+        <div><span>Batch</span><strong id="batch-progress">0 / 50</strong></div>
+        <div><span>QC</span><strong id="qc-progress">Not started</strong></div>
+      </section>
+
+      <section class="toolbar" aria-label="Review navigation">
+        <button type="button" id="previous">← Previous <kbd>K</kbd></button>
+        <button type="button" id="next">Next <kbd>J</kbd></button>
+        <button type="button" id="next-pending">Next pending <kbd>N</kbd></button>
+        <label>
+          Filter
+          <select id="filter">
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+            <option value="uncertain">Uncertain</option>
+            <option value="active_learning" hidden disabled>Active-learning priority (blind)</option>
+            <option value="noted">Noted</option>
+            <option value="transaction">Transaction</option>
+            <option value="null">Not transaction</option>
+            <option value="qc">QC queue</option>
+          </select>
+        </label>
+        <button type="button" id="start-qc">Start delayed QC pass</button>
+      </section>
+
+      <div id="global-error" class="banner error hidden" role="alert"></div>
+      <div id="empty-result" class="banner hidden" role="status">No rows match this filter.</div>
+
+      <article id="row-card" class="row-card hidden">
+        <div class="row-heading">
+          <div>
+            <p class="eyebrow" id="row-position">Row —</p>
+            <h2 id="review-id">—</h2>
+          </div>
+          <span id="row-status" class="status-pill">pending</span>
+        </div>
+
+        <dl class="source-fields">
+          <div>
+            <dt>Sender</dt>
+            <dd id="sender"></dd>
+          </div>
+          <div>
+            <dt>SMS</dt>
+            <dd id="sms" class="sms" spellcheck="false"></dd>
+          </div>
+        </dl>
+
+        <section id="queue-tags-panel" class="queue-tags-panel hidden" aria-live="polite">
+          <h3>Post-label queue indicators</h3>
+          <p>Shown only after the blind label for this row is complete.</p>
+          <ul id="queue-tags"></ul>
+        </section>
+
+        <p class="selection-help">
+          Select exact text in the SMS, then assign it with
+          <kbd>Alt+A</kbd> amount, <kbd>Alt+C</kbd> account, or
+          <kbd>Alt+P</kbd> counterparty.
+        </p>
+
+        <form id="annotation-form" autocomplete="off" novalidate>
+          <fieldset>
+            <legend>Decision</legend>
+            <label class="choice">
+              <input type="radio" name="decision" value="transaction">
+              Transaction <kbd>T</kbd>
+            </label>
+            <label class="choice">
+              <input type="radio" name="decision" value="not_transaction">
+              Not transaction <kbd>X</kbd>
+            </label>
+          </fieldset>
+
+          <section id="transaction-fields" class="transaction-fields hidden">
+            <div class="field-grid">
+              <label>
+                Exact amount decimal
+                <input id="amount-decimal" inputmode="decimal" spellcheck="false"
+                  placeholder="1234.50">
+              </label>
+              <label>
+                Amount source span
+                <input id="amount-text" readonly placeholder="Select from SMS">
+              </label>
+              <button type="button" id="use-amount">Use selection <kbd>Alt+A</kbd></button>
+            </div>
+
+            <fieldset>
+              <legend>Direction</legend>
+              <label class="choice"><input type="radio" name="type" value="debit">Debit</label>
+              <label class="choice"><input type="radio" name="type" value="credit">Credit</label>
+            </fieldset>
+
+            <div class="field-grid">
+              <label>
+                Account source span
+                <input id="account-text" readonly placeholder="Select exact account text">
+              </label>
+              <button type="button" id="use-account">Use selection <kbd>Alt+C</kbd></button>
+            </div>
+
+            <div class="field-grid">
+              <label>
+                Counterparty source span
+                <input id="counterparty-text" readonly placeholder="Select party text only">
+              </label>
+              <button type="button" id="use-counterparty">Use selection <kbd>Alt+P</kbd></button>
+              <label class="choice full-width">
+                <input type="checkbox" id="counterparty-absent">
+                Explicitly no counterparty <kbd>Alt+0</kbd>
+              </label>
+            </div>
+          </section>
+
+          <label>
+            Optional notes
+            <textarea id="notes" rows="3" maxlength="2000" spellcheck="false"></textarea>
+          </label>
+          <label class="choice uncertain">
+            <input type="checkbox" id="uncertain">
+            Uncertain / needs adjudication <kbd>U</kbd>
+          </label>
+
+          <ul id="validation-errors" class="validation-errors" aria-live="polite"></ul>
+
+          <div class="actions">
+            <button type="button" id="save-draft" class="secondary">Save draft</button>
+            <button type="submit" id="submit">Complete row <kbd>Ctrl+S</kbd></button>
+            <button type="button" id="reveal-proposals" class="secondary hidden">
+              Reveal later-stage proposals
+            </button>
+          </div>
+        </form>
+
+        <section id="proposal-panel" class="proposal-panel hidden" aria-live="polite">
+          <h3>Explicitly revealed proposals</h3>
+          <pre id="proposal-content"></pre>
+        </section>
+
+        <details id="history-panel" class="hidden">
+          <summary>Review history</summary>
+          <p class="history-help">Compare saved components, source spans, and notes across passes.</p>
+          <ol id="history"></ol>
+        </details>
+      </article>
+
+      <aside class="shortcut-card">
+        <h2>Keyboard map</h2>
+        <p>
+          <kbd>J</kbd>/<kbd>K</kbd> navigate · <kbd>N</kbd> next pending ·
+          <kbd>T</kbd>/<kbd>X</kbd> decide · <kbd>U</kbd> uncertain ·
+          <kbd>Ctrl+S</kbd> complete.
+        </p>
+      </aside>
+    </main>
+
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>

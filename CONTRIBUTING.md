@@ -79,6 +79,17 @@ logs. Aggregate reports may contain counts, hashes, and non-identifying run
 metadata. Per-row result files, adapters, checkpoints, GGUFs, private manifests,
 and candidate datasets stay outside Git.
 
+Annotation-workbench databases, lock files, rolling backups, reviewer projections,
+training-curation exports, notes, spans, and row-level component inputs or outputs
+are private artifacts under ignored `PRIVATE_DATA/lfm25`. Run the UI only on its
+`127.0.0.1` URL; never tunnel it, screen-share a private review, or move state into
+a synced folder. Do not diagnose a row by printing its SMS, sender, annotation,
+notes, or proposals to the console. Use opaque local IDs and aggregate counts only.
+
+Tests, documentation, demos, and any UI image must use wholly invented messages and
+identities. Never capture or attach a screenshot of a real review row, even when
+the surrounding issue or pull request is private.
+
 When adding or revising an experiment:
 
 - define train/dev/test roles and leakage boundaries;

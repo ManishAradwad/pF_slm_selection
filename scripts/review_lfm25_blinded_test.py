@@ -20,6 +20,7 @@ from lfm25.blinded_review import (  # noqa: E402
     DEFAULT_REVIEWED_MANIFEST,
     DEFAULT_REVIEW_FILE,
     DEFAULT_SOURCE_MANIFEST,
+    DEFAULT_WORKBENCH_DB,
     run_export,
     run_import,
     run_validate,
@@ -102,6 +103,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Aggregate-only import report below PRIVATE_DATA/lfm25.",
     )
     import_parser.add_argument(
+        "--workbench-db",
+        type=_path,
+        default=DEFAULT_WORKBENCH_DB,
+        help="Completed local workbench database below PRIVATE_DATA/lfm25.",
+    )
+    import_parser.add_argument(
         "--force",
         action="store_true",
         help="Explicitly replace nonempty reviewed-manifest and report outputs.",
@@ -128,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
                 REPO_ROOT,
                 reviewed_manifest=arguments.reviewed_manifest,
                 import_report=arguments.report,
+                workbench_db=arguments.workbench_db,
                 force=arguments.force,
                 **common,
             )
