@@ -1,6 +1,6 @@
 # Experiment and dataset catalog
 
-Updated: 2026-08-05
+Updated: 2026-08-08
 
 Current Android profile: `a9b7df44` with active SMS prefilter, `n_ctx=3072`,
 model-dependent thinking, and optional/default-off grammar. The `a6c8a11` parity
@@ -34,6 +34,7 @@ and contributed no training row or result below.
 | Private v2 candidate subset | **251** | **54** | **Invalidated** | Candidate-covered subset of private v2 |
 | Private v3 direct | **160** | **25** | Current clean silver | Rebuilt from sealed original-train partition |
 | PocketFinancer a9 direct v1 | **154** | **29** | Current app-aligned silver | Filter-passing, sender/template-disjoint; used by r16-s17 |
+| Candidate Protocol V1 paired arms | **152** | **29** | Current controlled silver | Fresh candidate-covered a9 materialization; shared by direct and selector arms |
 | Candidate v4 private | **158** | **25** | Current clean silver | Private v3 minus two true candidate-coverage misses |
 | Curriculum v2 | 280 | - | Current synthetic support | 220 transactions + 60 hard negatives, weight 0.2 |
 | Candidate mixed training | **438** | **25** | Current clean experiment | 158 private candidate + 280 curriculum |
@@ -91,6 +92,9 @@ checkpoint by loss, but neither can support a credible ghost-rate claim.
 | Prompt-aligned contaminated direct LoRA | 124/203 | 35/114 | Invalidated data; diagnostic only |
 | **Prompt-aligned clean direct LoRA** | **140/203** | **51/114** | Current clean direct research result |
 | **Clean grounded candidate selector** | **154/203** | **66/114** | Best defensible 350M research result; not Android wire-compatible |
+| Candidate V1 direct HF, seeds 17/29/43 | 102 / 136 / 95 of 203 | 13 / 47 / 6 of 114 | Controlled baselines for the paired selector runs |
+| **Candidate V1 selector HF, seeds 17/29/43** | **148 / 150 / 147 of 203** | **60 / 62 / 59 of 114** | Accuracy won every seed; declared gate failed because FP was 1 vs direct 0 every seed |
+| Candidate V1 direct Q4 host, seeds 17/29/43 | 119 / 124 / 102 of 203 | 30 / 35 / 13 of 114 | Android-profile host diagnostics; duplicate-BOS mode, not phone runtime |
 | Old broad hybrid | 168/203 | 80/114 | Unsafe diagnostic; corrupts correct selections under stress |
 | Historical Gemma Q4 reference | 175/203 | Not recorded | Useful quality bar; nonidentical runtime |
 
@@ -115,6 +119,16 @@ and 202/203 valid/schema-valid outputs under its saved experimental evaluator. T
 candidate result has 102 true positives, 12 misses, one ghost, and 203/203 valid
 outputs. All 103 emitted candidate transactions are reconstructed from source-backed
 values; the main remaining failure is choosing the wrong counterparty span.
+
+The newer [Candidate Protocol V1 controlled run](POCKETFINANCER_LFM25_350M_CANDIDATE_PROTOCOL_V1.md)
+is a separate three-seed experiment on a fresh 152/29 paired materialization. It
+uses compact candidate IDs, deterministic reconstruction, a versioned byte-level
+wire contract, and a strict trusted-evidence comparator. Selector transaction
+exact improved by 47, 15, and 53 rows, with 100% strict-schema acceptance and
+source grounding, but the selector introduced one false transaction on every
+seed while direct introduced none. Its preregistered HF gate therefore failed.
+This does not supersede the older 154/203 candidate result or authorize product
+promotion; both used the reused 203-row diagnostic rather than fresh human gold.
 
 ## Android parity chronology
 
@@ -149,6 +163,11 @@ runs must use `configs/contracts/pocketfinancer-android-current.json` and the un
 pipeline. The [Android runtime audit](../architecture/ANDROID_RUNTIME_AUDIT.md)
 remains a historical `a6c8a11` snapshot.
 
+Candidate Protocol V1 is an experimental research contract layered on this
+baseline. Neither Android nor iOS currently implements its candidate enumeration,
+tiny-ID selector parser, or deterministic reconstruction path. Its HF comparison
+and converted GGUF files are not mobile-runtime parity evidence.
+
 ## Decision
 
 - **2.6B untouched Base:** use only as controlled, reused-regression
@@ -164,6 +183,10 @@ remains a historical `a6c8a11` snapshot.
   transactions under current tokenization; do not ship.
 - **350M candidate architecture:** most promising clean direction; requires Android
   candidate extraction, selector parsing, and deterministic reconstruction.
+- **Candidate Protocol V1 controlled gate:** reject promotion despite large
+  transaction-exact gains; the selector had one false transaction on every seed
+  versus zero for direct. Diagnose that repeatable safety regression and rerun the
+  full controlled matrix before reconsidering.
 - **168/203 broad hybrid:** reject for deployment.
 - **Private v2 and 251/54 candidate data:** invalidated; never reuse for selection.
 - **Production claim:** blocked on fresh human-gold data and an aligned Android

@@ -26,9 +26,29 @@ and metrics interpretation. The current versioned record is
 
 ## Current status
 
-As of 2026-08-05, the first Android-aligned 2.6B diagnostic slice is complete.
-It compares the untouched Post and Base checkpoints, a small Base-model LoRA,
-and its BF16/Q8/Q4 exports. None of these results supports deployment.
+As of 2026-08-08, the three-seed Candidate Protocol V1 comparison is complete.
+It improved transaction extraction substantially on every seed but failed its
+false-positive safety requirement on every seed. No result supports deployment.
+
+### Candidate Protocol V1 controlled run
+
+The selector emits compact candidate IDs and leaves exact decimal handling,
+source validation, reconstruction, and transaction dating to deterministic host
+code. It was compared with direct four-field generation using the same locked
+350M model, 152/29 silver split, and seeds 17/29/43.
+
+| Seed | Direct transaction exact / FP | Selector transaction exact / FP |
+|---:|---:|---:|
+| 17 | 13/114 / 0 | 60/114 / 1 |
+| 29 | 47/114 / 0 | 62/114 / 1 |
+| 43 | 6/114 / 0 | 59/114 / 1 |
+
+All accepted selector transactions were strict-schema-valid and source-grounded.
+The declared gate nevertheless failed because selector false positives had to be
+no greater than direct on every seed. The 203 evaluation rows are reused
+diagnostics, not fresh human gold; Android/iOS runtime parity remains unverified.
+Read the [controlled run report](docs/experiments/POCKETFINANCER_LFM25_350M_CANDIDATE_PROTOCOL_V1.md)
+for the evidence, packaging audit, and explicit non-promotion decision.
 
 ### Historical 350M run
 
@@ -242,6 +262,7 @@ guard, not a substitute for reviewing content and diffs.
 - [Agent/tool-neutral repository rules](AGENTS.md)
 - [Contribution and pull-request workflow](CONTRIBUTING.md)
 - [Command map](scripts/README.md)
+- [Candidate Protocol V1 controlled run](docs/experiments/POCKETFINANCER_LFM25_350M_CANDIDATE_PROTOCOL_V1.md)
 - [Completed 2.6B diagnostic report](docs/experiments/POCKETFINANCER_LFM25_2_6B_R16_S17.md)
 - [Historical 350M Android-aligned run](docs/experiments/POCKETFINANCER_A9_LORA_R16_S17.md)
 - [Experiment and dataset catalog](docs/experiments/EXPERIMENT_CATALOG.md)
@@ -251,14 +272,14 @@ guard, not a substitute for reviewing content and diffs.
 
 ## Next decision gates
 
-1. Complete adjudication of the already-created frozen blind package (1,436 rows
+1. Diagnose the per-seed Candidate Protocol false-positive failure and rerun
+   the full controlled three-seed gate before reconsidering promotion.
+2. Complete adjudication of the already-created frozen blind package (1,436 rows
    pending) for a fresh human-gold test.
-2. Expand clean source-grounded training data and measure multi-seed learning
-   curves only after that review.
-3. Fix or verify BOS handling on the real Android JNI token stream.
-4. Measure 2.6B RAM, latency, thermals, and battery on the target device.
-5. Decide whether to use a teacher or different architecture only with grounded,
-   reviewed labels.
+3. Implement and validate the candidate wire contract separately in Android and
+   iOS, then add a supported selector GGUF evaluator.
+4. Fix or verify BOS handling on the real Android JNI token stream.
+5. Measure RAM, latency, thermals, and battery on each target device.
 
 ## Contributing
 

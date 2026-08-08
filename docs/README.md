@@ -16,24 +16,27 @@ Development workflow: [repository instructions](../AGENTS.md) and
    build, train, evaluation, merge, conversion, and GGUF stages.
 3. [Experiment catalog](experiments/EXPERIMENT_CATALOG.md) - dataset lineage,
    trusted results, invalidated runs, and what each count means.
-4. [LFM2.5-2.6B Base LoRA diagnostic](experiments/POCKETFINANCER_LFM25_2_6B_R16_S17.md) -
+4. [Candidate Protocol V1 controlled run](experiments/POCKETFINANCER_LFM25_350M_CANDIDATE_PROTOCOL_V1.md) -
+   the executed 2026-08-08 three-seed comparison, negative safety-gate result,
+   host packaging evidence, and remaining mobile-runtime and human-gold gates.
+5. [LFM2.5-2.6B Base LoRA diagnostic](experiments/POCKETFINANCER_LFM25_2_6B_R16_S17.md) -
    the executed 2026-08-05 controlled run, untouched-Base comparison, memory
    probe, and remaining human-gold, device, and deployment gates.
-5. [Android-aligned 350M LoRA run](experiments/POCKETFINANCER_A9_LORA_R16_S17.md) -
+6. [Android-aligned 350M LoRA run](experiments/POCKETFINANCER_A9_LORA_R16_S17.md) -
    the completed RTX 4070 training run, app-interpreted scores, GGUF comparisons,
    BOS/grammar ablations, and next decision gates.
-6. [LFM2.5-350M pipeline report](LFM25_350M_PIPELINE_V2.md) - detailed chronology,
+7. [LFM2.5-350M pipeline report](LFM25_350M_PIPELINE_V2.md) - detailed chronology,
    methods, metrics, and artifacts. Read its Android-parity correction first.
-7. [Fine-tuning primer](guides/FINE_TUNING_PRIMER.md) - SFT, LoRA, QLoRA, loss,
+8. [Fine-tuning primer](guides/FINE_TUNING_PRIMER.md) - SFT, LoRA, QLoRA, loss,
    train/dev/test, and why data quality matters more than row count alone.
-8. [Android runtime audit](architecture/ANDROID_RUNTIME_AUDIT.md) - historical
+9. [Android runtime audit](architecture/ANDROID_RUNTIME_AUDIT.md) - historical
    `a6c8a11` findings plus the current-profile correction.
-9. [Repository layout](architecture/REPOSITORY_LAYOUT.md) - current boundaries and
+10. [Repository layout](architecture/REPOSITORY_LAYOUT.md) - current boundaries and
    the staged move toward a model-agnostic package.
-10. [LFM2.5-2.6B evaluation plan](experiments/LFM25_2_6B_EVALUATION_PLAN.md) - the
+11. [LFM2.5-2.6B evaluation plan](experiments/LFM25_2_6B_EVALUATION_PLAN.md) - the
     pre-run design retained for provenance; use the executed report above for
     results and current status.
-11. [Historical general GGUF sweep](history/GENERAL_GGUF_BENCHMARK_2026-04-25.md) -
+12. [Historical general GGUF sweep](history/GENERAL_GGUF_BENCHMARK_2026-04-25.md) -
     dated pre-app-contract model-slate evidence retained for audit only.
 
 ## Status language
