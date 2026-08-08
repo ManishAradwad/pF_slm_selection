@@ -139,6 +139,11 @@ def _integer(value: Any, label: str, field: str, *, minimum: int = 0) -> int:
     return value
 
 
+def _counter_integer(counts: Mapping[str, Any], key: str, label: str) -> int:
+    """Read a Counter-derived metric, whose zero-valued keys are omitted."""
+    return _integer(counts.get(key, 0), label, f"counts.{key}")
+
+
 def _number(value: Any, label: str, field: str) -> Decimal:
     if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
         raise _fail(label, field)
@@ -360,6 +365,14 @@ def _ratio_count(value: Any, total: int, label: str, field: str) -> int:
     if abs(raw - rounded) > Decimal("0.0001"):
         raise ComparisonEvidenceError(f"{label}: {field} cannot be resolved to a count")
     return rounded
+
+
+def _score_rate_count(value: Any, total: int, label: str, field: str) -> int:
+    if total == 0:
+        if value is not None:
+            raise _fail(label, field)
+        return 0
+    return _ratio_count(value, total, label, field)
 
 
 def _coverage_entry(
@@ -1029,10 +1042,8 @@ def _extract_run(
     label = f"{arm} seed {seed}"
     counts = _mapping(metrics.get("counts"), label, "counts")
     rows = _integer(counts.get("rows"), label, "counts.rows", minimum=1)
-    transaction_exact = _integer(counts.get("transaction_exact"), label, "counts.transaction_exact")
-    fp = _integer(counts.get("fp"), label, "counts.fp")
-    if transaction_exact > rows or fp > rows:
-        raise ComparisonEvidenceError(f"{label}: aggregate counts exceed row count")
+    transaction_exact = _counter_integer(counts, "transaction_exact", label)
+    fp = _counter_integer(counts, "fp", label)
     runtime = _mapping(metrics.get("runtime"), label, "runtime")
     if _integer(runtime.get("rows"), label, "runtime.rows", minimum=1) != rows:
         raise ComparisonEvidenceError(f"{label}: runtime and score row counts disagree")
@@ -1049,6 +1060,25 @@ def _extract_run(
 
     provenance = _mapping(metrics.get("provenance"), label, "provenance")
     prefilter = _prefilter_evidence(metrics, runtime, provenance, rows, invocations, label)
+    expected_transaction_exact = _score_rate_count(
+        metrics.get("transaction_only_exact_match"),
+        prefilter["gold_transactions"],
+        label,
+        "transaction_only_exact_match",
+    )
+    expected_fp = _score_rate_count(
+        metrics.get("conditional_ghost_rate"),
+        prefilter["gold_nulls"],
+        label,
+        "conditional_ghost_rate",
+    )
+    if transaction_exact != expected_transaction_exact:
+        raise ComparisonEvidenceError(
+            f"{label}: transaction_only_exact_match disagrees with counts"
+        )
+    if fp != expected_fp:
+        raise ComparisonEvidenceError(f"{label}: conditional_ghost_rate disagrees with counts")
+
     dataset = _mapping(provenance.get("dataset"), label, "provenance.dataset")
     dataset_sha256 = _sha256(dataset.get("sha256"), label, "provenance.dataset.sha256")
     dataset_bytes = _integer(dataset.get("bytes"), label, "provenance.dataset.bytes", minimum=1)

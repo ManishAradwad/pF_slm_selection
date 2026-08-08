@@ -350,12 +350,16 @@ def _common_provenance(arm: str, seed: int) -> dict[str, object]:
 def _metrics(arm: str, seed: int) -> dict[str, object]:
     direct_exact = {17: 80, 29: 82, 43: 81}[seed]
     direct_fp = {17: 4, 29: 3, 43: 5}[seed]
+    transaction_exact = direct_exact + (2 if arm == "selector" else 0)
+    fp = direct_fp - (1 if arm == "selector" else 0)
     metrics: dict[str, object] = {
         "counts": {
             "rows": 203,
-            "transaction_exact": direct_exact + (2 if arm == "selector" else 0),
-            "fp": direct_fp - (1 if arm == "selector" else 0),
+            "transaction_exact": transaction_exact,
+            "fp": fp,
         },
+        "transaction_only_exact_match": round(transaction_exact / 114, 6),
+        "conditional_ghost_rate": round(fp / 89, 6),
         "runtime": {
             "rows": 203,
             "model_invocations": 115,
@@ -504,6 +508,7 @@ def test_real_per_seed_shortfall_produces_failed_report() -> None:
     selector[29]["counts"]["transaction_exact"] = direct[29]["counts"][  # type: ignore[index]
         "transaction_exact"
     ]
+    selector[29]["transaction_only_exact_match"] = direct[29]["transaction_only_exact_match"]
 
     report = compare_metrics(direct, selector)
 
@@ -511,6 +516,52 @@ def test_real_per_seed_shortfall_produces_failed_report() -> None:
     seed_29 = next(row for row in report["per_seed"] if row["seed"] == 29)
     assert seed_29["checks"]["transaction_exact_strictly_greater"] is False
     assert report["product_promotion"]["allowed"] is False
+
+
+def test_omitted_zero_counter_fields_are_normalized() -> None:
+    direct, selector = _matrix()
+    direct_counts = direct[17]["counts"]
+    assert isinstance(direct_counts, dict)
+    direct_counts["fp"] = 0
+    direct_counts["transaction_exact"] = 0
+    direct[17]["conditional_ghost_rate"] = 0.0
+    direct[17]["transaction_only_exact_match"] = 0.0
+    direct_counts.pop("fp")
+    direct_counts.pop("transaction_exact")
+
+    report = compare_metrics(direct, selector)
+
+    seed_17 = next(row for row in report["per_seed"] if row["seed"] == 17)
+    assert seed_17["direct"]["fp"] == 0
+    assert seed_17["direct"]["transaction_exact"] == 0
+
+
+@pytest.mark.parametrize(
+    "key,rate_field",
+    [
+        ("fp", "conditional_ghost_rate"),
+        ("transaction_exact", "transaction_only_exact_match"),
+    ],
+)
+def test_omitted_nonzero_counter_field_fails_closed(key: str, rate_field: str) -> None:
+    direct, selector = _matrix()
+    direct_counts = direct[17]["counts"]
+    assert isinstance(direct_counts, dict)
+    direct_counts.pop(key)
+
+    with pytest.raises(ComparisonEvidenceError, match=f"{rate_field} disagrees with counts"):
+        compare_metrics(direct, selector)
+
+
+@pytest.mark.parametrize("value", [None, True, -1, 1.5, "0"])
+def test_explicit_invalid_counter_field_fails_closed(value: object) -> None:
+    direct, selector = _matrix()
+    direct_counts = direct[17]["counts"]
+    assert isinstance(direct_counts, dict)
+    direct_counts["fp"] = value
+
+    with pytest.raises(ComparisonEvidenceError, match="counts.fp"):
+        compare_metrics(direct, selector)
 
 
 @pytest.mark.parametrize(
