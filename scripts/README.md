@@ -1,7 +1,12 @@
 # Command map
 
-Run commands from `/home/tojinotzenin/pF_slm_selection` inside WSL2 after
-`source scripts/activate_wsl.sh`.
+Run commands inside WSL2 after activating the environment from the canonical
+checkout with `source /home/tojinotzenin/pF_slm_selection/scripts/activate_wsl.sh`.
+Then enter the checkout that owns the code. Keep linked worktrees outside the
+canonical repository and generated-artifact roots, and use only synthetic data
+there. The privacy guard intentionally rejects private roots that resolve outside
+the active checkout. Run private workflows from the canonical checkout after the
+change is merged; never symlink or copy `PRIVATE_DATA` into a worktree.
 
 ## Primary PocketFinancer pipeline
 
@@ -50,9 +55,11 @@ an Android device, and is not Android runtime-performance evidence.
 | Command | Purpose |
 |---|---|
 | `python scripts/review_lfm25_blinded_test.py export` | Freeze all test rows into a reviewer-blind, test-only local package |
+| `python scripts/review_lfm25_blinded_test.py export --source-prefill unambiguous` | Initialize the distinct candidate-assisted blinded package before its first workbench launch |
 | `python scripts/review_lfm25_blinded_test.py validate` | Validate complete or resumable partial human annotations without writing outputs |
 | `python scripts/run_lfm25_annotation_workbench.py blinded --reviewer <stable-id> --batch-size 50` | Review the frozen test package in a strictly local browser and durable blinded-test database |
 | `python scripts/run_lfm25_annotation_workbench.py training --reviewer <stable-id> --pool <private-jsonl> --batch-size 50` | Curate an explicit train/dev-only pool in an isolated local database |
+| `python scripts/run_lfm25_annotation_workbench_smoke.py` | Launch the real loopback UI with three invented rows and temporary state; no private loader or export is reachable |
 | `python scripts/run_lfm25_annotation_workbench.py export-training --reviewer <stable-id> --pool <private-jsonl>` | Export reviewed training curation plus an aggregate-only report without overwriting nonempty outputs |
 | `python scripts/review_lfm25_blinded_test.py import --workbench-db PRIVATE_DATA/lfm25/annotation_workbench/blinded_test.sqlite3` | Write completed test labels only after the durable workbench and required delayed-QC gate pass |
 | `python scripts/evaluate_lfm25_components.py --input DATA/annotation_component_v1_synthetic.jsonl --dry-run` | Validate the invented paired fixture and print aggregate component metrics only |
@@ -64,6 +71,23 @@ an Android device, and is not Android runtime-performance evidence.
 The workbench binds only to `127.0.0.1`; do not tunnel or share its URL. It writes
 state and rolling backups only below ignored `PRIVATE_DATA/lfm25`. Relaunch with
 the same mode, reviewer, database, batch size, and (for training) pool to resume.
+
+Open only the `http://127.0.0.1:<port>/` URL printed by the process. Opening
+`lfm25/annotation_assets/index.html` as a `file://` page bypasses the stylesheet,
+JavaScript, session, and row API, so it remains unstyled with no SMS and `0 / 0`.
+Use the synthetic smoke command above for UI/manual-browser verification; it
+stores its invented SQLite state under a temporary directory and removes it on
+shutdown.
+
+Source prefill is off unless explicitly selected. Assisted runs use
+`--source-prefill unambiguous`, are recorded as
+`human_verified_candidate_assisted`, and require a complete separate artifact
+lineage. First run assisted `export`, then repeat the flag on `validate`, every
+workbench launch/resume, and `import`. The assisted review JSONL, internal map,
+metadata, database, reviewed manifest, and import report never serve as the
+unaided projection or outputs. A reviewer must verify every suggested field and
+exact span; assisted and unaided results are methodologically distinct and must be
+reported separately. See the operating guide for exact commands and paths.
 
 Training mode's generic `active_learning` filter deterministically prioritizes the
 ten documented category classes from the frozen pool/order, never from test. It
@@ -78,9 +102,12 @@ initial/QC/adjudication history appears only after that blindness lifts. See the
 the ten category definitions, 50-row attention boundary, recovery command, and
 final gates.
 
-Give reviewers only `blinded_test_review.jsonl`; the ID map and provenance
-metadata are internal. Import never edits the frozen `split_manifest.jsonl`: it
-writes `split_manifest_human_reviewed.jsonl` and an aggregate report separately.
+For an unaided run, give reviewers only `blinded_test_review.jsonl`; for an
+assisted run, give them only `blinded_test_candidate_assisted_review.jsonl`. The
+matching ID map and provenance metadata remain internal, and files from the two
+policies must never be mixed. Import never edits the frozen
+`split_manifest.jsonl`: it writes the policy-selected reviewed manifest and
+aggregate report separately.
 It now requires the matching completed workbench database, no unresolved rows,
 and every required delayed-QC row to have passed. Existing nonempty outputs require
 an explicit `--force`. Package metadata and the import report are committed last

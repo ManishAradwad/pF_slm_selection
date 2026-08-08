@@ -20,12 +20,18 @@ from tempfile import TemporaryDirectory
 from typing import Any, Mapping, Sequence
 
 from .annotation_workbench import (
+    DEFAULT_ASSISTED_BLINDED_DB,
     DEFAULT_BLINDED_DB,
+    SOURCE_PREFILL_OFF,
+    SOURCE_PREFILL_UNAMBIGUOUS,
+    SOURCE_PREFILL_POLICY_VERSION,
     WORKBENCH_CONTRACT,
     WORKBENCH_SCHEMA_VERSION,
     exact_json_dumps,
     exact_json_loads,
+    source_prefill_methodology,
     validate_annotation,
+    validate_source_prefill_policy,
 )
 from .private_data import (
     PrivateDataError,
@@ -45,6 +51,22 @@ DEFAULT_SOURCE_MANIFEST = PRIVATE_ROOT / "split_manifest.jsonl"
 DEFAULT_REVIEW_FILE = PRIVATE_ROOT / "blinded_test_review.jsonl"
 DEFAULT_MAPPING_FILE = PRIVATE_ROOT / "blinded_test_review_internal_map.jsonl"
 DEFAULT_METADATA_FILE = PRIVATE_ROOT / "blinded_test_review_metadata.json"
+DEFAULT_ASSISTED_REVIEW_FILE = (
+    PRIVATE_ROOT / "blinded_test_candidate_assisted_review.jsonl"
+)
+DEFAULT_ASSISTED_MAPPING_FILE = (
+    PRIVATE_ROOT / "blinded_test_candidate_assisted_review_internal_map.jsonl"
+)
+DEFAULT_ASSISTED_METADATA_FILE = (
+    PRIVATE_ROOT / "blinded_test_candidate_assisted_review_metadata.json"
+)
+DEFAULT_ASSISTED_REVIEWED_MANIFEST = (
+    PRIVATE_ROOT / "split_manifest_candidate_assisted_human_reviewed.jsonl"
+)
+DEFAULT_ASSISTED_IMPORT_REPORT = (
+    PRIVATE_ROOT / "blinded_test_candidate_assisted_review_import_report.json"
+)
+DEFAULT_ASSISTED_WORKBENCH_DB = DEFAULT_ASSISTED_BLINDED_DB
 DEFAULT_REVIEWED_MANIFEST = PRIVATE_ROOT / "split_manifest_human_reviewed.jsonl"
 DEFAULT_IMPORT_REPORT = PRIVATE_ROOT / "blinded_test_review_import_report.json"
 DEFAULT_WORKBENCH_DB = DEFAULT_BLINDED_DB
@@ -87,6 +109,11 @@ _METADATA_FIELDS = {
     "test_record_hash_set_sha256",
     "mapping_file_sha256",
     "review_template_sha256",
+}
+_ASSISTED_METADATA_FIELDS = {
+    "source_prefill",
+    "source_prefill_policy_version",
+    "annotation_methodology",
 }
 
 
@@ -144,27 +171,62 @@ def _resolve_path(repo_root: Path, private_root: Path, value: Path) -> Path:
         ) from exc
 
 
+def review_package_defaults(source_prefill: str) -> dict[str, Path]:
+    """Return immutable policy-specific blinded package artifact defaults."""
+
+    policy = validate_source_prefill_policy(source_prefill)
+    if policy == SOURCE_PREFILL_UNAMBIGUOUS:
+        return {
+            "source_manifest": DEFAULT_SOURCE_MANIFEST,
+            "review_file": DEFAULT_ASSISTED_REVIEW_FILE,
+            "mapping_file": DEFAULT_ASSISTED_MAPPING_FILE,
+            "metadata_file": DEFAULT_ASSISTED_METADATA_FILE,
+            "reviewed_manifest": DEFAULT_ASSISTED_REVIEWED_MANIFEST,
+            "import_report": DEFAULT_ASSISTED_IMPORT_REPORT,
+        }
+    return {
+        "source_manifest": DEFAULT_SOURCE_MANIFEST,
+        "review_file": DEFAULT_REVIEW_FILE,
+        "mapping_file": DEFAULT_MAPPING_FILE,
+        "metadata_file": DEFAULT_METADATA_FILE,
+        "reviewed_manifest": DEFAULT_REVIEWED_MANIFEST,
+        "import_report": DEFAULT_IMPORT_REPORT,
+    }
+
+
 def resolve_review_paths(
     repo_root: Path,
     *,
-    source_manifest: Path = DEFAULT_SOURCE_MANIFEST,
-    review_file: Path = DEFAULT_REVIEW_FILE,
-    mapping_file: Path = DEFAULT_MAPPING_FILE,
-    metadata_file: Path = DEFAULT_METADATA_FILE,
-    reviewed_manifest: Path = DEFAULT_REVIEWED_MANIFEST,
-    import_report: Path = DEFAULT_IMPORT_REPORT,
+    source_manifest: Path | None = None,
+    review_file: Path | None = None,
+    mapping_file: Path | None = None,
+    metadata_file: Path | None = None,
+    reviewed_manifest: Path | None = None,
+    import_report: Path | None = None,
+    source_prefill: str = SOURCE_PREFILL_OFF,
 ) -> ReviewPaths:
     """Resolve every artifact below ``PRIVATE_DATA/lfm25`` and reject aliases."""
 
+    defaults = review_package_defaults(source_prefill)
     root = (repo_root / PRIVATE_ROOT).resolve()
     paths = ReviewPaths(
         private_root=root,
-        source_manifest=_resolve_path(repo_root, root, source_manifest),
-        review_file=_resolve_path(repo_root, root, review_file),
-        mapping_file=_resolve_path(repo_root, root, mapping_file),
-        metadata_file=_resolve_path(repo_root, root, metadata_file),
-        reviewed_manifest=_resolve_path(repo_root, root, reviewed_manifest),
-        import_report=_resolve_path(repo_root, root, import_report),
+        source_manifest=_resolve_path(
+            repo_root, root, source_manifest or defaults["source_manifest"]
+        ),
+        review_file=_resolve_path(repo_root, root, review_file or defaults["review_file"]),
+        mapping_file=_resolve_path(
+            repo_root, root, mapping_file or defaults["mapping_file"]
+        ),
+        metadata_file=_resolve_path(
+            repo_root, root, metadata_file or defaults["metadata_file"]
+        ),
+        reviewed_manifest=_resolve_path(
+            repo_root, root, reviewed_manifest or defaults["reviewed_manifest"]
+        ),
+        import_report=_resolve_path(
+            repo_root, root, import_report or defaults["import_report"]
+        ),
     )
     resolved = {
         paths.source_manifest,
@@ -307,8 +369,11 @@ def _metadata(
     review_rows: Sequence[Mapping[str, Any]],
     mapping_rows: Sequence[Mapping[str, Any]],
     source_manifest_sha256: str,
+    *,
+    source_prefill: str,
 ) -> dict[str, Any]:
-    return {
+    policy = validate_source_prefill_policy(source_prefill)
+    metadata = {
         "schema_version": SCHEMA_VERSION,
         "package_version": PACKAGE_VERSION,
         "source_manifest": _relative_private_path(repo_root, paths.source_manifest),
@@ -323,6 +388,15 @@ def _metadata(
         "mapping_file_sha256": _sha256_bytes(_jsonl_bytes(mapping_rows)),
         "review_template_sha256": _sha256_bytes(_jsonl_bytes(review_rows)),
     }
+    if policy == SOURCE_PREFILL_UNAMBIGUOUS:
+        metadata.update(
+            {
+                "source_prefill": policy,
+                "source_prefill_policy_version": SOURCE_PREFILL_POLICY_VERSION,
+                "annotation_methodology": source_prefill_methodology(policy),
+            }
+        )
+    return metadata
 
 
 def _require_replaceable(paths: Sequence[Path], force: bool) -> None:
@@ -390,20 +464,23 @@ def _commit_staged_outputs(
 def run_export(
     repo_root: Path,
     *,
-    source_manifest: Path = DEFAULT_SOURCE_MANIFEST,
-    review_file: Path = DEFAULT_REVIEW_FILE,
-    mapping_file: Path = DEFAULT_MAPPING_FILE,
-    metadata_file: Path = DEFAULT_METADATA_FILE,
+    source_manifest: Path | None = None,
+    review_file: Path | None = None,
+    mapping_file: Path | None = None,
+    metadata_file: Path | None = None,
+    source_prefill: str = SOURCE_PREFILL_OFF,
     force: bool = False,
 ) -> dict[str, Any]:
     """Export all and only frozen test rows into a blinded local review package."""
 
+    policy = validate_source_prefill_policy(source_prefill)
     paths = resolve_review_paths(
         repo_root,
         source_manifest=source_manifest,
         review_file=review_file,
         mapping_file=mapping_file,
         metadata_file=metadata_file,
+        source_prefill=policy,
     )
     require_private_ignore(repo_root, paths.private_root)
     _require_replaceable(
@@ -421,6 +498,7 @@ def run_export(
         review_rows,
         mapping_rows,
         source_hash_before,
+        source_prefill=policy,
     )
     with TemporaryDirectory(
         prefix=".blinded-review-export.",
@@ -450,7 +528,7 @@ def run_export(
             expected_source_sha256=source_hash_before,
             source_change_message="the source split manifest changed during export",
         )
-    return {
+    report = {
         "operation": "export",
         "valid": True,
         "schema_version": SCHEMA_VERSION,
@@ -464,14 +542,27 @@ def run_export(
         "wrote_files": True,
         "source_manifest_unchanged": True,
     }
+    if policy == SOURCE_PREFILL_UNAMBIGUOUS:
+        report.update(
+            {
+                "annotation_methodology": source_prefill_methodology(policy),
+                "source_prefill": policy,
+                "source_prefill_policy_version": SOURCE_PREFILL_POLICY_VERSION,
+            }
+        )
+    return report
 
 
-def _load_metadata(path: Path) -> dict[str, Any]:
+def _load_metadata(path: Path, *, source_prefill: str) -> dict[str, Any]:
+    policy = validate_source_prefill_policy(source_prefill)
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise BlindedReviewError("the blinded-review metadata could not be parsed") from exc
-    if not isinstance(value, dict) or set(value) != _METADATA_FIELDS:
+    expected_fields = set(_METADATA_FIELDS)
+    if policy == SOURCE_PREFILL_UNAMBIGUOUS:
+        expected_fields.update(_ASSISTED_METADATA_FIELDS)
+    if not isinstance(value, dict) or set(value) != expected_fields:
         raise BlindedReviewError("the blinded-review metadata schema is invalid")
     if value.get("schema_version") != SCHEMA_VERSION:
         raise BlindedReviewError("the blinded-review schema version is unsupported")
@@ -506,6 +597,12 @@ def _load_metadata(path: Path) -> dict[str, Any]:
         raise BlindedReviewError("the blinded-review source provenance is invalid")
     if value.get("review_id_format") != REVIEW_ID_FORMAT:
         raise BlindedReviewError("the blinded-review ID format metadata is invalid")
+    if policy == SOURCE_PREFILL_UNAMBIGUOUS and (
+        value.get("source_prefill") != policy
+        or value.get("source_prefill_policy_version") != SOURCE_PREFILL_POLICY_VERSION
+        or value.get("annotation_methodology") != source_prefill_methodology(policy)
+    ):
+        raise BlindedReviewError("the blinded-review assistance provenance is invalid")
     return value
 
 
@@ -641,7 +738,13 @@ def _validate_review_rows(
     return ordered_annotations
 
 
-def _validate_package(repo_root: Path, paths: ReviewPaths) -> _ValidatedPackage:
+def _validate_package(
+    repo_root: Path,
+    paths: ReviewPaths,
+    *,
+    source_prefill: str,
+) -> _ValidatedPackage:
+    policy = validate_source_prefill_policy(source_prefill)
     require_private_ignore(repo_root, paths.private_root)
     for required in (
         paths.source_manifest,
@@ -654,7 +757,7 @@ def _validate_package(repo_root: Path, paths: ReviewPaths) -> _ValidatedPackage:
 
     source_hash = file_sha256(paths.source_manifest)
     source_records, test_records = _load_source_records(paths.source_manifest)
-    metadata = _load_metadata(paths.metadata_file)
+    metadata = _load_metadata(paths.metadata_file, source_prefill=policy)
     if metadata["source_manifest"] != _relative_private_path(repo_root, paths.source_manifest):
         raise BlindedReviewError("the blinded-review source path does not match its provenance")
     if metadata["source_manifest_sha256"] != source_hash:
@@ -700,6 +803,14 @@ def _validate_package(repo_root: Path, paths: ReviewPaths) -> _ValidatedPackage:
         "wrote_files": False,
         "source_manifest_unchanged": file_sha256(paths.source_manifest) == source_hash,
     }
+    if policy == SOURCE_PREFILL_UNAMBIGUOUS:
+        report.update(
+            {
+                "annotation_methodology": source_prefill_methodology(policy),
+                "source_prefill": policy,
+                "source_prefill_policy_version": SOURCE_PREFILL_POLICY_VERSION,
+            }
+        )
     if not report["source_manifest_unchanged"]:
         raise BlindedReviewError("the source split manifest changed during validation")
     return _ValidatedPackage(
@@ -716,27 +827,31 @@ def _validate_package(repo_root: Path, paths: ReviewPaths) -> _ValidatedPackage:
 def run_validate(
     repo_root: Path,
     *,
-    source_manifest: Path = DEFAULT_SOURCE_MANIFEST,
-    review_file: Path = DEFAULT_REVIEW_FILE,
-    mapping_file: Path = DEFAULT_MAPPING_FILE,
-    metadata_file: Path = DEFAULT_METADATA_FILE,
+    source_manifest: Path | None = None,
+    review_file: Path | None = None,
+    mapping_file: Path | None = None,
+    metadata_file: Path | None = None,
+    source_prefill: str = SOURCE_PREFILL_OFF,
 ) -> dict[str, Any]:
     """Validate a possibly partial review package without writing any artifact."""
 
+    policy = validate_source_prefill_policy(source_prefill)
     paths = resolve_review_paths(
         repo_root,
         source_manifest=source_manifest,
         review_file=review_file,
         mapping_file=mapping_file,
         metadata_file=metadata_file,
+        source_prefill=policy,
     )
-    return dict(_validate_package(repo_root, paths).report)
+    return dict(_validate_package(repo_root, paths, source_prefill=policy).report)
 
 
 def _load_workbench_annotations_for_import(
     repo_root: Path,
     package: _ValidatedPackage,
     db_path: Path,
+    source_prefill: str,
 ) -> dict[str, dict[str, Any]]:
     from .annotation_sources import load_blinded_workspace
     from .annotation_store import WorkbenchStore
@@ -748,6 +863,7 @@ def _load_workbench_annotations_for_import(
         mapping_file=package.paths.mapping_file,
         metadata_file=package.paths.metadata_file,
         include_initial_annotations=False,
+        source_prefill=source_prefill,
     )
     result: dict[str, dict[str, Any]] = {}
     with WorkbenchStore(
@@ -777,6 +893,22 @@ def _load_workbench_annotations_for_import(
                 raise BlindedReviewError("workbench provenance history is missing")
             record_hash = str(mapping["record_hash"])
             result[record_hash] = {
+                **(
+                    {
+                        "annotation_methodology": source_prefill_methodology(
+                            source_prefill
+                        ),
+                        "source_prefill": source_prefill,
+                        "source_prefill_policy_version": definition.binding.get(
+                            "source_prefill_policy_version"
+                        ),
+                        "source_prefill_rows_digest_sha256": definition.binding.get(
+                            "source_prefill_rows_digest_sha256"
+                        ),
+                    }
+                    if source_prefill == SOURCE_PREFILL_UNAMBIGUOUS
+                    else {}
+                ),
                 "contract": WORKBENCH_CONTRACT,
                 "schema_version": WORKBENCH_SCHEMA_VERSION,
                 "annotation": annotation,
@@ -835,17 +967,25 @@ def _merge_annotations(
 def run_import(
     repo_root: Path,
     *,
-    source_manifest: Path = DEFAULT_SOURCE_MANIFEST,
-    review_file: Path = DEFAULT_REVIEW_FILE,
-    mapping_file: Path = DEFAULT_MAPPING_FILE,
-    metadata_file: Path = DEFAULT_METADATA_FILE,
-    reviewed_manifest: Path = DEFAULT_REVIEWED_MANIFEST,
-    import_report: Path = DEFAULT_IMPORT_REPORT,
-    workbench_db: Path = DEFAULT_WORKBENCH_DB,
+    source_manifest: Path | None = None,
+    review_file: Path | None = None,
+    mapping_file: Path | None = None,
+    metadata_file: Path | None = None,
+    reviewed_manifest: Path | None = None,
+    import_report: Path | None = None,
+    workbench_db: Path | None = None,
+    source_prefill: str = SOURCE_PREFILL_OFF,
     force: bool = False,
 ) -> dict[str, Any]:
     """Validate annotations and write a separate reviewed manifest and report."""
 
+    prefill_policy = validate_source_prefill_policy(source_prefill)
+    methodology = source_prefill_methodology(prefill_policy)
+    selected_workbench_db = workbench_db or (
+        DEFAULT_ASSISTED_WORKBENCH_DB
+        if prefill_policy == SOURCE_PREFILL_UNAMBIGUOUS
+        else DEFAULT_WORKBENCH_DB
+    )
     paths = resolve_review_paths(
         repo_root,
         source_manifest=source_manifest,
@@ -854,13 +994,16 @@ def run_import(
         metadata_file=metadata_file,
         reviewed_manifest=reviewed_manifest,
         import_report=import_report,
+        source_prefill=prefill_policy,
     )
-    package = _validate_package(repo_root, paths)
+    package = _validate_package(
+        repo_root, paths, source_prefill=prefill_policy
+    )
     if not package.report["ready_for_evaluation"]:
         raise BlindedReviewError(
             "final import requires every reviewer-facing annotation to be completed"
         )
-    resolved_workbench_db = _resolve_path(repo_root, paths.private_root, workbench_db)
+    resolved_workbench_db = _resolve_path(repo_root, paths.private_root, selected_workbench_db)
     if resolved_workbench_db in vars(paths).values():
         raise BlindedReviewError(
             "the workbench database must be distinct from review package artifacts"
@@ -877,12 +1020,33 @@ def run_import(
         review_file=paths.review_file,
         mapping_file=paths.mapping_file,
         metadata_file=paths.metadata_file,
+        source_prefill=prefill_policy,
     )
     qc_required_rows = gate_report.get("qc_required_rows")
+    gate_policy_version = gate_report.get("source_prefill_policy_version")
+    gate_prefill_digest = gate_report.get("source_prefill_rows_digest_sha256")
+    expected_policy_version = (
+        SOURCE_PREFILL_POLICY_VERSION
+        if prefill_policy == SOURCE_PREFILL_UNAMBIGUOUS
+        else None
+    )
+    valid_prefill_digest = (
+        isinstance(gate_prefill_digest, str)
+        and len(gate_prefill_digest) == 64
+        and all(character in "0123456789abcdef" for character in gate_prefill_digest)
+    )
     if (
         gate_report.get("valid") is not True
         or gate_report.get("ready_for_import") is not True
         or gate_report.get("completed_rows") != len(package.annotations)
+        or gate_report.get("annotation_methodology") != methodology
+        or gate_report.get("source_prefill") != prefill_policy
+        or gate_policy_version != expected_policy_version
+        or (
+            prefill_policy == SOURCE_PREFILL_UNAMBIGUOUS
+            and not valid_prefill_digest
+        )
+        or (prefill_policy == SOURCE_PREFILL_OFF and gate_prefill_digest is not None)
         or gate_report.get("pending_rows") != 0
         or gate_report.get("unresolved_uncertain_rows") != 0
         or isinstance(qc_required_rows, bool)
@@ -895,6 +1059,7 @@ def run_import(
         repo_root,
         package,
         resolved_workbench_db,
+        prefill_policy,
     )
     merged = _merge_annotations(package, workbench_annotations)
     with TemporaryDirectory(
@@ -917,6 +1082,16 @@ def run_import(
                 "workbench_gate_passed": True,
                 "workbench_annotation_contract": WORKBENCH_CONTRACT,
                 "workbench_annotation_rows": len(workbench_annotations),
+                **(
+                    {
+                        "annotation_methodology": methodology,
+                        "source_prefill": prefill_policy,
+                        "source_prefill_policy_version": gate_policy_version,
+                        "source_prefill_rows_digest_sha256": gate_prefill_digest,
+                    }
+                    if prefill_policy == SOURCE_PREFILL_UNAMBIGUOUS
+                    else {}
+                ),
                 "unresolved_uncertain_rows": gate_report["unresolved_uncertain_rows"],
                 "qc_required_rows": gate_report["qc_required_rows"],
                 "qc_passed_rows": gate_report["qc_passed_rows"],
@@ -956,6 +1131,9 @@ def safe_console_summary(report: Mapping[str, Any]) -> dict[str, Any]:
         "workbench_gate_passed",
         "workbench_annotation_contract",
         "workbench_annotation_rows",
+        "annotation_methodology",
+        "source_prefill",
+        "source_prefill_policy_version",
         "unresolved_uncertain_rows",
         "qc_required_rows",
         "qc_passed_rows",

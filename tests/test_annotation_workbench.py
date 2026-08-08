@@ -11,11 +11,13 @@ from lfm25.annotation_sources import (
     load_training_workspace,
     public_row,
     qc_requirements,
+    source_prefill_for_sms,
     training_proposals,
 )
 from lfm25.annotation_workbench import (
     ANNOTATION_KEYS,
     BLINDED_MODE,
+    SOURCE_PREFILL_UNAMBIGUOUS,
     TRAINING_MODE,
     AnnotationValidationError,
     WorkbenchError,
@@ -97,6 +99,53 @@ def _manifest_row(
         "heuristic_reason_codes": [],
         "local_model_proposals": [],
     }
+
+
+def test_source_prefill_is_off_by_default_and_prefilter_gated_without_leaks() -> None:
+    accepted_sms = (
+        "Synthetic Demo Bank: INR 42.50 was debited from A/c XX1234 "
+        "at Paper Kite Cafe."
+    )
+    rejected_sms = "Your invented verification code is 654321. Do not share it."
+
+    assert source_prefill_for_sms("SYNTH-DEMO", accepted_sms) is None
+    assert (
+        source_prefill_for_sms(
+            "SYNTH-SECURITY",
+            rejected_sms,
+            source_prefill=SOURCE_PREFILL_UNAMBIGUOUS,
+        )
+        is None
+    )
+
+    suggestion = source_prefill_for_sms(
+        "SYNTH-DEMO",
+        accepted_sms,
+        source_prefill=SOURCE_PREFILL_UNAMBIGUOUS,
+    )
+    assert suggestion is not None
+    assert set(suggestion).issubset(
+        {
+            "policy_version",
+            "amount_decimal",
+            "amount_span",
+            "type",
+            "account_span",
+            "counterparty_span",
+        }
+    )
+    assert not (
+        {
+            "decision",
+            "counterparty_absent",
+            "accepted",
+            "reason",
+            "confidence",
+            "candidate_id",
+            "candidate_count",
+        }
+        & set(suggestion)
+    )
 
 
 def test_exact_decimal_and_utf8_spans_round_trip_without_float() -> None:

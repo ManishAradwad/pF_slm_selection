@@ -30,10 +30,18 @@ from lfm25.annotation_store import (  # noqa: E402
 from lfm25.annotation_web import WorkbenchHTTPServer  # noqa: E402
 from lfm25.annotation_workbench import (  # noqa: E402
     DEFAULT_BLINDED_DB,
+    DEFAULT_ASSISTED_BLINDED_DB,
+    DEFAULT_ASSISTED_TRAINING_DB,
+    DEFAULT_ASSISTED_TRAINING_EXPORT,
+    DEFAULT_ASSISTED_TRAINING_REPORT,
     DEFAULT_TRAINING_DB,
     DEFAULT_TRAINING_EXPORT,
     DEFAULT_TRAINING_REPORT,
+    SOURCE_PREFILL_OFF,
+    SOURCE_PREFILL_POLICIES,
+    SOURCE_PREFILL_UNAMBIGUOUS,
     WorkbenchError,
+    source_prefill_methodology,
 )
 
 
@@ -55,12 +63,39 @@ def _port(value: str) -> int:
     return parsed
 
 
-def _common(parser: argparse.ArgumentParser, *, default_db: Path) -> None:
+def _source_prefill_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--source-prefill",
+        choices=SOURCE_PREFILL_POLICIES,
+        default=SOURCE_PREFILL_OFF,
+        help="Optional immutable source suggestion policy; default: off.",
+    )
+
+
+def _common(
+    parser: argparse.ArgumentParser,
+    *,
+    default_db: Path,
+    assisted_default_db: Path,
+) -> None:
     parser.add_argument("--repo-root", type=_path, default=SCRIPT_ROOT)
     parser.add_argument("--reviewer", required=True, help="Stable local reviewer identity.")
     parser.add_argument("--batch-size", type=_positive, default=50)
     parser.add_argument("--port", type=_port, default=8765)
-    parser.add_argument("--db", type=_path, default=default_db)
+    parser.add_argument("--db", type=_path)
+    _source_prefill_argument(parser)
+    parser.set_defaults(
+        source_prefill_default_db=default_db,
+        source_prefill_assisted_default_db=assisted_default_db,
+    )
+
+
+def _selected_database(arguments: argparse.Namespace) -> Path:
+    if arguments.db is not None:
+        return arguments.db
+    if arguments.source_prefill == SOURCE_PREFILL_UNAMBIGUOUS:
+        return arguments.source_prefill_assisted_default_db
+    return arguments.source_prefill_default_db
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -69,19 +104,32 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     blinded = subparsers.add_parser("blinded", help="Open the frozen reviewer-blind test package.")
-    _common(blinded, default_db=DEFAULT_BLINDED_DB)
+    _common(
+        blinded,
+        default_db=DEFAULT_BLINDED_DB,
+        assisted_default_db=DEFAULT_ASSISTED_BLINDED_DB,
+    )
     training = subparsers.add_parser("training", help="Open an explicit train/dev-only pool.")
-    _common(training, default_db=DEFAULT_TRAINING_DB)
+    _common(
+        training,
+        default_db=DEFAULT_TRAINING_DB,
+        assisted_default_db=DEFAULT_ASSISTED_TRAINING_DB,
+    )
     training.add_argument("--pool", type=_path, required=True)
     export = subparsers.add_parser(
         "export-training", help="Export reviewed train/dev rows without overwriting."
     )
     export.add_argument("--repo-root", type=_path, default=SCRIPT_ROOT)
     export.add_argument("--reviewer", required=True, help="Stable local reviewer identity.")
-    export.add_argument("--db", type=_path, default=DEFAULT_TRAINING_DB)
+    export.add_argument("--db", type=_path)
     export.add_argument("--pool", type=_path, required=True)
-    export.add_argument("--output", type=_path, default=DEFAULT_TRAINING_EXPORT)
-    export.add_argument("--report", type=_path, default=DEFAULT_TRAINING_REPORT)
+    export.add_argument("--output", type=_path)
+    export.add_argument("--report", type=_path)
+    _source_prefill_argument(export)
+    export.set_defaults(
+        source_prefill_default_db=DEFAULT_TRAINING_DB,
+        source_prefill_assisted_default_db=DEFAULT_ASSISTED_TRAINING_DB,
+    )
     recovery = subparsers.add_parser("recover", help="Recover a workbench database backup.")
     recovery.add_argument("--repo-root", type=_path, default=SCRIPT_ROOT)
     recovery.add_argument("--db", type=_path, required=True)
@@ -91,17 +139,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _serve(arguments: argparse.Namespace) -> int:
     repo_root = arguments.repo_root.resolve()
-    db_path = private_path(repo_root, arguments.db)
+    db_path = private_path(repo_root, _selected_database(arguments))
     if arguments.command == "blinded":
         definition = load_blinded_workspace(
             repo_root,
             include_initial_annotations=not db_path.exists(),
+            source_prefill=arguments.source_prefill,
         )
     else:
         definition = load_training_workspace(
             repo_root,
             pool_file=arguments.pool,
             sealed_manifest=Path("PRIVATE_DATA/lfm25/split_manifest.jsonl"),
+            source_prefill=arguments.source_prefill,
         )
     store = WorkbenchStore(db_path, workspace_binding=definition.binding)
     server: WorkbenchHTTPServer | None = None
@@ -126,6 +176,16 @@ def _serve(arguments: argparse.Namespace) -> int:
                     "operation": "serve",
                     "mode": definition.mode,
                     "rows": definition.row_count,
+                    **(
+                        {
+                            "source_prefill": arguments.source_prefill,
+                            "annotation_methodology": source_prefill_methodology(
+                                arguments.source_prefill
+                            ),
+                        }
+                        if arguments.source_prefill == SOURCE_PREFILL_UNAMBIGUOUS
+                        else {}
+                    ),
                     "url": server.local_url,
                     "bind": "127.0.0.1",
                     "raw_values_emitted": False,
@@ -143,11 +203,19 @@ def _serve(arguments: argparse.Namespace) -> int:
 
 def _export_training(arguments: argparse.Namespace) -> int:
     repo_root = arguments.repo_root.resolve()
-    db_path = private_path(repo_root, arguments.db)
+    db_path = private_path(repo_root, _selected_database(arguments))
     definition = load_training_workspace(
         repo_root,
         pool_file=arguments.pool,
         sealed_manifest=Path("PRIVATE_DATA/lfm25/split_manifest.jsonl"),
+        source_prefill=arguments.source_prefill,
+    )
+    assisted = arguments.source_prefill == SOURCE_PREFILL_UNAMBIGUOUS
+    output_file = arguments.output or (
+        DEFAULT_ASSISTED_TRAINING_EXPORT if assisted else DEFAULT_TRAINING_EXPORT
+    )
+    report_file = arguments.report or (
+        DEFAULT_ASSISTED_TRAINING_REPORT if assisted else DEFAULT_TRAINING_REPORT
     )
     store = WorkbenchStore(db_path, workspace_binding=definition.binding)
     try:
@@ -158,8 +226,8 @@ def _export_training(arguments: argparse.Namespace) -> int:
             reviewer=arguments.reviewer,
         )
         report = service.export_training(
-            output_file=arguments.output,
-            report_file=arguments.report,
+            output_file=output_file,
+            report_file=report_file,
             force=False,
         )
     finally:

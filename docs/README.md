@@ -18,7 +18,8 @@ Development workflow: [repository instructions](../AGENTS.md) and
    span, uncertainty, QC, and adjudication rules human reviewers must follow.
 4. [Local annotation workbench](guides/LOCAL_ANNOTATION_WORKBENCH.md) - the
    strictly local blinded-test and training-curation operating procedure, including
-   recovery, delayed QC, export, and final-import gates.
+   served-URL troubleshooting, an invented-data UI smoke launcher, opt-in
+   source-assisted prefill, recovery, delayed QC, export, and final-import gates.
 5. [Experiment catalog](experiments/EXPERIMENT_CATALOG.md) - dataset lineage,
    trusted results, invalidated runs, and what each count means.
 6. [Candidate Protocol V1 controlled run](experiments/POCKETFINANCER_LFM25_350M_CANDIDATE_PROTOCOL_V1.md) -

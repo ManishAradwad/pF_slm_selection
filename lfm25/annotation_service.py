@@ -32,6 +32,8 @@ from .annotation_workbench import (
     BLINDED_MODE,
     DEFAULT_TRAINING_EXPORT,
     DEFAULT_TRAINING_REPORT,
+    SOURCE_PREFILL_OFF,
+    SOURCE_PREFILL_POLICY_VERSION,
     TRAINING_MODE,
     WORKBENCH_CONTRACT,
     AnnotationValidationError,
@@ -42,7 +44,9 @@ from .annotation_workbench import (
     empty_annotation,
     exact_json_dumps,
     exact_json_loads,
+    source_prefill_methodology,
     validate_annotation,
+    validate_source_prefill_policy,
 )
 from .blinded_review import REVIEW_FIELDS, resolve_review_paths, run_validate
 from .private_data import ensure_within, file_sha256, require_private_ignore
@@ -105,6 +109,53 @@ def _valid_reviewer(value: str) -> str:
     return value.strip()
 
 
+_SOURCE_PREFILL_FIELDS = (
+    "amount_decimal",
+    "amount_span",
+    "type",
+    "account_span",
+    "counterparty_span",
+)
+_SOURCE_PREFILL_KEYS = frozenset(("policy_version", *_SOURCE_PREFILL_FIELDS))
+
+
+def _safe_source_prefill(value: Any, sms: str) -> dict[str, Any] | None:
+    """Validate and copy only the frozen browser-safe source-prefill allowlist."""
+
+    if value is None:
+        return None
+    if not isinstance(value, Mapping) or not set(value).issubset(_SOURCE_PREFILL_KEYS):
+        raise WorkbenchError("the frozen source-prefill suggestion is invalid")
+    version = value.get("policy_version")
+    if (
+        isinstance(version, bool)
+        or not isinstance(version, int)
+        or version != SOURCE_PREFILL_POLICY_VERSION
+        or len(value) == 1
+    ):
+        raise WorkbenchError("the frozen source-prefill suggestion is invalid")
+    if ("amount_decimal" in value) != ("amount_span" in value):
+        raise WorkbenchError("the frozen source-prefill suggestion is invalid")
+
+    draft = empty_annotation()
+    draft["decision"] = "transaction"
+    for field in _SOURCE_PREFILL_FIELDS:
+        if field in value:
+            draft[field] = value[field]
+    try:
+        validated = validate_annotation(draft, sms, require_complete=False)
+    except AnnotationValidationError as exc:
+        raise WorkbenchError("the frozen source-prefill suggestion is invalid") from exc
+
+    result: dict[str, Any] = {
+        "policy_version": SOURCE_PREFILL_POLICY_VERSION,
+    }
+    for field in _SOURCE_PREFILL_FIELDS:
+        if field in value:
+            result[field] = validated[field]
+    return result
+
+
 def _store_sources(definition: WorkspaceDefinition) -> list[SourceRow]:
     rows: list[SourceRow] = []
     for source in definition.rows:
@@ -114,6 +165,9 @@ def _store_sources(definition: WorkspaceDefinition) -> list[SourceRow]:
             "sms": source.sms,
             "queue_tags": list(source.queue_tags),
         }
+        safe_prefill = _safe_source_prefill(source.source_prefill, source.sms)
+        if safe_prefill is not None:
+            reviewer_fields["source_prefill"] = safe_prefill
         if definition.mode == TRAINING_MODE:
             reviewer_fields["split"] = source.split
         if source.source_json is None:
@@ -159,6 +213,47 @@ class AnnotationService:
             raise WorkbenchError("the annotation workspace exceeds the supported row limit")
         self.repo_root = repo_root.resolve()
         self.definition = definition
+        self.source_prefill = validate_source_prefill_policy(
+            str(definition.binding.get("source_prefill", SOURCE_PREFILL_OFF))
+        )
+        if self.source_prefill == SOURCE_PREFILL_OFF:
+            if any(row.source_prefill is not None for row in definition.rows):
+                raise WorkbenchError("source-prefill rows require an assisted workspace binding")
+        elif definition.binding.get("annotation_methodology") != source_prefill_methodology(
+            self.source_prefill
+        ):
+            raise WorkbenchError("the source-prefill methodology binding is invalid")
+        self._blinded_package_paths = dict(definition.private_paths)
+        if definition.mode == BLINDED_MODE:
+            if not self._blinded_package_paths and self.source_prefill == SOURCE_PREFILL_OFF:
+                defaults = resolve_review_paths(self.repo_root)
+                self._blinded_package_paths = {
+                    "source_manifest": defaults.source_manifest,
+                    "review_file": defaults.review_file,
+                    "mapping_file": defaults.mapping_file,
+                    "metadata_file": defaults.metadata_file,
+                }
+            if set(self._blinded_package_paths) != {
+                "source_manifest",
+                "review_file",
+                "mapping_file",
+                "metadata_file",
+            } or any(
+                not isinstance(path, Path)
+                for path in self._blinded_package_paths.values()
+            ):
+                raise WorkbenchError("the blinded package path binding is invalid")
+            if self.source_prefill != SOURCE_PREFILL_OFF:
+                expected_package_paths = {
+                    name: path.relative_to(self.repo_root).as_posix()
+                    for name, path in self._blinded_package_paths.items()
+                }
+                if definition.binding.get("source_prefill_package_paths") != (
+                    expected_package_paths
+                ):
+                    raise WorkbenchError("the assisted package path binding is invalid")
+        elif self._blinded_package_paths:
+            raise WorkbenchError("training workspaces cannot bind blinded package paths")
         self.store = store
         self.reviewer = _valid_reviewer(reviewer)
         self.batch_size = batch_size
@@ -201,6 +296,15 @@ class AnnotationService:
     @property
     def session_id(self) -> str:
         return str(self.session["session_id"])
+
+    def _blinded_review_paths(self):
+        if self.mode != BLINDED_MODE:
+            raise WorkbenchError("blinded package paths are unavailable in training mode")
+        return resolve_review_paths(
+            self.repo_root,
+            source_prefill=self.source_prefill,
+            **self._blinded_package_paths,
+        )
 
     def _import_existing_annotations(self) -> None:
         existing = [row for row in self.definition.rows if row.initial_annotation is not None]
@@ -294,13 +398,18 @@ class AnnotationService:
     def _write_blinded_projection(self) -> None:
         if self.mode != BLINDED_MODE:
             return
+        paths = self._blinded_review_paths()
         current = load_blinded_workspace(
             self.repo_root,
+            source_manifest=paths.source_manifest,
+            review_file=paths.review_file,
+            mapping_file=paths.mapping_file,
+            metadata_file=paths.metadata_file,
             include_initial_annotations=False,
+            source_prefill=self.source_prefill,
         )
         if current.binding != self.definition.binding:
             raise WorkbenchError("the frozen blinded package changed after workbench launch")
-        paths = resolve_review_paths(self.repo_root)
         source_hash = file_sha256(paths.source_manifest)
         if source_hash != self.definition.binding["source_manifest_sha256"]:
             raise WorkbenchError("the frozen source manifest changed after workbench launch")
@@ -308,7 +417,14 @@ class AnnotationService:
         self._review_backup(paths.review_file)
         try:
             _atomic_bytes(paths.review_file, _jsonl_bytes(self._projection_rows()))
-            report = run_validate(self.repo_root)
+            report = run_validate(
+                self.repo_root,
+                source_manifest=paths.source_manifest,
+                review_file=paths.review_file,
+                mapping_file=paths.mapping_file,
+                metadata_file=paths.metadata_file,
+                source_prefill=self.source_prefill,
+            )
             if report["test_rows"] != self.definition.row_count:
                 raise WorkbenchError("the blinded projection row count changed")
             if file_sha256(paths.source_manifest) != source_hash:
@@ -336,7 +452,7 @@ class AnnotationService:
             for row in dirty:
                 self._mark_projection_clean(str(row["row_id"]), int(row["revision"]))
             return
-        paths = resolve_review_paths(self.repo_root)
+        paths = self._blinded_review_paths()
         expected = _jsonl_bytes(self._projection_rows())
         if hashlib.sha256(paths.review_file.read_bytes()).digest() != hashlib.sha256(expected).digest():
             self._write_blinded_projection()
@@ -432,6 +548,15 @@ class AnnotationService:
             and self.session_phase != "qc"
         )
         value["adjudication_required"] = row.get("qc_status") == "failed"
+        if (
+            self.source_prefill != SOURCE_PREFILL_OFF
+            and self.session_phase == "initial"
+            and row.get("status") in {"pending", "draft"}
+            and row.get("qc_status") != "failed"
+        ):
+            safe_prefill = _safe_source_prefill(fields.get("source_prefill"), str(fields["sms"]))
+            if safe_prefill is not None:
+                value["source_prefill"] = safe_prefill
         return value
 
     def navigate(self, *, position: int, direction: str, filter_name: str) -> dict[str, Any]:
@@ -809,6 +934,25 @@ class AnnotationService:
             raise WorkbenchError("training export outputs are nonempty")
         rows: list[dict[str, Any]] = []
         counts = {"completed": 0, "pending": 0, "uncertain": 0}
+        assisted_provenance = {}
+        if self.source_prefill != SOURCE_PREFILL_OFF:
+            assisted_provenance = {
+                "annotation_methodology": source_prefill_methodology(
+                    self.source_prefill
+                ),
+                "source_prefill": self.source_prefill,
+                "source_prefill_policy_version": self.definition.binding.get(
+                    "source_prefill_policy_version"
+                ),
+                "source_prefill_rows_digest_sha256": self.definition.binding.get(
+                    "source_prefill_rows_digest_sha256"
+                ),
+                **{
+                    key: value
+                    for key, value in self.definition.binding.items()
+                    if key.startswith("source_prefill_") and key.endswith("_sha256")
+                },
+            }
         for stored in self._all_rows(include_private=True):
             source = dict(stored["source"])
             if source.get("split") not in {"train", "dev"}:
@@ -836,6 +980,7 @@ class AnnotationService:
                 reveals = self.store.get_proposal_reveals(stored["row_id"])
                 source["human_annotation_workbench"] = {
                     "contract": WORKBENCH_CONTRACT,
+                    **assisted_provenance,
                     "annotation": annotation,
                     "blind_first_event_hash": stored["initial_event_hash"],
                     "final_event_hash": history[-1]["event_hash"],
@@ -853,6 +998,7 @@ class AnnotationService:
         report = {
             "contract": WORKBENCH_CONTRACT,
             "operation": "training_export",
+            **assisted_provenance,
             "valid": True,
             "rows": len(rows),
             "completed_rows": counts["completed"],
@@ -875,6 +1021,7 @@ def validate_blinded_import_gate(
     review_file: Path | None = None,
     mapping_file: Path | None = None,
     metadata_file: Path | None = None,
+    source_prefill: str = SOURCE_PREFILL_OFF,
 ) -> dict[str, Any]:
     """Fail closed unless the complete frozen package and every required QC pass."""
 
@@ -885,6 +1032,7 @@ def validate_blinded_import_gate(
         mapping_file=mapping_file,
         metadata_file=metadata_file,
         include_initial_annotations=False,
+        source_prefill=source_prefill,
     )
     with WorkbenchStore(db_path, workspace_binding=definition.binding) as store:
         rows = store.get_rows(limit=MAX_PAGE_ROWS)
@@ -931,7 +1079,9 @@ def validate_blinded_import_gate(
             }.items()
             if value is not None
         }
-        review_path = resolve_review_paths(repo_root, **overrides).review_file
+        review_path = resolve_review_paths(
+            repo_root, source_prefill=source_prefill, **overrides
+        ).review_file
         if review_path.read_bytes() != _jsonl_bytes(projection_rows):
             raise WorkbenchError(
                 "final import projection does not match durable annotation history"
@@ -1049,6 +1199,14 @@ def validate_blinded_import_gate(
                     )
         return {
             "valid": True,
+            "annotation_methodology": source_prefill_methodology(source_prefill),
+            "source_prefill": source_prefill,
+            "source_prefill_policy_version": definition.binding.get(
+                "source_prefill_policy_version"
+            ),
+            "source_prefill_rows_digest_sha256": definition.binding.get(
+                "source_prefill_rows_digest_sha256"
+            ),
             "completed_rows": len(rows),
             "pending_rows": 0,
             "unresolved_uncertain_rows": 0,

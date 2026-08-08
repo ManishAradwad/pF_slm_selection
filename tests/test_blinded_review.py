@@ -16,6 +16,12 @@ from lfm25.blinded_review import (
     run_validate,
     safe_console_summary,
 )
+from lfm25.annotation_workbench import (
+    SOURCE_PREFILL_OFF,
+    SOURCE_PREFILL_POLICY_VERSION,
+    SOURCE_PREFILL_UNAMBIGUOUS,
+    source_prefill_methodology,
+)
 from lfm25.private_data import PrivateDataError, file_sha256, read_jsonl
 
 
@@ -71,12 +77,22 @@ def _setup_repo(
     return repo_root, manifest, rows
 
 
-def _review_path(repo_root: Path) -> Path:
-    return repo_root / "PRIVATE_DATA" / "lfm25" / "blinded_test_review.jsonl"
+def _review_path(
+    repo_root: Path,
+    *,
+    source_prefill: str = SOURCE_PREFILL_OFF,
+) -> Path:
+    return resolve_review_paths(
+        repo_root, source_prefill=source_prefill
+    ).review_file
 
 
-def _complete_review(repo_root: Path) -> list[dict]:
-    rows = read_jsonl(_review_path(repo_root))
+def _complete_review(
+    repo_root: Path,
+    *,
+    source_prefill: str = SOURCE_PREFILL_OFF,
+) -> list[dict]:
+    rows = read_jsonl(_review_path(repo_root, source_prefill=source_prefill))
     rows[0].update(
         {
             "decision": "transaction",
@@ -97,7 +113,7 @@ def _complete_review(repo_root: Path) -> list[dict]:
             "notes": None,
         }
     )
-    _write_jsonl(_review_path(repo_root), rows)
+    _write_jsonl(_review_path(repo_root, source_prefill=source_prefill), rows)
     return rows
 
 
@@ -106,10 +122,14 @@ def _stub_import_gate(
     monkeypatch: pytest.MonkeyPatch,
     *,
     failure: BaseException | None = None,
+    source_prefill: str = SOURCE_PREFILL_OFF,
 ) -> tuple[Path, list[tuple[Path, dict]]]:
-    database = (
-        repo_root / "PRIVATE_DATA" / "lfm25" / "annotation_workbench" / "blinded_test.sqlite3"
+    database_relative = (
+        blinded_review.DEFAULT_ASSISTED_WORKBENCH_DB
+        if source_prefill == SOURCE_PREFILL_UNAMBIGUOUS
+        else blinded_review.DEFAULT_WORKBENCH_DB
     )
+    database = repo_root / database_relative
     database.parent.mkdir(parents=True, exist_ok=True)
     database.write_bytes(b"synthetic nonempty workbench fixture")
     calls: list[tuple[Path, dict]] = []
@@ -118,8 +138,16 @@ def _stub_import_gate(
         calls.append((called_root, kwargs))
         if failure is not None:
             raise failure
+        policy = kwargs["source_prefill"]
+        assisted = policy == SOURCE_PREFILL_UNAMBIGUOUS
         return {
             "valid": True,
+            "annotation_methodology": source_prefill_methodology(policy),
+            "source_prefill": policy,
+            "source_prefill_policy_version": (
+                SOURCE_PREFILL_POLICY_VERSION if assisted else None
+            ),
+            "source_prefill_rows_digest_sha256": "a" * 64 if assisted else None,
             "completed_rows": 2,
             "pending_rows": 0,
             "unresolved_uncertain_rows": 0,
@@ -131,11 +159,26 @@ def _stub_import_gate(
         _called_root: Path,
         package,
         _db_path: Path,
+        source_prefill: str,
     ) -> dict:
         return {
             str(mapping["record_hash"]): {
                 "contract": blinded_review.WORKBENCH_CONTRACT,
                 "schema_version": 1,
+                **(
+                    {
+                        "annotation_methodology": source_prefill_methodology(
+                            source_prefill
+                        ),
+                        "source_prefill": source_prefill,
+                        "source_prefill_policy_version": (
+                            SOURCE_PREFILL_POLICY_VERSION
+                        ),
+                        "source_prefill_rows_digest_sha256": "a" * 64,
+                    }
+                    if source_prefill == SOURCE_PREFILL_UNAMBIGUOUS
+                    else {}
+                ),
                 "annotation": {"decision": annotation.decision},
                 "final_phase": "qc",
                 "qc_status": "passed",
@@ -326,6 +369,7 @@ def test_import_uses_matching_gate_and_preserves_exact_decimal(
         "review_file": paths.review_file,
         "mapping_file": paths.mapping_file,
         "metadata_file": paths.metadata_file,
+        "source_prefill": SOURCE_PREFILL_OFF,
     }
     reviewed_path = repo_root / "PRIVATE_DATA" / "lfm25" / "split_manifest_human_reviewed.jsonl"
     reviewed_text = reviewed_path.read_text(encoding="utf-8")
@@ -335,6 +379,11 @@ def test_import_uses_matching_gate_and_preserves_exact_decimal(
         row["human_annotation_workbench"]["contract"] == blinded_review.WORKBENCH_CONTRACT
         for row in reviewed_test_rows
     )
+    assert all(
+        "source_prefill" not in row["human_annotation_workbench"]
+        and "annotation_methodology" not in row["human_annotation_workbench"]
+        for row in reviewed_test_rows
+    )
     assert f'"human_label":{{"amount":{exact_amount},' in reviewed_text
     assert reviewed_text.count("\n") == len(source_rows)
     report_text = (
@@ -342,10 +391,111 @@ def test_import_uses_matching_gate_and_preserves_exact_decimal(
     ).read_text(encoding="utf-8")
     assert "Synthetic INR" not in report_text
     assert "fixture-reviewer" not in report_text
+    assert "source_prefill" not in report_text
+    assert "annotation_methodology" not in report_text
 
     with pytest.raises(BlindedReviewError, match="nonempty"):
         run_import(repo_root)
     run_import(repo_root, force=True)
+
+
+def test_assisted_package_defaults_and_import_are_fully_isolated(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root, _, _ = _setup_repo(tmp_path, monkeypatch)
+    run_export(repo_root)
+    canonical_paths = resolve_review_paths(repo_root)
+    canonical_review_before = canonical_paths.review_file.read_bytes()
+
+    assisted_export = run_export(
+        repo_root, source_prefill=SOURCE_PREFILL_UNAMBIGUOUS
+    )
+    assisted_paths = resolve_review_paths(
+        repo_root, source_prefill=SOURCE_PREFILL_UNAMBIGUOUS
+    )
+    assert assisted_export["annotation_methodology"] == (
+        "human_verified_candidate_assisted"
+    )
+    assert assisted_export["source_prefill"] == SOURCE_PREFILL_UNAMBIGUOUS
+    assert assisted_export["source_prefill_policy_version"] == (
+        SOURCE_PREFILL_POLICY_VERSION
+    )
+    for field in (
+        "review_file",
+        "mapping_file",
+        "metadata_file",
+        "reviewed_manifest",
+        "import_report",
+    ):
+        assert getattr(assisted_paths, field) != getattr(canonical_paths, field)
+    assert canonical_paths.review_file.read_bytes() == canonical_review_before
+
+    metadata = json.loads(assisted_paths.metadata_file.read_text(encoding="utf-8"))
+    assert metadata["source_prefill"] == SOURCE_PREFILL_UNAMBIGUOUS
+    assert metadata["source_prefill_policy_version"] == SOURCE_PREFILL_POLICY_VERSION
+    assert metadata["annotation_methodology"] == (
+        "human_verified_candidate_assisted"
+    )
+    assert "source_prefill" not in json.loads(
+        canonical_paths.metadata_file.read_text(encoding="utf-8")
+    )
+    with pytest.raises(BlindedReviewError, match="metadata schema"):
+        run_validate(
+            repo_root,
+            review_file=assisted_paths.review_file,
+            mapping_file=assisted_paths.mapping_file,
+            metadata_file=assisted_paths.metadata_file,
+            source_prefill=SOURCE_PREFILL_OFF,
+        )
+
+    _complete_review(
+        repo_root, source_prefill=SOURCE_PREFILL_UNAMBIGUOUS
+    )
+    database, calls = _stub_import_gate(
+        repo_root,
+        monkeypatch,
+        source_prefill=SOURCE_PREFILL_UNAMBIGUOUS,
+    )
+    report = run_import(
+        repo_root, source_prefill=SOURCE_PREFILL_UNAMBIGUOUS
+    )
+
+    assert database == (repo_root / blinded_review.DEFAULT_ASSISTED_WORKBENCH_DB)
+    assert report["annotation_methodology"] == (
+        "human_verified_candidate_assisted"
+    )
+    assert report["source_prefill"] == SOURCE_PREFILL_UNAMBIGUOUS
+    assert report["source_prefill_policy_version"] == SOURCE_PREFILL_POLICY_VERSION
+    assert report["source_prefill_rows_digest_sha256"] == "a" * 64
+    console_summary = safe_console_summary(report)
+    assert "source_prefill_rows_digest_sha256" not in console_summary
+    assert "a" * 64 not in json.dumps(console_summary, sort_keys=True)
+    assert assisted_paths.reviewed_manifest.is_file()
+    assert assisted_paths.import_report.is_file()
+    assert not canonical_paths.reviewed_manifest.exists()
+    assert not canonical_paths.import_report.exists()
+    reviewed = read_jsonl(assisted_paths.reviewed_manifest)
+    reviewed_test = [row for row in reviewed if row["split"] == "test"]
+    assert reviewed_test
+    for row in reviewed_test:
+        provenance = row["human_annotation_workbench"]
+        assert provenance["annotation_methodology"] == (
+            "human_verified_candidate_assisted"
+        )
+        assert provenance["source_prefill"] == SOURCE_PREFILL_UNAMBIGUOUS
+        assert provenance["source_prefill_policy_version"] == (
+            SOURCE_PREFILL_POLICY_VERSION
+        )
+        assert provenance["source_prefill_rows_digest_sha256"] == "a" * 64
+    assert calls[0][1] == {
+        "db_path": database.resolve(),
+        "source_manifest": assisted_paths.source_manifest,
+        "review_file": assisted_paths.review_file,
+        "mapping_file": assisted_paths.mapping_file,
+        "metadata_file": assisted_paths.metadata_file,
+        "source_prefill": SOURCE_PREFILL_UNAMBIGUOUS,
+    }
 
 
 def test_workbench_gate_failure_does_not_materialize_outputs(
@@ -563,9 +713,24 @@ def test_cli_import_forwards_workbench_database_without_printing_it(
     assert review_cli.main(["import", "--workbench-db", str(selected_database)]) == 0
 
     assert captured["workbench_db"] == selected_database
+    assert captured["source_prefill"] == SOURCE_PREFILL_OFF
     stdout = capsys.readouterr().out
     assert "custom.sqlite3" not in stdout
     assert json.loads(stdout)["workbench_gate_passed"] is True
+
+
+@pytest.mark.parametrize("command", ("export", "validate"))
+def test_cli_export_and_validate_select_assisted_package_defaults(
+    command: str,
+) -> None:
+    arguments = review_cli.build_parser().parse_args(
+        [command, "--source-prefill", SOURCE_PREFILL_UNAMBIGUOUS]
+    )
+
+    assert arguments.source_prefill == SOURCE_PREFILL_UNAMBIGUOUS
+    assert arguments.review_file is None
+    assert arguments.mapping_file is None
+    assert arguments.metadata_file is None
 
 
 @pytest.mark.parametrize(

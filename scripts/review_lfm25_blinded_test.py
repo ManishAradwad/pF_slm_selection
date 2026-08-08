@@ -14,6 +14,12 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from lfm25.blinded_review import (  # noqa: E402
+    DEFAULT_ASSISTED_IMPORT_REPORT,
+    DEFAULT_ASSISTED_MAPPING_FILE,
+    DEFAULT_ASSISTED_METADATA_FILE,
+    DEFAULT_ASSISTED_REVIEWED_MANIFEST,
+    DEFAULT_ASSISTED_REVIEW_FILE,
+    DEFAULT_ASSISTED_WORKBENCH_DB,
     DEFAULT_IMPORT_REPORT,
     DEFAULT_MAPPING_FILE,
     DEFAULT_METADATA_FILE,
@@ -25,6 +31,10 @@ from lfm25.blinded_review import (  # noqa: E402
     run_import,
     run_validate,
     safe_console_summary,
+)
+from lfm25.annotation_workbench import (  # noqa: E402
+    SOURCE_PREFILL_OFF,
+    SOURCE_PREFILL_POLICIES,
 )
 from lfm25.private_data import PrivateDataError  # noqa: E402
 
@@ -43,20 +53,41 @@ def _add_package_paths(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--review-file",
         type=_path,
-        default=DEFAULT_REVIEW_FILE,
-        help="Reviewer-facing JSONL below PRIVATE_DATA/lfm25.",
+        default=None,
+        help=(
+            "Reviewer JSONL; policy-specific default: "
+            f"{DEFAULT_REVIEW_FILE} (off) or "
+            f"{DEFAULT_ASSISTED_REVIEW_FILE} (unambiguous)."
+        ),
     )
     parser.add_argument(
         "--mapping-file",
         type=_path,
-        default=DEFAULT_MAPPING_FILE,
-        help="Internal ID mapping below PRIVATE_DATA/lfm25; do not give this to reviewers.",
+        default=None,
+        help=(
+            "Internal ID mapping; policy-specific default: "
+            f"{DEFAULT_MAPPING_FILE} (off) or "
+            f"{DEFAULT_ASSISTED_MAPPING_FILE} (unambiguous); never give it to reviewers."
+        ),
     )
     parser.add_argument(
         "--metadata-file",
         type=_path,
-        default=DEFAULT_METADATA_FILE,
-        help="Frozen package provenance below PRIVATE_DATA/lfm25.",
+        default=None,
+        help=(
+            "Frozen package provenance; policy-specific default: "
+            f"{DEFAULT_METADATA_FILE} (off) or "
+            f"{DEFAULT_ASSISTED_METADATA_FILE} (unambiguous)."
+        ),
+    )
+
+
+def _add_source_prefill(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--source-prefill",
+        choices=SOURCE_PREFILL_POLICIES,
+        default=SOURCE_PREFILL_OFF,
+        help="Immutable annotation assistance policy; default: off.",
     )
 
 
@@ -73,6 +104,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Export all and only frozen test rows with blank human labels.",
     )
     _add_package_paths(export)
+    _add_source_prefill(export)
     export.add_argument(
         "--force",
         action="store_true",
@@ -84,6 +116,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Validate a complete or resumable partial annotation file without writing outputs.",
     )
     _add_package_paths(validate)
+    _add_source_prefill(validate)
 
     import_parser = subparsers.add_parser(
         "import",
@@ -93,21 +126,34 @@ def build_parser() -> argparse.ArgumentParser:
     import_parser.add_argument(
         "--reviewed-manifest",
         type=_path,
-        default=DEFAULT_REVIEWED_MANIFEST,
-        help="Separate reviewed-manifest output below PRIVATE_DATA/lfm25.",
+        default=None,
+        help=(
+            "Separate reviewed-manifest output; policy-specific default: "
+            f"{DEFAULT_REVIEWED_MANIFEST} (off) or "
+            f"{DEFAULT_ASSISTED_REVIEWED_MANIFEST} (unambiguous)."
+        ),
     )
     import_parser.add_argument(
         "--report",
         type=_path,
-        default=DEFAULT_IMPORT_REPORT,
-        help="Aggregate-only import report below PRIVATE_DATA/lfm25.",
+        default=None,
+        help=(
+            "Aggregate-only import report; policy-specific default: "
+            f"{DEFAULT_IMPORT_REPORT} (off) or "
+            f"{DEFAULT_ASSISTED_IMPORT_REPORT} (unambiguous)."
+        ),
     )
     import_parser.add_argument(
         "--workbench-db",
         type=_path,
-        default=DEFAULT_WORKBENCH_DB,
-        help="Completed local workbench database below PRIVATE_DATA/lfm25.",
+        default=None,
+        help=(
+            "Completed workbench DB; policy-specific default: "
+            f"{DEFAULT_WORKBENCH_DB} (off) or "
+            f"{DEFAULT_ASSISTED_WORKBENCH_DB} (unambiguous)."
+        ),
     )
+    _add_source_prefill(import_parser)
     import_parser.add_argument(
         "--force",
         action="store_true",
@@ -127,15 +173,23 @@ def main(argv: list[str] | None = None) -> int:
     }
     try:
         if arguments.command == "export":
-            report = run_export(REPO_ROOT, force=arguments.force, **common)
+            report = run_export(
+                REPO_ROOT,
+                source_prefill=arguments.source_prefill,
+                force=arguments.force,
+                **common,
+            )
         elif arguments.command == "validate":
-            report = run_validate(REPO_ROOT, **common)
+            report = run_validate(
+                REPO_ROOT, source_prefill=arguments.source_prefill, **common
+            )
         else:
             report = run_import(
                 REPO_ROOT,
                 reviewed_manifest=arguments.reviewed_manifest,
                 import_report=arguments.report,
                 workbench_db=arguments.workbench_db,
+                source_prefill=arguments.source_prefill,
                 force=arguments.force,
                 **common,
             )

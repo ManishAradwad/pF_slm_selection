@@ -13,9 +13,34 @@ const state = {
   mode: null,
   qcSession: false,
   spans: { amount: null, account: null, counterparty: null },
+  suggestedFields: new Set(),
+  bootstrapped: false,
 };
 
 const byId = (id) => document.getElementById(id);
+
+function trustedLocalRuntime() {
+  return window.location.protocol === "http:"
+    && window.location.hostname === "127.0.0.1";
+}
+
+function setLaunchFailure(message) {
+  byId("launch-reason").textContent = message;
+  byId("launch-gate").hidden = false;
+  const shell = byId("app-shell");
+  shell.hidden = true;
+  shell.inert = true;
+  shell.setAttribute("inert", "");
+}
+
+function revealAppShell() {
+  byId("launch-gate").hidden = true;
+  const shell = byId("app-shell");
+  shell.hidden = false;
+  shell.inert = false;
+  shell.removeAttribute("inert");
+  state.bootstrapped = true;
+}
 
 async function api(path, options = {}) {
   const headers = { Accept: "application/json", ...(options.headers || {}) };
@@ -77,6 +102,34 @@ function setRadio(name, value) {
   }
 }
 
+const PREFILL_ELEMENTS = {
+  amount_decimal: "amount-decimal",
+  amount_span: "amount-text",
+  type: "direction-fieldset",
+  account_span: "account-text",
+  counterparty_span: "counterparty-text",
+};
+
+function syncSuggestionMarkers() {
+  for (const [field, elementId] of Object.entries(PREFILL_ELEMENTS)) {
+    const element = byId(elementId);
+    const suggested = state.suggestedFields.has(field);
+    element.toggleAttribute("data-suggested", suggested);
+    if (suggested) element.dataset.suggested = "true";
+  }
+  byId("prefill-note").classList.toggle("hidden", state.suggestedFields.size === 0);
+}
+
+function clearSuggestedField(field) {
+  state.suggestedFields.delete(field);
+  syncSuggestionMarkers();
+}
+
+function resetSuggestedFields() {
+  state.suggestedFields.clear();
+  syncSuggestionMarkers();
+}
+
 function annotationFromForm() {
   return {
     decision: selectedRadio("decision"),
@@ -99,9 +152,12 @@ function clearExtraction() {
   byId("counterparty-absent").checked = false;
   setRadio("type", null);
   state.spans = { amount: null, account: null, counterparty: null };
+  byId("selection-status").textContent = "";
+  resetSuggestedFields();
 }
 
 function annotationToForm(annotation) {
+  resetSuggestedFields();
   const value = annotation || {};
   setRadio("decision", value.decision || null);
   setRadio("type", value.type || null);
@@ -118,6 +174,118 @@ function annotationToForm(annotation) {
     counterparty: value.counterparty_span || null,
   };
   updateDecisionVisibility();
+}
+
+function validPrefillSpan(value, sms) {
+  if (
+    !value
+    || typeof value !== "object"
+    || Array.isArray(value)
+    || typeof value.text !== "string"
+    || !Number.isInteger(value.start)
+    || !Number.isInteger(value.end)
+    || value.start < 0
+    || value.end <= value.start
+  ) return false;
+  const keys = Object.keys(value).sort().join(",");
+  if (keys !== "end,start,text") return false;
+  const encoded = new TextEncoder().encode(sms);
+  if (value.end > encoded.length) return false;
+  try {
+    const decoded = new TextDecoder("utf-8", { fatal: true })
+      .decode(encoded.slice(value.start, value.end));
+    return decoded === value.text;
+  } catch {
+    return false;
+  }
+}
+
+function sanitizedSourcePrefill(row) {
+  const value = row?.source_prefill;
+  if (
+    !value
+    || typeof value !== "object"
+    || Array.isArray(value)
+  ) return null;
+  const allowed = new Set([
+    "policy_version",
+    "amount_decimal",
+    "amount_span",
+    "type",
+    "account_span",
+    "counterparty_span",
+  ]);
+  const keys = Object.keys(value);
+  const hasAmount = Object.hasOwn(value, "amount_decimal");
+  const hasAmountSpan = Object.hasOwn(value, "amount_span");
+  if (
+    value.policy_version !== 1
+    || keys.length === 1
+    || keys.some((key) => !allowed.has(key))
+    || hasAmount !== hasAmountSpan
+  ) return null;
+  const result = { policy_version: 1 };
+  if (Object.hasOwn(value, "amount_decimal")) {
+    const amount = value.amount_decimal;
+    if (
+      typeof amount !== "string"
+      || !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(amount)
+      || !/[1-9]/.test(amount)
+    ) return null;
+    result.amount_decimal = amount;
+  }
+  if (Object.hasOwn(value, "type")) {
+    if (!["debit", "credit"].includes(value.type)) return null;
+    result.type = value.type;
+  }
+  for (const field of ["amount_span", "account_span", "counterparty_span"]) {
+    if (!Object.hasOwn(value, field)) continue;
+    if (!validPrefillSpan(value[field], row.sms)) return null;
+    result[field] = { ...value[field] };
+  }
+  return result;
+}
+
+function applySourcePrefill() {
+  const row = state.row;
+  if (
+    !row
+    || !["pending", "draft"].includes(row.status)
+    || state.qcSession
+    || selectedRadio("decision") !== "transaction"
+  ) return;
+  const value = sanitizedSourcePrefill(row);
+  if (!value) return;
+  const applied = [];
+  if (value.amount_decimal && !byId("amount-decimal").value.trim()) {
+    byId("amount-decimal").value = value.amount_decimal;
+    applied.push("amount_decimal");
+  }
+  if (value.amount_span && state.spans.amount === null) {
+    state.spans.amount = value.amount_span;
+    byId("amount-text").value = value.amount_span.text;
+    applied.push("amount_span");
+  }
+  if (value.type && selectedRadio("type") === null) {
+    setRadio("type", value.type);
+    applied.push("type");
+  }
+  if (value.account_span && state.spans.account === null) {
+    state.spans.account = value.account_span;
+    byId("account-text").value = value.account_span.text;
+    applied.push("account_span");
+  }
+  if (
+    value.counterparty_span
+    && state.spans.counterparty === null
+    && !byId("counterparty-absent").checked
+  ) {
+    state.spans.counterparty = value.counterparty_span;
+    byId("counterparty-text").value = value.counterparty_span.text;
+    applied.push("counterparty_span");
+  }
+  for (const field of applied) state.suggestedFields.add(field);
+  syncSuggestionMarkers();
 }
 
 function updateDecisionVisibility() {
@@ -146,16 +314,56 @@ function selectionSpan() {
   };
 }
 
+function canonicalAmountFromSelection(text) {
+  const matches = [...text.matchAll(/[+]?\d[\d,]*(?:\.\d+)?/g)];
+  if (matches.length !== 1) return null;
+  const match = matches[0];
+  const prefix = text.slice(0, match.index).trimEnd();
+  if (prefix.endsWith("-")) return null;
+  const token = match[0].replace(/^\+/, "");
+  const [whole, fraction] = token.split(".");
+  if (token.split(".").length > 2) return null;
+  if (whole.includes(",")) {
+    const western = /^\d{1,3}(?:,\d{3})+$/.test(whole);
+    const indian = /^\d{1,2}(?:,\d{2})*,\d{3}$/.test(whole);
+    if (!western && !indian) return null;
+  }
+  const digits = whole.replaceAll(",", "");
+  if (!/^\d+$/.test(digits) || (fraction !== undefined && !/^\d+$/.test(fraction))) {
+    return null;
+  }
+  if (!/[1-9]/.test(digits + (fraction || ""))) return null;
+  const canonicalWhole = digits.replace(/^0+(?=\d)/, "");
+  return canonicalWhole + (fraction === undefined ? "" : "." + fraction);
+}
+
 function useSelection(field) {
   const span = selectionSpan();
   if (!span) {
     setGlobalError("Select exact source text inside the SMS first.");
+    byId("selection-status").textContent = "";
     return;
   }
   setGlobalError();
+  clearSuggestedField(`${field}_span`);
   state.spans[field] = span;
   byId(`${field}-text`).value = span.text;
-  if (field === "counterparty") byId("counterparty-absent").checked = false;
+  if (field === "amount") {
+    const canonical = canonicalAmountFromSelection(span.text);
+    if (canonical) {
+      byId("amount-decimal").value = canonical;
+      clearSuggestedField("amount_decimal");
+      byId("selection-status").textContent = `Amount set to ${canonical}; verify before save.`;
+    } else {
+      byId("selection-status").textContent =
+        "Amount span assigned; enter the exact decimal manually.";
+    }
+  } else {
+    byId("selection-status").textContent = `Selected source assigned to ${field}.`;
+  }
+  if (field === "counterparty") {
+    byId("counterparty-absent").checked = false;
+  }
   scheduleAutosave();
 }
 
@@ -165,6 +373,18 @@ function renderProgress(progress) {
   byId("qc-progress").textContent = progress.qc_required
     ? `${progress.qc_passed} / ${progress.qc_required}`
     : "Not started";
+  const ready = progress.ready_for_qc === true;
+  const button = byId("start-qc");
+  button.disabled = !ready || state.qcSession;
+  const availability = byId("qc-availability");
+  if (state.qcSession) {
+    availability.textContent = "Delayed QC is in progress.";
+  } else if (ready) {
+    availability.textContent = "All rows are complete and resolved. QC can now start.";
+  } else {
+    availability.textContent =
+      `${progress.pending_rows} pending and ${progress.uncertain_rows} unresolved row(s) remain.`;
+  }
 }
 
 function renderQueueTags(row) {
@@ -249,7 +469,9 @@ function renderRow(row) {
   byId("row-status").textContent = row.status;
   byId("sender").textContent = row.sender;
   byId("sms").textContent = row.sms;
+  byId("selection-status").textContent = "";
   annotationToForm(row.annotation);
+  if (selectedRadio("decision") === "transaction") applySourcePrefill();
   showProblems();
   const revealButton = byId("reveal-proposals");
   revealButton.classList.toggle("hidden", !row.proposal_reveal_available);
@@ -281,17 +503,18 @@ async function loadHistory(reviewId) {
 }
 
 async function navigate(direction = "current", filter = state.filter) {
-  if (state.loading) return;
+  if (state.loading) return false;
   if (state.dirty) {
     if (state.qcSession) {
       setGlobalError("Complete or correct the current QC row before navigating.");
-      return;
+      return false;
     }
     const saved = await save(false);
-    if (!saved) return;
+    if (!saved) return false;
   }
   state.loading = true;
   setGlobalError();
+  let loaded = false;
   try {
     const params = new URLSearchParams({
       position: String(state.position),
@@ -300,13 +523,17 @@ async function navigate(direction = "current", filter = state.filter) {
     });
     const result = await api(`/api/row?${params}`);
     state.filter = filter;
+    byId("filter").value = filter;
     renderRow(result.row);
     renderProgress(result.progress);
+    loaded = true;
   } catch (error) {
+    byId("filter").value = state.filter;
     setGlobalError(error.message);
   } finally {
     state.loading = false;
   }
+  return loaded;
 }
 
 async function save(submit = false) {
@@ -378,7 +605,7 @@ function configurePhase(filters) {
 }
 
 async function startQc() {
-  if (state.loading || state.saveInFlight) return;
+  if (state.loading || state.saveInFlight || byId("start-qc").disabled) return;
   if (state.dirty) {
     const saved = await save(false);
     if (!saved) return;
@@ -467,6 +694,7 @@ function handleShortcut(event) {
       byId("counterparty-absent").checked = true;
       state.spans.counterparty = null;
       byId("counterparty-text").value = "";
+      clearSuggestedField("counterparty_span");
       scheduleAutosave();
     }
     return;
@@ -479,12 +707,20 @@ function handleShortcut(event) {
   if (key === "t" || key === "x") {
     setRadio("decision", key === "t" ? "transaction" : "not_transaction");
     updateDecisionVisibility();
+    if (key === "t") applySourcePrefill();
     scheduleAutosave();
   }
   if (key === "u") {
     byId("uncertain").checked = !byId("uncertain").checked;
     scheduleAutosave();
   }
+}
+
+function recordHumanEdit(input) {
+  const field = input.dataset.prefillField
+    || (input.name === "type" ? "type" : null);
+  if (field) clearSuggestedField(field);
+  scheduleAutosave();
 }
 
 function wireUi() {
@@ -502,38 +738,62 @@ function wireUi() {
     event.preventDefault();
     save(true);
   });
-  for (const input of byId("annotation-form").querySelectorAll("input, textarea")) {
-    input.addEventListener("input", scheduleAutosave);
-    input.addEventListener("change", scheduleAutosave);
-  }
   for (const input of document.querySelectorAll('input[name="decision"]')) {
-    input.addEventListener("change", updateDecisionVisibility);
+    input.addEventListener("change", () => {
+      updateDecisionVisibility();
+      if (input.checked && input.value === "transaction") applySourcePrefill();
+    });
+  }
+  for (const input of byId("annotation-form").querySelectorAll("input, textarea")) {
+    input.addEventListener("input", () => recordHumanEdit(input));
+    input.addEventListener("change", () => recordHumanEdit(input));
   }
   byId("counterparty-absent").addEventListener("change", () => {
     if (byId("counterparty-absent").checked) {
       state.spans.counterparty = null;
       byId("counterparty-text").value = "";
     }
+    clearSuggestedField("counterparty_span");
   });
   document.addEventListener("keydown", handleShortcut);
+  window.addEventListener("beforeunload", (event) => {
+    if (!state.dirty) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
 }
 
 async function bootstrap() {
+  if (!trustedLocalRuntime()) {
+    setLaunchFailure(
+      "No SMS loaded. This file is not the running app. Start the local server "
+        + "with the command below, then open its exact http://127.0.0.1 URL.",
+    );
+    return;
+  }
   wireUi();
   try {
     const result = await api("/api/bootstrap");
     state.csrf = result.csrf_token;
     state.mode = result.mode;
     state.qcSession = result.session_phase === "qc";
+    const initialFilter = state.qcSession ? "qc" : "pending";
+    state.filter = initialFilter;
     configurePhase(result.filters);
+    byId("filter").value = initialFilter;
     byId("mode").textContent = result.mode_label;
     byId("reviewer").textContent = result.reviewer;
     byId("reveal-proposals").classList.toggle("hidden", result.mode !== "training_curation");
     renderProgress(result.progress);
-    await navigate("first", state.qcSession ? "qc" : "pending");
+    const loaded = await navigate("first", initialFilter);
+    if (!loaded) throw new Error("The first local row could not be loaded.");
+    revealAppShell();
   } catch (error) {
-    setSaveState("Unavailable", "error");
-    setGlobalError(error.message);
+    setLaunchFailure(
+      "No SMS loaded. The local workbench could not bootstrap. "
+        + "Confirm the server is still running, then reopen the exact URL it printed. "
+        + String(error.message || ""),
+    );
   }
 }
 

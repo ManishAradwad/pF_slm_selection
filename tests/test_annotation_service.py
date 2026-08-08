@@ -18,6 +18,8 @@ from lfm25.annotation_store import (
 from lfm25.blinded_review import run_export
 from lfm25.annotation_workbench import (
     BLINDED_MODE,
+    SOURCE_PREFILL_OFF,
+    SOURCE_PREFILL_UNAMBIGUOUS,
     TRAINING_MODE,
     WorkspaceDefinition,
     WorkbenchError,
@@ -32,6 +34,7 @@ TRANSACTION_SMS = (
     "Synthetic alert: INR 1,234.50 debited from A/c XX0042 at CAFÉ NILA."
 )
 REMINDER_SMS = "Synthetic reminder: statement is ready for A/c XX0099."
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _span(sms: str, text: str) -> dict[str, object]:
@@ -713,8 +716,19 @@ def _prepare_completed_blinded_qc(
     monkeypatch: pytest.MonkeyPatch,
     *,
     adjudicate_transaction: bool = False,
+    source_prefill: str = SOURCE_PREFILL_OFF,
 ) -> tuple[Path, Path, str, str]:
     repo = _temporary_repo(tmp_path, monkeypatch)
+    if source_prefill == SOURCE_PREFILL_UNAMBIGUOUS:
+        contracts = repo / "configs" / "contracts"
+        contracts.mkdir(parents=True)
+        for name in (
+            "pocketfinancer-android-current.json",
+            "pocketfinancer-candidate-v1.json",
+        ):
+            contracts.joinpath(name).write_bytes(
+                PROJECT_ROOT.joinpath("configs", "contracts", name).read_bytes()
+            )
     handbook = repo / "docs" / "guides" / "ANNOTATION_HANDBOOK_V1.md"
     handbook.parent.mkdir(parents=True)
     handbook.write_text(
@@ -754,8 +768,12 @@ def _prepare_completed_blinded_qc(
         encoding="utf-8",
     )
     manifest.chmod(0o600)
-    run_export(repo)
-    definition = load_blinded_workspace(repo, include_initial_annotations=False)
+    run_export(repo, source_prefill=source_prefill)
+    definition = load_blinded_workspace(
+        repo,
+        include_initial_annotations=False,
+        source_prefill=source_prefill,
+    )
     db_path = _db_path(repo)
     annotations: dict[str, dict[str, object]] = {}
     transaction_id = next(
@@ -832,7 +850,9 @@ def _prepare_completed_blinded_qc(
             for item in store.get_qc_requirements()
         )
 
-    report = validate_blinded_import_gate(repo, db_path=db_path)
+    report = validate_blinded_import_gate(
+        repo, db_path=db_path, source_prefill=source_prefill
+    )
     assert report["valid"] is True
     return repo, db_path, transaction_id, unselected_nulls.pop()
 
@@ -865,6 +885,37 @@ def test_blinded_import_gate_accepts_adjudicated_decision_change(
             "qc",
             "adjudication",
         ]
+
+
+def test_blinded_import_gate_resolves_assisted_review_defaults(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, db_path, _transaction_id, _unselected_null = (
+        _prepare_completed_blinded_qc(
+            tmp_path,
+            monkeypatch,
+            source_prefill=SOURCE_PREFILL_UNAMBIGUOUS,
+        )
+    )
+
+    report = validate_blinded_import_gate(
+        repo,
+        db_path=db_path,
+        source_prefill=SOURCE_PREFILL_UNAMBIGUOUS,
+    )
+
+    assert report["valid"] is True
+    assert report["source_prefill"] == SOURCE_PREFILL_UNAMBIGUOUS
+    assert (
+        repo
+        / "PRIVATE_DATA"
+        / "lfm25"
+        / "blinded_test_candidate_assisted_review.jsonl"
+    ).is_file()
+    assert not (
+        repo / "PRIVATE_DATA" / "lfm25" / "blinded_test_review.jsonl"
+    ).exists()
 
 
 def test_blinded_relaunch_rebuilds_projection_after_older_backup_recovery(

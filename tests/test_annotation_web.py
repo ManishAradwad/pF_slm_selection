@@ -4,6 +4,8 @@ import hashlib
 from http import HTTPStatus
 from http.client import HTTPConnection
 from pathlib import Path
+import shutil
+import subprocess
 import threading
 from typing import Any
 
@@ -20,8 +22,10 @@ from lfm25.annotation_web import (
 from lfm25.annotation_workbench import (
     ACTIVE_LEARNING_QUEUE_POLICY_VERSION,
     ACTIVE_LEARNING_QUEUE_TAGS,
+    ASSISTED_METHODOLOGY,
     BLINDED_MODE,
     FILTER_NAMES,
+    SOURCE_PREFILL_UNAMBIGUOUS,
     TRAINING_MODE,
     WorkspaceDefinition,
     WorkbenchSourceRow,
@@ -31,11 +35,30 @@ from lfm25.annotation_workbench import (
 )
 
 
-WEB_SMS = "Synthetic reminder: no transaction occurred."
+WEB_SMS = "Synthetic debit of INR 12.50 from acct X."
 
 
 def _definition() -> WorkspaceDefinition:
     row_id = "synthetic-web-1"
+    amount_text = "12.50"
+    amount_start = len(WEB_SMS[: WEB_SMS.index(amount_text)].encode("utf-8"))
+    account_text = "acct X"
+    account_start = len(WEB_SMS[: WEB_SMS.index(account_text)].encode("utf-8"))
+    source_prefill = {
+        "policy_version": 1,
+        "amount_decimal": amount_text,
+        "amount_span": {
+            "text": amount_text,
+            "start": amount_start,
+            "end": amount_start + len(amount_text.encode("utf-8")),
+        },
+        "type": "debit",
+        "account_span": {
+            "text": account_text,
+            "start": account_start,
+            "end": account_start + len(account_text.encode("utf-8")),
+        },
+    }
     return WorkspaceDefinition(
         mode=TRAINING_MODE,
         rows=(
@@ -55,12 +78,15 @@ def _definition() -> WorkspaceDefinition:
                 ),
                 split="train",
                 queue_tags=("synthetic-web",),
+                source_prefill=source_prefill,
             ),
         ),
         binding={
             "contract": "synthetic-annotation-web-v1",
             "mode": TRAINING_MODE,
             "row_count": 1,
+            "source_prefill": SOURCE_PREFILL_UNAMBIGUOUS,
+            "annotation_methodology": ASSISTED_METHODOLOGY,
             "record_id_set_sha256": hashlib.sha256(f"{row_id}\n".encode()).hexdigest(),
         },
         metadata={"schema_version": 1, "fixture": "invented-web-only"},
@@ -152,10 +178,27 @@ def test_loopback_http_security_valid_save_and_session_close(
         assert bad_host_status == HTTPStatus.MISDIRECTED_REQUEST
         assert "Host" in _decoded(bad_host_body)["error"]
 
-        root_status, root_headers, _ = _request(server, "GET", "/")
+        root_status, root_headers, root_body = _request(server, "GET", "/")
         assert root_status == HTTPStatus.OK
+        assert root_headers["Content-Type"].startswith("text/html")
+        assert "default-src 'none'" in root_headers["Content-Security-Policy"]
+        root_markup = root_body.decode("utf-8")
+        assert "No SMS loaded" in root_markup
+        assert '<div id="app-shell" hidden inert>' in root_markup
+        assert WEB_SMS not in root_markup
         cookie = root_headers["Set-Cookie"].split(";", 1)[0]
         assert cookie.startswith(f"{COOKIE_NAME}=")
+
+        assets = (
+            ("/assets/app.js", "text/javascript", "trustedLocalRuntime"),
+            ("/assets/styles.css", "text/css", ".source-pane"),
+        )
+        for path, content_type, marker in assets:
+            asset_status, asset_headers, asset_body = _request(server, "GET", path)
+            assert asset_status == HTTPStatus.OK
+            assert asset_headers["Content-Type"].startswith(content_type)
+            assert asset_headers["Cache-Control"] == "no-store, max-age=0"
+            assert marker in asset_body.decode("utf-8")
 
         bootstrap_status, _, bootstrap_body = _request(
             server,
@@ -169,6 +212,30 @@ def test_loopback_http_security_valid_save_and_session_close(
         assert isinstance(csrf_token, str) and csrf_token
         assert "active_learning" in bootstrap["filters"]
         assert bootstrap["mode"] == TRAINING_MODE
+
+        row_status, _, row_body = _request(
+            server,
+            "GET",
+            "/api/row?position=0&direction=first&filter=pending",
+            headers={"Cookie": cookie},
+        )
+        assert row_status == HTTPStatus.OK
+        navigated = _decoded(row_body)
+        row = navigated["row"]
+        assert row["review_id"] == "synthetic-web-1"
+        assert row["sender"] == "SYNTH-WEB"
+        assert row["sms"] == WEB_SMS
+        source_prefill = row["source_prefill"]
+        assert set(source_prefill) == {
+            "policy_version",
+            "amount_decimal",
+            "amount_span",
+            "type",
+            "account_span",
+        }
+        assert source_prefill["amount_decimal"] == "12.50"
+        assert navigated["progress"]["total_rows"] == 1
+        assert navigated["progress"]["ready_for_qc"] is False
 
         draft = empty_annotation()
         draft["notes"] = "Synthetic HTTP draft."
@@ -353,3 +420,184 @@ def test_ui_guards_post_label_details_and_async_row_responses() -> None:
         1,
     )[0]
     assert 'byId("proposal-panel").classList.add("hidden")' in autosave
+
+
+def test_ui_launch_gate_navigation_qc_and_prefill_contract() -> None:
+    asset_root = Path(__file__).resolve().parents[1] / "lfm25/annotation_assets"
+    markup = (asset_root / "index.html").read_text(encoding="utf-8")
+    styles = (asset_root / "styles.css").read_text(encoding="utf-8")
+    script = (asset_root / "app.js").read_text(encoding="utf-8")
+
+    assert "No SMS loaded" in markup
+    assert "run_lfm25_annotation_workbench.py blinded" in markup
+    assert '<div id="app-shell" hidden inert>' in markup
+    assert 'id="sms" class="sms"' in markup
+    assert 'id="start-qc" disabled aria-describedby="qc-availability"' in markup
+    assert "Suggested locally from deterministic extraction" in markup
+
+    runtime = script.split("function trustedLocalRuntime", 1)[1].split(
+        "async function api",
+        1,
+    )[0]
+    assert 'window.location.protocol === "http:"' in runtime
+    assert 'window.location.hostname === "127.0.0.1"' in runtime
+    assert 'shell.removeAttribute("inert")' in runtime
+
+    navigation = script.split("async function navigate", 1)[1].split(
+        "async function save",
+        1,
+    )[0]
+    for behavior in (
+        "let loaded = false",
+        'byId("filter").value = filter',
+        "loaded = true",
+        'byId("filter").value = state.filter',
+        "return loaded",
+    ):
+        assert behavior in navigation
+
+    bootstrap = script.split("async function bootstrap", 1)[1].split(
+        "bootstrap();",
+        1,
+    )[0]
+    navigate_index = bootstrap.index('await navigate("first", initialFilter)')
+    reveal_index = bootstrap.index("revealAppShell()")
+    assert navigate_index < reveal_index
+    assert "if (!loaded)" in bootstrap
+    assert "setLaunchFailure(" in bootstrap
+
+    progress = script.split("function renderProgress", 1)[1].split(
+        "function renderQueueTags",
+        1,
+    )[0]
+    assert "progress.ready_for_qc === true" in progress
+    assert "button.disabled = !ready || state.qcSession" in progress
+    assert 'byId("qc-availability")' in progress
+
+    prefill = script.split("function applySourcePrefill", 1)[1].split(
+        "function updateDecisionVisibility",
+        1,
+    )[0]
+    for guard in (
+        '["pending", "draft"].includes(row.status)',
+        "state.qcSession",
+        'selectedRadio("decision") !== "transaction"',
+        '!byId("amount-decimal").value.trim()',
+        "state.spans.amount === null",
+        "state.spans.account === null",
+        '!byId("counterparty-absent").checked',
+    ):
+        assert guard in prefill
+    assert "scheduleAutosave" not in prefill
+
+    renderer = script.split("function renderRow", 1)[1].split(
+        "async function loadHistory",
+        1,
+    )[0]
+    assert 'selectedRadio("decision") === "transaction"' in renderer
+    assert "applySourcePrefill()" in renderer
+
+    manual_amount = script.split("function canonicalAmountFromSelection", 1)[1].split(
+        "function renderProgress",
+        1,
+    )[0]
+    assert "matches.length !== 1" in manual_amount
+    assert 'byId("amount-decimal").value = canonical' in manual_amount
+
+    wiring = script.split("function wireUi", 1)[1].split(
+        "async function bootstrap",
+        1,
+    )[0]
+    assert "recordHumanEdit(input)" in wiring
+    assert 'window.addEventListener("beforeunload"' in wiring
+    assert "if (!state.dirty) return" in wiring
+
+    assert "grid-template-columns: minmax(0, 1.08fr)" in styles
+    assert ".source-pane {" in styles and "position: sticky" in styles
+    assert "@media (max-width: 980px)" in styles
+
+
+def test_amount_and_prefill_helpers_execute_with_invented_sms() -> None:
+    node = shutil.which("node") or shutil.which("node.exe")
+    if node is None:
+        pytest.skip("Node.js is unavailable for the frontend helper contract test.")
+
+    script_path = (
+        Path(__file__).resolve().parents[1] / "lfm25/annotation_assets/app.js"
+    )
+    script = script_path.read_text(encoding="utf-8")
+    canonical = "function canonicalAmountFromSelection" + script.split(
+        "function canonicalAmountFromSelection",
+        1,
+    )[1].split("\nfunction useSelection", 1)[0]
+    prefill_helpers = "function validPrefillSpan" + script.split(
+        "function validPrefillSpan",
+        1,
+    )[1].split("\nfunction applySourcePrefill", 1)[0]
+    program = canonical + "\n" + prefill_helpers + "\n" + r"""
+const sms = "Synthetic debit of INR 12.50 from acct X.";
+const amountText = "12.50";
+const charStart = sms.indexOf(amountText);
+const encoder = new TextEncoder();
+const start = encoder.encode(sms.slice(0, charStart)).length;
+const span = {
+  text: amountText,
+  start,
+  end: start + encoder.encode(amountText).length,
+};
+const source_prefill = {
+  policy_version: 1,
+  amount_decimal: amountText,
+  amount_span: span,
+  type: "debit",
+};
+const good = sanitizedSourcePrefill({ sms, source_prefill });
+const extra = sanitizedSourcePrefill({
+  sms,
+  source_prefill: { ...source_prefill, decision: "transaction" },
+});
+const badSpan = sanitizedSourcePrefill({
+  sms,
+  source_prefill: {
+    ...source_prefill,
+    amount_span: { ...span, end: span.end + 1 },
+  },
+});
+const policyOnly = sanitizedSourcePrefill({
+  sms,
+  source_prefill: { policy_version: 1 },
+});
+const incompleteAmount = sanitizedSourcePrefill({
+  sms,
+  source_prefill: { policy_version: 1, amount_decimal: amountText },
+});
+const amounts = [
+  canonicalAmountFromSelection("INR 1,23,456.00"),
+  canonicalAmountFromSelection("USD 0012.50"),
+  canonicalAmountFromSelection("12 and account 34"),
+  canonicalAmountFromSelection("-12.00"),
+  canonicalAmountFromSelection("- 12.00"),
+  canonicalAmountFromSelection("0.00"),
+  canonicalAmountFromSelection("12,34"),
+];
+process.stdout.write(JSON.stringify({
+  good, extra, badSpan, policyOnly, incompleteAmount, amounts,
+}));
+"""
+    completed = subprocess.run(
+        [node, "-e", program],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    result = exact_json_loads(completed.stdout)
+    assert result["good"]["policy_version"] == 1
+    assert result["good"]["amount_decimal"] == "12.50"
+    assert result["good"]["amount_span"]["text"] == "12.50"
+    assert result["good"]["type"] == "debit"
+    assert result["extra"] is None
+    assert result["badSpan"] is None
+    assert result["policyOnly"] is None
+    assert result["incompleteAmount"] is None
+    assert result["amounts"] == ["123456.00", "12.50", None, None, None, None, None]

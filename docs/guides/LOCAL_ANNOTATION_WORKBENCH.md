@@ -4,6 +4,68 @@ This guide covers the local browser workbench for applying [Annotation Handbook
 V1](ANNOTATION_HANDBOOK_V1.md). It is an operating procedure, not authority to
 upload, publish, train, release, or deploy anything.
 
+### Open the served URL, not the HTML file
+
+The workbench is a local web application, not a standalone HTML document. Opening
+`lfm25/annotation_assets/index.html` directly produces a `file://` URL. That loads
+only the static markup: the browser cannot fetch the server-owned stylesheet,
+JavaScript session, bootstrap data, or SMS row. The resulting unstyled page stays
+on **Loading**, shows `0 / 0`, and has an empty Sender/SMS area. This is expected
+for an incorrectly opened file and does not indicate that a private row was lost.
+
+Activate the environment first, enter the checkout that owns the code, and launch
+the server command:
+
+```bash
+cd /home/tojinotzenin/pF_slm_selection
+source scripts/activate_wsl.sh
+python scripts/run_lfm25_annotation_workbench.py blinded \
+  --reviewer <stable-id> \
+  --batch-size 50
+```
+
+Before merge, use a linked worktree only for the invented smoke fixture and unit
+tests. Do not attach or copy canonical private data: the runtime privacy guard
+intentionally rejects private roots that resolve outside the active checkout.
+Run the real private workflow from the canonical checkout after the change is
+merged.
+
+The command prints one aggregate-only JSON line containing a URL such as
+`http://127.0.0.1:8765/`. Open that exact `http://127.0.0.1:.../` URL in the local
+browser. The SMS is delivered only by the authenticated local `/api/row` request
+after the page establishes its server session; it is intentionally not embedded
+in `index.html`.
+
+### Safe UI smoke test with invented rows
+
+Before opening any private package, exercise the real HTML, CSS, JavaScript,
+cookie, API, and SQLite stack with three wholly invented rows:
+
+```bash
+python scripts/run_lfm25_annotation_workbench_smoke.py
+```
+
+That command keeps prefill off, matching the production default. To verify the
+candidate-assisted form population using only the same invented rows, launch:
+
+```bash
+python scripts/run_lfm25_annotation_workbench_smoke.py \
+  --source-prefill unambiguous
+```
+
+The smoke launcher binds only to `127.0.0.1` on an OS-selected unused port and
+prints its exact URL. It never calls a `PRIVATE_DATA` loader or export path. Its
+fixed reviewer, SMS messages, senders, and queue tags are invented in code, and
+its database lives in a temporary directory that is removed after **Close**,
+`Ctrl+C`, or normal shutdown. The page repeatedly labels every message
+`SYNTHETIC DEMO ONLY - NO PRIVATE DATA`; do not treat the fixture as data,
+annotation-quality, model-quality, or production evidence.
+
+This command is also the manual fallback when browser automation is unavailable
+in the current host environment. Open the printed URL and
+verify that the SMS card and styled controls appear. Do not substitute a
+`file://` tab, and never use private rows for a screenshot or UI bug report.
+
 ## 1. Privacy boundary before launch
 
 Run from the canonical WSL repository after activating its prepared environment.
@@ -66,6 +128,96 @@ The durable defaults are `PRIVATE_DATA/lfm25/annotation_workbench/blinded_test.s
 and `PRIVATE_DATA/lfm25/annotation_workbench/training_curation.sqlite3`. Keep and
 reuse the matching database on every relaunch. If you pass `--db`, keep it below
 `PRIVATE_DATA/lfm25` and repeat that exact argument for resume, export, and recovery.
+
+### Default unaided mode and explicit source-assisted mode
+
+Source prefill is **off by default**. Omitting `--source-prefill` preserves the
+unaided review method and its existing database binding. This remains the default
+for evidence intended to measure an unaided human annotation pass.
+
+All existing unaided commands and paths remain unchanged. Do not add the assisted
+flag to an in-progress unaided package or reuse an unaided artifact in an assisted
+run.
+
+An assisted blinded run starts by exporting its own policy-selected package before
+the first workbench launch:
+
+```bash
+python scripts/review_lfm25_blinded_test.py export \
+  --source-prefill unambiguous
+```
+
+The immutable source manifest remains the common input, but this command writes
+the distinct assisted review projection, internal map, and metadata:
+`blinded_test_candidate_assisted_review.jsonl`,
+`blinded_test_candidate_assisted_review_internal_map.jsonl`, and
+`blinded_test_candidate_assisted_review_metadata.json`. Do not use `--force` to
+reinitialize an in-progress package. Validate the policy-selected package with:
+
+```bash
+python scripts/review_lfm25_blinded_test.py validate \
+  --source-prefill unambiguous
+```
+
+Then launch the assisted workbench, which may ask the existing deterministic
+source-candidate extractor to populate only fields it can ground unambiguously:
+
+```bash
+python scripts/run_lfm25_annotation_workbench.py blinded \
+  --reviewer <stable-id> \
+  --batch-size 50 \
+  --source-prefill unambiguous
+```
+
+This selects
+`PRIVATE_DATA/lfm25/annotation_workbench/blinded_test_candidate_assisted.sqlite3`.
+The assisted server reads and updates only the assisted review projection; it does
+not share the unaided review JSONL, map, metadata, projection, or database.
+
+For training curation, use the same flag with the explicit pool and a separate
+assisted database, for example
+`PRIVATE_DATA/lfm25/annotation_workbench/training_curation_candidate_assisted.sqlite3`.
+Never point assisted and unaided runs at the same database. The frozen binding
+records the prefill policy as `human_verified_candidate_assisted`; a mismatch
+fails closed instead of silently mixing methods.
+
+The server exposes prefill as a separate read-only suggestion DTO: loading a row
+does not change its annotation, decision, revision, or audit history. The UI may
+copy compatible suggestions into the form only after the reviewer independently
+chooses **Transaction**. That explicit edit follows the normal draft-autosave
+path, but suggestions never complete a row on their own.
+
+Prefill is an editing aid, not a label. Read the full SMS, make the transaction
+decision independently, and verify every suggested component, exact selected
+text, UTF-8 span, decimal, and direction before completion. Fields that are
+ambiguous or unsupported remain for the reviewer. Candidate extraction can be
+systematically wrong, so assisted annotations must be reported separately from
+unaided annotations and must not be used as a causal human-quality comparison.
+Candidate-assisted blinded labels are not unbiased gold for measuring that same
+candidate extractor's coverage or selection accuracy; retain unaided gold for
+that evaluation or disclose and analyze the assisted dependency separately. The
+option does not authorize a hosted model, telemetry, proposal auto-acceptance, or
+test/training crossover.
+
+Resume every assisted session with the same `--source-prefill unambiguous`, mode,
+reviewer, pool, repository root, and assisted database. Use assisted validation
+when checking the projection after interruption. At the final gate, validate and
+import with the same policy:
+
+```bash
+python scripts/review_lfm25_blinded_test.py validate \
+  --source-prefill unambiguous
+
+python scripts/review_lfm25_blinded_test.py import \
+  --source-prefill unambiguous
+```
+
+Import selects the assisted DB and writes
+`split_manifest_candidate_assisted_human_reviewed.jsonl` plus
+`blinded_test_candidate_assisted_review_import_report.json`. Omitting the flag at
+export, validation, launch/resume, or import is a provenance error, not a request
+to convert the assisted run into an unaided one. Never copy annotations or
+projections between the two policy lineages.
 
 ## 3. Identity, timestamps, and 50-row sessions
 
@@ -185,6 +337,21 @@ The defaults write `PRIVATE_DATA/lfm25/training_curation_human_reviewed.jsonl` a
 overwrite nonempty outputs. Its console report is aggregate-only; check its
 completed, pending, and uncertain counts, and never treat pending or uncertain rows
 as approved training labels.
+
+For an assisted training workspace, repeat the policy explicitly during export:
+
+```bash
+python scripts/run_lfm25_annotation_workbench.py export-training \
+  --reviewer <same-stable-id> \
+  --pool <same-explicit-private-jsonl> \
+  --source-prefill unambiguous
+```
+
+Without path overrides, this selects the candidate-assisted database and writes
+`training_curation_candidate_assisted_human_reviewed.jsonl` plus
+`training_curation_candidate_assisted_export_report.json` under
+`PRIVATE_DATA/lfm25`. Never export an assisted database under the unaided policy
+or combine the two outputs.
 
 Each completed exported row retains `human_annotation_workbench`, including the
 generic annotation and blind-first/final event provenance. A private component

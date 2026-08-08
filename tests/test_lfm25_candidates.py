@@ -9,6 +9,7 @@ from lfm25.candidates import (
     canonical_amount_token,
     extract_candidates,
     extract_protocol_candidates,
+    extract_unambiguous_source_fields,
     oracle_selection,
     parse_selector_prediction,
     reconstruct_transaction,
@@ -57,6 +58,41 @@ def test_protocol_amounts_are_exact_above_binary_float_precision():
     ]
     assert [item.start for item in amounts] == sorted(item.start for item in amounts)
     assert all(sms[item.start : item.end] == item.source_text for item in amounts)
+
+
+def test_unambiguous_source_fields_use_exact_utf8_byte_spans():
+    prefix = "\u0915\u0948\u092b\u0947: "
+    sms = prefix + "INR 42.50 debited on A/c XX0042 at DEMO MART."
+
+    fields = extract_unambiguous_source_fields(sms)
+
+    assert set(fields) == {
+        "amount_decimal",
+        "amount_span",
+        "type",
+        "account_span",
+    }
+    assert fields["amount_decimal"] == "42.50"
+    assert fields["type"] == "debit"
+    for key in ("amount_span", "account_span"):
+        span = fields[key]
+        encoded = sms.encode("utf-8")
+        assert encoded[span["start"] : span["end"]].decode("utf-8") == span["text"]
+    assert fields["amount_span"]["start"] == len(prefix.encode("utf-8"))
+
+
+def test_unambiguous_source_fields_suppress_raw_equivalent_amount_occurrences():
+    sms = (
+        "INR 100 debited from A/c XX0042 at DEMO MART. "
+        "Reference amount Rs. 100.00."
+    )
+
+    fields = extract_unambiguous_source_fields(sms)
+
+    assert "amount_decimal" not in fields
+    assert "amount_span" not in fields
+    assert "decision" not in fields
+    assert "counterparty_absent" not in fields
 
 
 def test_protocol_amount_dedupe_keeps_the_first_source_precision():

@@ -386,6 +386,86 @@ def _type_hints(sms: str) -> tuple[Literal["D", "C"], ...]:
     return tuple(hints)
 
 
+def _utf8_source_span(sms: str, source_text: str, start: int, end: int) -> dict[str, Any]:
+    """Return an exact half-open UTF-8 byte span for one source occurrence."""
+
+    if sms[start:end] != source_text:
+        raise ValueError("source occurrence does not match the SMS")
+    return {
+        "text": source_text,
+        "start": len(sms[:start].encode("utf-8")),
+        "end": len(sms[:end].encode("utf-8")),
+    }
+
+
+def extract_unambiguous_source_fields(sms: str) -> dict[str, Any]:
+    """Return only fields backed by exactly one distinct raw source occurrence.
+
+    This intentionally examines raw regex matches before Candidate Protocol
+    semantic deduplication. Repeated or numerically equivalent evidence is
+    therefore ambiguous and is not suggested.
+    """
+
+    if not isinstance(sms, str):
+        raise TypeError("sms must be text")
+
+    result: dict[str, Any] = {}
+
+    amount_occurrences: dict[
+        tuple[int, int, str], tuple[str, str, int, int]
+    ] = {}
+    for match in _AMOUNT_RE.finditer(sms):
+        try:
+            decimal_text = canonical_amount_token(match.group("number"))
+        except ValueError:
+            continue
+        source_text = match.group(0)
+        key = (match.start(), match.end(), source_text)
+        amount_occurrences[key] = (
+            decimal_text,
+            source_text,
+            match.start(),
+            match.end(),
+        )
+    if len(amount_occurrences) == 1:
+        decimal_text, source_text, start, end = next(iter(amount_occurrences.values()))
+        result["amount_decimal"] = decimal_text
+        result["amount_span"] = _utf8_source_span(sms, source_text, start, end)
+
+    account_occurrences = {
+        (start, end, source_text): (source_text, start, end)
+        for _value, source_text, start, end in _raw_accounts(sms)
+    }
+    if len(account_occurrences) == 1:
+        source_text, start, end = next(iter(account_occurrences.values()))
+        result["account_span"] = _utf8_source_span(sms, source_text, start, end)
+
+    counterparty_occurrences = {
+        (start, end, source_text): (source_text, start, end)
+        for _value, source_text, start, end, _prefix in _raw_counterparties(sms)
+    }
+    if len(counterparty_occurrences) == 1:
+        source_text, start, end = next(iter(counterparty_occurrences.values()))
+        result["counterparty_span"] = _utf8_source_span(
+            sms, source_text, start, end
+        )
+
+    type_occurrences: dict[
+        tuple[int, int, str, str], Literal["debit", "credit"]
+    ] = {}
+    for transaction_type, pattern in (
+        ("debit", _TYPE_DEBIT_RE),
+        ("credit", _TYPE_CREDIT_RE),
+    ):
+        for match in pattern.finditer(sms):
+            key = (match.start(), match.end(), match.group(0), transaction_type)
+            type_occurrences[key] = transaction_type
+    if len(type_occurrences) == 1:
+        result["type"] = next(iter(type_occurrences.values()))
+
+    return result
+
+
 def extract_candidates(sms: str) -> CandidateSet:
     """Enumerate model-selectable source values without using a gold label."""
 

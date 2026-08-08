@@ -18,6 +18,9 @@ from .annotation_workbench import (
     PRIVATE_ROOT,
     QC_SAMPLE_DENOMINATOR,
     QC_SAMPLE_NUMERATOR,
+    SOURCE_PREFILL_OFF,
+    SOURCE_PREFILL_POLICY_VERSION,
+    SOURCE_PREFILL_UNAMBIGUOUS,
     TRAINING_MODE,
     WORKBENCH_CONTRACT,
     WORKBENCH_MODES,
@@ -28,9 +31,12 @@ from .annotation_workbench import (
     empty_annotation,
     exact_json_dumps,
     exact_json_loads,
+    source_prefill_methodology,
     validate_annotation,
+    validate_source_prefill_policy,
 )
-from .candidates import extract_protocol_candidates
+from .android_contract import pocketfinancer_prefilter_sms
+from .candidates import extract_protocol_candidates, extract_unambiguous_source_fields
 from .private_data import (
     PrivateDataError,
     ensure_within,
@@ -95,6 +101,78 @@ def _handbook_binding(repo_root: Path) -> dict[str, str]:
     return {
         "handbook_version": HANDBOOK_VERSION,
         "handbook_sha256": file_sha256(handbook),
+    }
+
+
+def source_prefill_for_sms(
+    sender: str,
+    sms: str,
+    *,
+    source_prefill: str = SOURCE_PREFILL_OFF,
+) -> dict[str, Any] | None:
+    """Build the safe optional DTO for one prefilter-accepted source row."""
+
+    policy = validate_source_prefill_policy(source_prefill)
+    if policy == SOURCE_PREFILL_OFF:
+        return None
+    if policy != SOURCE_PREFILL_UNAMBIGUOUS:
+        raise WorkbenchError("the source-prefill policy is invalid")
+    if not pocketfinancer_prefilter_sms(sender, sms).accepted:
+        return None
+    fields = extract_unambiguous_source_fields(sms)
+    if not fields:
+        return None
+    return {"policy_version": SOURCE_PREFILL_POLICY_VERSION, **fields}
+
+
+def source_prefill_binding(
+    repo_root: Path,
+    rows: Sequence[WorkbenchSourceRow],
+    *,
+    source_prefill: str,
+) -> dict[str, Any]:
+    policy = validate_source_prefill_policy(source_prefill)
+    if policy == SOURCE_PREFILL_OFF:
+        return {}
+
+    profile = repo_root / "configs/contracts/pocketfinancer-android-current.json"
+    contract_sources = {
+        "source_prefill_android_profile_sha256": profile,
+        "source_prefill_candidate_contract_sha256": (
+            repo_root
+            / "configs/contracts/pocketfinancer-candidate-v1.json"
+        ),
+        "source_prefill_android_contract_sha256": Path(
+            pocketfinancer_prefilter_sms.__code__.co_filename
+        ),
+        "source_prefill_candidate_extractor_sha256": Path(
+            extract_unambiguous_source_fields.__code__.co_filename
+        ),
+        "source_prefill_annotation_policy_sha256": Path(__file__),
+    }
+    if any(not path.is_file() for path in contract_sources.values()):
+        raise WorkbenchError("a source-prefill contract input is missing")
+
+    digest = hashlib.sha256()
+    for row in rows:
+        safe_row = {
+            "row_id": row.row_id,
+            "source_prefill": row.source_prefill,
+        }
+        digest.update((exact_json_dumps(safe_row) + "\n").encode("utf-8"))
+
+    return {
+        "source_prefill": policy,
+        "source_prefill_policy_version": SOURCE_PREFILL_POLICY_VERSION,
+        "annotation_methodology": source_prefill_methodology(policy),
+        **{
+            name: file_sha256(path)
+            for name, path in contract_sources.items()
+        },
+        "source_prefill_rows_digest_sha256": digest.hexdigest(),
+        "source_prefill_rows_digest_basis": (
+            "sha256_of_ordered_row_id_and_safe_source_prefill_dto_jsonl"
+        ),
     }
 
 
@@ -194,30 +272,26 @@ def load_blinded_workspace(
     mapping_file: Path | None = None,
     metadata_file: Path | None = None,
     include_initial_annotations: bool = True,
+    source_prefill: str = SOURCE_PREFILL_OFF,
 ) -> WorkspaceDefinition:
     """Load and bind the frozen reviewer package without exposing internals."""
 
     if not isinstance(include_initial_annotations, bool):
         raise WorkbenchError("the blinded annotation import option is invalid")
-    from .blinded_review import (
-        DEFAULT_MAPPING_FILE,
-        DEFAULT_METADATA_FILE,
-        DEFAULT_REVIEW_FILE,
-        DEFAULT_SOURCE_MANIFEST,
-        REVIEW_FIELDS,
-        resolve_review_paths,
-        run_validate,
-    )
+    prefill_policy = validate_source_prefill_policy(source_prefill)
+    from .blinded_review import REVIEW_FIELDS, resolve_review_paths, run_validate
 
     repo = repo_root.resolve()
     supplied = {
-        "source_manifest": source_manifest or DEFAULT_SOURCE_MANIFEST,
-        "review_file": review_file or DEFAULT_REVIEW_FILE,
-        "mapping_file": mapping_file or DEFAULT_MAPPING_FILE,
-        "metadata_file": metadata_file or DEFAULT_METADATA_FILE,
+        "source_manifest": source_manifest,
+        "review_file": review_file,
+        "mapping_file": mapping_file,
+        "metadata_file": metadata_file,
     }
-    report = run_validate(repo, **supplied)
-    paths = resolve_review_paths(repo, **supplied)
+    report = run_validate(repo, source_prefill=prefill_policy, **supplied)
+    paths = resolve_review_paths(
+        repo, source_prefill=prefill_policy, **supplied
+    )
     try:
         metadata_value = exact_json_loads(paths.metadata_file.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
@@ -242,6 +316,11 @@ def load_blinded_workspace(
                 source_json=None,
                 split=None,
                 queue_tags=(),
+                source_prefill=source_prefill_for_sms(
+                    str(row["sender"]),
+                    str(row["sms"]),
+                    source_prefill=prefill_policy,
+                ),
                 initial_annotation=initial,
                 initial_reviewer=(str(row["reviewer"]) if initial is not None else None),
                 initial_reviewed_at=(str(row["reviewed_at"]) if initial is not None else None),
@@ -252,6 +331,26 @@ def load_blinded_workspace(
         "mode": BLINDED_MODE,
         **_handbook_binding(repo_root),
         "source_manifest_sha256": file_sha256(paths.source_manifest),
+        **source_prefill_binding(
+            repo_root,
+            prepared,
+            source_prefill=prefill_policy,
+        ),
+        **(
+            {
+                "source_prefill_package_paths": {
+                    name: path.relative_to(repo).as_posix()
+                    for name, path in (
+                        ("source_manifest", paths.source_manifest),
+                        ("review_file", paths.review_file),
+                        ("mapping_file", paths.mapping_file),
+                        ("metadata_file", paths.metadata_file),
+                    )
+                }
+            }
+            if prefill_policy == SOURCE_PREFILL_UNAMBIGUOUS
+            else {}
+        ),
         "mapping_file_sha256": file_sha256(paths.mapping_file),
         "metadata_file_sha256": file_sha256(paths.metadata_file),
         "review_template_sha256": metadata_value.get("review_template_sha256"),
@@ -268,8 +367,23 @@ def load_blinded_workspace(
             "package_version": metadata_value.get("package_version"),
             "test_rows": len(prepared),
             "completed_rows_at_bootstrap": report["completed_rows"],
+            **(
+                {
+                    "source_prefill": prefill_policy,
+                    "source_prefill_policy_version": SOURCE_PREFILL_POLICY_VERSION,
+                    "annotation_methodology": source_prefill_methodology(prefill_policy),
+                }
+                if prefill_policy == SOURCE_PREFILL_UNAMBIGUOUS
+                else {}
+            ),
             "raw_values_emitted_to_console": False,
         },
+        private_paths=(
+            ("source_manifest", paths.source_manifest),
+            ("review_file", paths.review_file),
+            ("mapping_file", paths.mapping_file),
+            ("metadata_file", paths.metadata_file),
+        ),
     )
 
 
@@ -372,10 +486,12 @@ def load_training_workspace(
     *,
     pool_file: Path,
     sealed_manifest: Path = PRIVATE_ROOT / "split_manifest.jsonl",
+    source_prefill: str = SOURCE_PREFILL_OFF,
 ) -> WorkspaceDefinition:
     """Load an explicit train/dev-only pool and fail closed on sealed-test overlap."""
 
     repo = repo_root.resolve()
+    prefill_policy = validate_source_prefill_policy(source_prefill)
     private_root = (repo / PRIVATE_ROOT).resolve()
     require_private_ignore(repo, private_root)
     pool = private_path(repo, pool_file)
@@ -491,6 +607,11 @@ def load_training_workspace(
                 source_json=raw,
                 split=str(row["split"]),
                 queue_tags=tags,
+                source_prefill=source_prefill_for_sms(
+                    str(row["sender"]),
+                    str(row["sms"]),
+                    source_prefill=prefill_policy,
+                ),
             )
         )
 
@@ -498,6 +619,11 @@ def load_training_workspace(
         "contract": WORKBENCH_CONTRACT,
         "mode": TRAINING_MODE,
         **_handbook_binding(repo_root),
+        **source_prefill_binding(
+            repo_root,
+            prepared,
+            source_prefill=prefill_policy,
+        ),
         "pool_sha256": file_sha256(pool),
         "sealed_manifest_sha256": file_sha256(sealed),
         "row_count": len(prepared),
@@ -519,6 +645,15 @@ def load_training_workspace(
             "split_counts": dict(sorted(Counter(str(row["split"]) for row in rows).items())),
             "queue_counts": dict(sorted(queue_counts.items())),
             "sealed_test_rows_eligible": 0,
+            **(
+                {
+                    "source_prefill": prefill_policy,
+                    "source_prefill_policy_version": SOURCE_PREFILL_POLICY_VERSION,
+                    "annotation_methodology": source_prefill_methodology(prefill_policy),
+                }
+                if prefill_policy == SOURCE_PREFILL_UNAMBIGUOUS
+                else {}
+            ),
             "raw_values_emitted_to_console": False,
         },
     )

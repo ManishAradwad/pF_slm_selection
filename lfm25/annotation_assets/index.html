@@ -8,6 +8,19 @@
     <link rel="stylesheet" href="/assets/styles.css">
   </head>
   <body>
+    <section id="launch-gate" class="launch-gate" role="alert" aria-live="assertive">
+      <p class="gate-kicker">PocketFinancer - local workbench</p>
+      <h1>No SMS loaded</h1>
+      <p id="launch-reason">
+        This HTML file is only a bundled asset. Start the local server, then open the
+        exact <strong>http://127.0.0.1</strong> URL it prints.
+      </p>
+      <p class="gate-command-label">Example blinded-review command</p>
+      <code>python scripts/run_lfm25_annotation_workbench.py blinded --reviewer YOUR_ID --batch-size 50</code>
+      <p class="gate-help">Run this from the repository root after activating the WSL environment.</p>
+    </section>
+
+    <div id="app-shell" hidden inert>
     <header class="app-header">
       <div>
         <p class="eyebrow">PocketFinancer · strictly local</p>
@@ -42,7 +55,14 @@
             <option value="qc">QC queue</option>
           </select>
         </label>
-        <button type="button" id="start-qc">Start delayed QC pass</button>
+        <div class="qc-control">
+          <button type="button" id="start-qc" disabled aria-describedby="qc-availability">
+            Start delayed QC pass
+          </button>
+          <span id="qc-availability" class="control-help" role="status">
+            Finish every row and resolve uncertainty before starting QC.
+          </span>
+        </div>
       </section>
 
       <div id="global-error" class="banner error hidden" role="alert"></div>
@@ -57,28 +77,38 @@
           <span id="row-status" class="status-pill">pending</span>
         </div>
 
+        <div class="review-layout">
+        <section class="source-pane" aria-labelledby="source-heading">
+          <div class="source-title-row">
+            <h3 id="source-heading">Source SMS</h3>
+            <span class="source-badge">Read-only</span>
+          </div>
         <dl class="source-fields">
           <div>
             <dt>Sender</dt>
-            <dd id="sender"></dd>
+            <dd id="sender" class="sender"></dd>
           </div>
           <div>
-            <dt>SMS</dt>
+            <dt>Message</dt>
             <dd id="sms" class="sms" spellcheck="false"></dd>
           </div>
         </dl>
+          <p class="selection-help">
+            Select exact text above, then assign it with
+            <kbd>Alt+A</kbd> amount, <kbd>Alt+C</kbd> account, or
+            <kbd>Alt+P</kbd> counterparty.
+          </p>
+          <p id="selection-status" class="control-help" role="status"
+            aria-live="polite"></p>
+        </section>
+
+        <div class="annotation-pane">
 
         <section id="queue-tags-panel" class="queue-tags-panel hidden" aria-live="polite">
           <h3>Post-label queue indicators</h3>
           <p>Shown only after the blind label for this row is complete.</p>
           <ul id="queue-tags"></ul>
         </section>
-
-        <p class="selection-help">
-          Select exact text in the SMS, then assign it with
-          <kbd>Alt+A</kbd> amount, <kbd>Alt+C</kbd> account, or
-          <kbd>Alt+P</kbd> counterparty.
-        </p>
 
         <form id="annotation-form" autocomplete="off" novalidate>
           <fieldset>
@@ -98,16 +128,19 @@
               <label>
                 Exact amount decimal
                 <input id="amount-decimal" inputmode="decimal" spellcheck="false"
+                  data-prefill-field="amount_decimal" aria-describedby="prefill-note"
                   placeholder="1234.50">
               </label>
               <label>
                 Amount source span
-                <input id="amount-text" readonly placeholder="Select from SMS">
+                <input id="amount-text" readonly data-prefill-field="amount_span"
+                  aria-describedby="prefill-note" placeholder="Select from SMS">
               </label>
               <button type="button" id="use-amount">Use selection <kbd>Alt+A</kbd></button>
             </div>
 
-            <fieldset>
+            <fieldset id="direction-fieldset" data-prefill-field="type"
+              aria-describedby="prefill-note">
               <legend>Direction</legend>
               <label class="choice"><input type="radio" name="type" value="debit">Debit</label>
               <label class="choice"><input type="radio" name="type" value="credit">Credit</label>
@@ -116,7 +149,8 @@
             <div class="field-grid">
               <label>
                 Account source span
-                <input id="account-text" readonly placeholder="Select exact account text">
+                <input id="account-text" readonly data-prefill-field="account_span"
+                  aria-describedby="prefill-note" placeholder="Select exact account text">
               </label>
               <button type="button" id="use-account">Use selection <kbd>Alt+C</kbd></button>
             </div>
@@ -124,7 +158,8 @@
             <div class="field-grid">
               <label>
                 Counterparty source span
-                <input id="counterparty-text" readonly placeholder="Select party text only">
+                <input id="counterparty-text" readonly data-prefill-field="counterparty_span"
+                  aria-describedby="prefill-note" placeholder="Select party text only">
               </label>
               <button type="button" id="use-counterparty">Use selection <kbd>Alt+P</kbd></button>
               <label class="choice full-width">
@@ -133,6 +168,10 @@
               </label>
             </div>
           </section>
+          <p id="prefill-note" class="prefill-note hidden" role="status" aria-live="polite">
+            Suggested locally from deterministic extraction. Verify highlighted fields before save.
+          </p>
+
 
           <label>
             Optional notes
@@ -164,6 +203,8 @@
           <p class="history-help">Compare saved components, source spans, and notes across passes.</p>
           <ol id="history"></ol>
         </details>
+        </div>
+        </div>
       </article>
 
       <aside class="shortcut-card">
@@ -175,6 +216,7 @@
         </p>
       </aside>
     </main>
+    </div>
 
     <script src="/assets/app.js" defer></script>
   </body>

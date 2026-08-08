@@ -24,6 +24,12 @@ from .private_data import (
 
 WORKBENCH_CONTRACT = "pocketfinancer-local-annotation-workbench-v1"
 WORKBENCH_SCHEMA_VERSION = 1
+SOURCE_PREFILL_OFF = "off"
+SOURCE_PREFILL_UNAMBIGUOUS = "unambiguous"
+SOURCE_PREFILL_POLICIES = (SOURCE_PREFILL_OFF, SOURCE_PREFILL_UNAMBIGUOUS)
+SOURCE_PREFILL_POLICY_VERSION = 1
+HUMAN_VERIFIED_METHODOLOGY = "human_verified"
+ASSISTED_METHODOLOGY = "human_verified_candidate_assisted"
 BLINDED_MODE = "blinded_test"
 TRAINING_MODE = "training_curation"
 WORKBENCH_MODES = (BLINDED_MODE, TRAINING_MODE)
@@ -61,8 +67,18 @@ PRIVATE_ROOT = Path("PRIVATE_DATA/lfm25")
 DEFAULT_WORKBENCH_DIR = PRIVATE_ROOT / "annotation_workbench"
 DEFAULT_BLINDED_DB = DEFAULT_WORKBENCH_DIR / "blinded_test.sqlite3"
 DEFAULT_TRAINING_DB = DEFAULT_WORKBENCH_DIR / "training_curation.sqlite3"
+DEFAULT_ASSISTED_BLINDED_DB = DEFAULT_WORKBENCH_DIR / "blinded_test_candidate_assisted.sqlite3"
+DEFAULT_ASSISTED_TRAINING_DB = (
+    DEFAULT_WORKBENCH_DIR / "training_curation_candidate_assisted.sqlite3"
+)
 DEFAULT_TRAINING_EXPORT = PRIVATE_ROOT / "training_curation_human_reviewed.jsonl"
 DEFAULT_TRAINING_REPORT = PRIVATE_ROOT / "training_curation_export_report.json"
+DEFAULT_ASSISTED_TRAINING_EXPORT = (
+    PRIVATE_ROOT / "training_curation_candidate_assisted_human_reviewed.jsonl"
+)
+DEFAULT_ASSISTED_TRAINING_REPORT = (
+    PRIVATE_ROOT / "training_curation_candidate_assisted_export_report.json"
+)
 SPAN_KEYS = ("text", "start", "end")
 ANNOTATION_KEYS = (
     "decision",
@@ -141,6 +157,7 @@ class WorkbenchSourceRow:
     source_json: str | None
     split: str | None
     queue_tags: tuple[str, ...]
+    source_prefill: dict[str, Any] | None = None
     initial_annotation: dict[str, Any] | None = None
     initial_reviewer: str | None = None
     initial_reviewed_at: str | None = None
@@ -154,6 +171,7 @@ class WorkbenchSourceRow:
             "source_json": self.source_json,
             "split": self.split,
             "queue_tags": list(self.queue_tags),
+            "source_prefill": self.source_prefill,
             "initial_annotation": self.initial_annotation,
             "initial_reviewer": self.initial_reviewer,
             "initial_reviewed_at": self.initial_reviewed_at,
@@ -168,10 +186,28 @@ class WorkspaceDefinition:
     rows: tuple[WorkbenchSourceRow, ...]
     binding: dict[str, Any]
     metadata: dict[str, Any]
+    private_paths: tuple[tuple[str, Path], ...] = ()
 
     @property
     def row_count(self) -> int:
         return len(self.rows)
+
+
+def validate_source_prefill_policy(value: str) -> str:
+    """Validate the immutable annotation assistance policy."""
+
+    if value not in SOURCE_PREFILL_POLICIES:
+        raise WorkbenchError("the source-prefill policy is invalid")
+    return value
+
+
+def source_prefill_methodology(value: str) -> str:
+    """Name the human-review methodology bound to imports and exports."""
+
+    policy = validate_source_prefill_policy(value)
+    if policy == SOURCE_PREFILL_UNAMBIGUOUS:
+        return ASSISTED_METHODOLOGY
+    return HUMAN_VERIFIED_METHODOLOGY
 
 
 def _reject_nonfinite(_value: str) -> Any:
