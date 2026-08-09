@@ -46,14 +46,12 @@ def test_protected_tree_names_are_exact_and_top_level_only() -> None:
     assert find_violations(paths) == []
 
 
-def test_explicit_legacy_paths_are_allowed() -> None:
+def test_safe_tracked_paths_and_fixture_exception_are_allowed() -> None:
     paths = [
         "DATA/extraction_ds.jsonl",
         "DATA/sms_extraction.yaml",
-        "error_analysis.txt",
         "export_sms.py",
         "models/runtime.py",
-        "results_analysis.ipynb",
     ]
 
     assert find_violations(paths) == []
@@ -90,10 +88,10 @@ def test_grandfather_exception_is_exact() -> None:
     ]
 
 
-def test_legacy_analysis_exceptions_are_exact() -> None:
-    assert find_violations(["other/error_analysis.txt", "other/results_analysis.ipynb"]) == [
-        Violation("other/error_analysis.txt", "result artifact"),
-        Violation("other/results_analysis.ipynb", "result artifact"),
+def test_removed_analysis_artifacts_are_rejected_at_root() -> None:
+    assert find_violations(["error_analysis.txt", "results_analysis.ipynb"]) == [
+        Violation("error_analysis.txt", "result artifact"),
+        Violation("results_analysis.ipynb", "result artifact"),
     ]
 
 

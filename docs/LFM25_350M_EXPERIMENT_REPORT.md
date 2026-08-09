@@ -12,6 +12,12 @@ Status: local pre-release execution complete; public candidate unreleased; human
 > Android-profile run, use
 > `docs/experiments/POCKETFINANCER_A9_LORA_R16_S17.md`.
 
+> **Repository cleanup note (2026-08-07):** the generated
+> `error_analysis.txt` and `results_analysis.ipynb` artifacts described below
+> have since been removed from the current tree. Their original commits remain
+> available in Git history. The repository-safety exception now covers only the
+> frozen `DATA/extraction_ds.jsonl` regression fixture.
+
 ## Decision
 
 **Reject the current trained LFM2.5-350M artifact as PocketFinancer's default
@@ -45,11 +51,11 @@ set. Android compatibility and the model-license implications also remain unveri
 - Newly generated raw/private data, public candidates, results, models, upstream
   sources, and training artifacts remain ignored by Git. The pre-existing tracked
   `DATA/extraction_ds.jsonl` regression corpus is an explicit exact-path exception.
-- Pre-existing tracked `error_analysis.txt` and `results_analysis.ipynb` were left
-  untouched to preserve repository history. They contain legacy private/regression
-  examples and model-output material and are outside the public-candidate package.
-  CI reports all three exact legacy exceptions on every run, rejects similarly named
-  artifacts, and requires separate review before any repository publication.
+- At the time of this run, pre-existing tracked `error_analysis.txt` and
+  `results_analysis.ipynb` were left untouched. They contained legacy
+  private/regression examples and model-output material outside the
+  public-candidate package. The later cleanup note above records their removal
+  from the current tree without rewriting this experiment-time state.
 - The public candidate remains `unreleased`; all 120 rows remain
   `manual_review=pending`; neither a release nor a dataset-license decision exists.
 

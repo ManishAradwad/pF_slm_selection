@@ -15,12 +15,9 @@ from pathlib import Path, PurePosixPath
 from typing import NamedTuple
 
 
-# These legacy tracked artifacts predate the guard and remain untouched here. The
-# exceptions are exact and case-sensitive so similarly named files cannot bypass
-# the policy. Their presence requires separate review before repository publication.
-GRANDFATHERED_PATHS = frozenset(
-    {"DATA/extraction_ds.jsonl", "error_analysis.txt", "results_analysis.ipynb"}
-)
+# The frozen 203-row regression fixture predates the guard and remains an exact,
+# case-sensitive exception. Similarly named files cannot bypass the policy.
+GRANDFATHERED_PATHS = frozenset({"DATA/extraction_ds.jsonl"})
 
 # These exact, case-sensitive top-level trees contain only local inputs,
 # generated outputs, model artifacts, or pinned upstream working copies.  A

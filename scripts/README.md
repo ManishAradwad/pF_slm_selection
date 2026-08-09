@@ -136,6 +136,21 @@ private inputs and outputs local.
 The filenames preserve compatibility with historical manifests. Dataset status and
 actual semantic versions are recorded in [the experiment catalog](../docs/experiments/EXPERIMENT_CATALOG.md).
 
+## Legacy private source archive acquisition
+
+Two root utilities preserve the old, local-only acquisition lineage from an
+iTunes backup to the source export accepted by private-data builders. They are
+not validated stages of the supported PocketFinancer pipeline:
+
+| Command | Purpose |
+|---|---|
+| `python find_sms_db.py` | Legacy/unvalidated helper: from a controlled backup parent, choose the newest entry and copy its Messages database to `sms.db` |
+| `python export_sms.py [path/to/sms.db]` | Export recoverable iOS message text to `all_sms.json` and `all_sms.csv` |
+
+`find_sms_db.py` does not validate directory candidates before choosing the newest
+entry. Do not run it from the repository root or an uninspected directory. The
+database and exports contain private data and must remain local and ignored.
+
 ## Underlying training and evaluation commands
 
 | Command | Purpose |
