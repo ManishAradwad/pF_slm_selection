@@ -1,0 +1,1219 @@
+{
+  "schema_version": 2,
+  "artifact": "candidate_protocol_v1_golden",
+  "protocol_profile": {
+    "name": "candidate_protocol_v1",
+    "version": 1,
+    "path": "configs/contracts/pocketfinancer-candidate-v1.json"
+  },
+  "privacy": {
+    "classification": "invented_synthetic_only",
+    "contains_private_messages": false,
+    "contains_real_senders_or_accounts": false,
+    "construction": "Every sender, message, account mask, counterparty, amount, and timestamp was invented for protocol conformance testing."
+  },
+  "vector_semantics": {
+    "input_member_order": [
+      "sender",
+      "sms",
+      "message_timestamp_epoch_ms"
+    ],
+    "model_output_is_raw_text": true,
+    "candidate_ids_are_case_sensitive": true,
+    "candidate_evidence_offset_convention": "utf8_bytes",
+    "candidate_evidence_ranges": "half_open",
+    "candidate_evidence_model_visible": false,
+    "expected_target_is_canonical_selector_json": true,
+    "filtered_vectors_do_not_invoke_the_model": true,
+    "canonical_byte_documents": [
+      "application_request",
+      "candidate_payload",
+      "model_messages",
+      "candidate_evidence",
+      "raw_model_output"
+    ],
+    "canonical_hash_algorithm": "SHA-256",
+    "canonical_model_messages_are_exact": true
+  },
+  "vectors": [
+    {
+      "id": "valid_amount_ambiguity_exact_precision",
+      "covers": [
+        "amount_ambiguity",
+        "exact_decimal_metadata",
+        "transaction"
+      ],
+      "input": {
+        "sender": "ZX-DEMOA",
+        "sms": "INR 75.250 debited from A/c XX1200 at ORBIT BOOKS. Available balance INR 4,321.00.",
+        "message_timestamp_epoch_ms": 1786147200000
+      },
+      "gold": {
+        "amount": 75.25,
+        "counterparty": "ORBIT BOOKS",
+        "type": "debit",
+        "account": "A/c XX1200"
+      },
+      "model_output": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0",
+            "A1"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PF0",
+            "PA0",
+            "PN"
+          ]
+        },
+        "exact_amounts": [
+          {
+            "id": "A0",
+            "decimal_text": "75.250",
+            "minor_units": null
+          },
+          {
+            "id": "A1",
+            "decimal_text": "4321.00",
+            "minor_units": 432100
+          }
+        ],
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A0",
+          "account": "C0",
+          "counterparty": "PA0"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+        "outcome": {
+          "status": "transaction",
+          "reason_code": "accepted_transaction"
+        },
+        "transaction": {
+          "amount": 75.25,
+          "counterparty": "ORBIT BOOKS",
+          "type": "debit",
+          "account": "A/c XX1200"
+        },
+        "canonical_wire": {
+          "request_utf8_sha256": "e21ec95f73a6844f91d50aaedee043eab0285071c279ef21ee65026bd6d1bb16",
+          "candidate_payload_utf8_sha256": "92f855f1bd573b13bedb6c4f4270ccc4b85e578c4c73547386af8e346bebad6c",
+          "model_messages_utf8_sha256": "0928b31dc456dea9a967290a06685aaed0f9fa5477cf31f6ee76b606183cafd1",
+          "candidate_evidence_utf8_sha256": "380a5ebd31af8480f7cae4b73514cb06a354f4101b17953e2c1cd49d1e0a9e84",
+          "raw_model_output_utf8_sha256": "ac4adf9345587114d9abc17bbe3df04af222dd411a417627bf6555df9e03fa5e",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOA\nSMS: INR 75.250 debited from A/c XX1200 at ORBIT BOOKS. Available balance INR 4,321.00.\nCandidates: {\"amounts\":{\"A0\":\"75.250\",\"A1\":\"4321.00\"},\"accounts\":{\"C0\":\"A/c XX1200\"},\"counterparties\":{\"PF0\":\"A/c XX1200\",\"PA0\":\"ORBIT BOOKS\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "valid_account_ambiguity",
+      "covers": [
+        "account_ambiguity",
+        "transaction"
+      ],
+      "input": {
+        "sender": "ZX-DEMOB",
+        "sms": "INR 640.00 debited from A/c XX3100; linked Card XX4200 at MAPLE RENT.",
+        "message_timestamp_epoch_ms": 1786147201000
+      },
+      "gold": {
+        "amount": 640.0,
+        "counterparty": "MAPLE RENT",
+        "type": "debit",
+        "account": "A/c XX3100"
+      },
+      "model_output": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0"
+          ],
+          "account": [
+            "C0",
+            "C1"
+          ],
+          "counterparty": [
+            "PF0",
+            "PA0",
+            "PN"
+          ]
+        },
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A0",
+          "account": "C0",
+          "counterparty": "PA0"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+        "outcome": {
+          "status": "transaction",
+          "reason_code": "accepted_transaction"
+        },
+        "transaction": {
+          "amount": 640.0,
+          "counterparty": "MAPLE RENT",
+          "type": "debit",
+          "account": "A/c XX3100"
+        },
+        "canonical_wire": {
+          "request_utf8_sha256": "17e5934776ddabccb540076ba4bd9164f1ce0a1ec9e7cc41f95402a63815843d",
+          "candidate_payload_utf8_sha256": "4c78218e667e11c7e7f1d19b6d2310411bed55f5267332796fb75944838ef220",
+          "model_messages_utf8_sha256": "3a9ac68407276285dc240112276fd8d563f078029cb7c26baff2dbe3668edaf1",
+          "candidate_evidence_utf8_sha256": "2f59e53d4e7014bc0efa51d2cfe819f8678804eb6d7e590ace7a0b3b58dcfc64",
+          "raw_model_output_utf8_sha256": "ac4adf9345587114d9abc17bbe3df04af222dd411a417627bf6555df9e03fa5e",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOB\nSMS: INR 640.00 debited from A/c XX3100; linked Card XX4200 at MAPLE RENT.\nCandidates: {\"amounts\":{\"A0\":\"640.00\"},\"accounts\":{\"C0\":\"A/c XX3100\",\"C1\":\"Card XX4200\"},\"counterparties\":{\"PF0\":\"A/c XX3100\",\"PA0\":\"MAPLE RENT\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "valid_counterparty_ambiguity",
+      "covers": [
+        "counterparty_ambiguity",
+        "relation_prefixes",
+        "transaction"
+      ],
+      "input": {
+        "sender": "ZX-DEMOC",
+        "sms": "INR 210.00 paid from A/c XX7770 to RIVER CAFE for TEAM LUNCH.",
+        "message_timestamp_epoch_ms": 1786147202000
+      },
+      "gold": {
+        "amount": 210.0,
+        "counterparty": "RIVER CAFE",
+        "type": "debit",
+        "account": "A/c XX7770"
+      },
+      "model_output": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PT0\"}",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PF0",
+            "PT0",
+            "PR0",
+            "PN"
+          ]
+        },
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A0",
+          "account": "C0",
+          "counterparty": "PT0"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PT0\"}",
+        "outcome": {
+          "status": "transaction",
+          "reason_code": "accepted_transaction"
+        },
+        "transaction": {
+          "amount": 210.0,
+          "counterparty": "RIVER CAFE",
+          "type": "debit",
+          "account": "A/c XX7770"
+        },
+        "canonical_wire": {
+          "request_utf8_sha256": "7f66bb9b206d25ed3cf5b06dc73e3035a5aecdbd36a973702a9c729548960f84",
+          "candidate_payload_utf8_sha256": "d7c4955746f07c193e76f21e6c00c06e8bb0caec1a3a65276cdc5c26ab60647d",
+          "model_messages_utf8_sha256": "1364bb139da13bf44923e226514e279a77d1025b30db0ffb648446c92303c4e6",
+          "candidate_evidence_utf8_sha256": "1ff190fc66eebd3b8edf23699f0ad6a5a434f812e8e809092c6670361aff9680",
+          "raw_model_output_utf8_sha256": "f53dce85c09d64f46301e00eac604aaf68e52a31087f7212311287573f85eac9",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOC\nSMS: INR 210.00 paid from A/c XX7770 to RIVER CAFE for TEAM LUNCH.\nCandidates: {\"amounts\":{\"A0\":\"210.00\"},\"accounts\":{\"C0\":\"A/c XX7770\"},\"counterparties\":{\"PF0\":\"A/c XX7770\",\"PT0\":\"RIVER CAFE\",\"PR0\":\"TEAM LUNCH\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "valid_explicit_pn",
+      "covers": [
+        "PN",
+        "null_counterparty",
+        "transaction"
+      ],
+      "input": {
+        "sender": "ZX-DEMOD",
+        "sms": "INR 500.00 withdrawn from A/c XX6254 on 01-08-2026.",
+        "message_timestamp_epoch_ms": 1786147203000
+      },
+      "gold": {
+        "amount": 500.0,
+        "counterparty": null,
+        "type": "debit",
+        "account": "A/c XX6254"
+      },
+      "model_output": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PN\"}",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PF0",
+            "PO0",
+            "PN"
+          ]
+        },
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A0",
+          "account": "C0",
+          "counterparty": "PN"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PN\"}",
+        "outcome": {
+          "status": "transaction",
+          "reason_code": "accepted_transaction"
+        },
+        "transaction": {
+          "amount": 500.0,
+          "counterparty": null,
+          "type": "debit",
+          "account": "A/c XX6254"
+        },
+        "canonical_wire": {
+          "request_utf8_sha256": "f2f2395502f3016d7cb4a027436d1258ba80b61af20653e6aa898f9b9fa37357",
+          "candidate_payload_utf8_sha256": "06ba9e1d6ab1b5ae5b3475f0476e9ee363abf1c8465c2d42ae177864d37d669e",
+          "model_messages_utf8_sha256": "72ba88ea47a32f09fabf2d93542631a2783ddcb66f85d3be84f1735e9cf389fd",
+          "candidate_evidence_utf8_sha256": "7e24a53793104357e77b2000cdc7098e9fd6b168db9b9da94121223ba8751512",
+          "raw_model_output_utf8_sha256": "36bab34d570e05543349d64e67f7b382caa7b6cfd6241b120d0f509df9768fd7",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOD\nSMS: INR 500.00 withdrawn from A/c XX6254 on 01-08-2026.\nCandidates: {\"amounts\":{\"A0\":\"500.00\"},\"accounts\":{\"C0\":\"A/c XX6254\"},\"counterparties\":{\"PF0\":\"A/c XX6254\",\"PO0\":\"01-08-2026\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "valid_unicode_and_escaping",
+      "covers": [
+        "unicode",
+        "quotation_mark_escaping",
+        "reverse_solidus_escaping",
+        "utf8_byte_offsets",
+        "host_only_candidate_evidence",
+        "surrounding_json_whitespace",
+        "solidus_unescaped",
+        "u2028_literal",
+        "u2029_literal",
+        "control_short_escapes",
+        "control_unicode_escape_lowercase"
+      ],
+      "input": {
+        "sender": "ZX-DEMOU",
+        "sms": "₹88.50 spent on Card XX9080 at NOVA EAST. Memo: \"café\\trial/path\"  line  controls:\b\t\n\f\r\u0001\u001e and नमस्ते ✅.",
+        "message_timestamp_epoch_ms": 1786147204000
+      },
+      "gold": {
+        "amount": 88.5,
+        "counterparty": "NOVA EAST",
+        "type": "debit",
+        "account": "Card XX9080"
+      },
+      "model_output": " \n{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}\t",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PO0",
+            "PA0",
+            "PN"
+          ]
+        },
+        "candidate_evidence": [
+          {
+            "id": "A0",
+            "candidate_kind": "amount",
+            "source_text": "₹88.50",
+            "start_utf8_byte": 0,
+            "end_utf8_byte": 8,
+            "offset_convention": "utf8_bytes"
+          },
+          {
+            "id": "C0",
+            "candidate_kind": "account",
+            "source_text": "Card XX9080",
+            "start_utf8_byte": 18,
+            "end_utf8_byte": 29,
+            "offset_convention": "utf8_bytes"
+          },
+          {
+            "id": "PO0",
+            "candidate_kind": "counterparty",
+            "source_text": "Card XX9080",
+            "start_utf8_byte": 18,
+            "end_utf8_byte": 29,
+            "offset_convention": "utf8_bytes"
+          },
+          {
+            "id": "PA0",
+            "candidate_kind": "counterparty",
+            "source_text": "NOVA EAST",
+            "start_utf8_byte": 33,
+            "end_utf8_byte": 42,
+            "offset_convention": "utf8_bytes"
+          }
+        ],
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A0",
+          "account": "C0",
+          "counterparty": "PA0"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+        "outcome": {
+          "status": "transaction",
+          "reason_code": "accepted_transaction"
+        },
+        "transaction": {
+          "amount": 88.5,
+          "counterparty": "NOVA EAST",
+          "type": "debit",
+          "account": "Card XX9080"
+        },
+        "canonical_wire": {
+          "request_utf8_sha256": "9f0c064fe4bf729ca513a0833e2029af9e69094950d9f1f031119582263b1422",
+          "candidate_payload_utf8_sha256": "46faa8e03c9fff4625a4add604b8a0b1f94629b83ef00bcb2d133d1287115f3c",
+          "model_messages_utf8_sha256": "b6d40af4d38ee25850a585046b72cc166599d7a4027b793efc31a559bb659f5f",
+          "candidate_evidence_utf8_sha256": "9506e34e127867bbf31a8bbe2f37091b20501f35dda1f1a54a23e13109030e80",
+          "raw_model_output_utf8_sha256": "cb3585f8c4e0b645ee43852f9c68602019dc51ec2f8d53d6002dbb93de510642",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOU\nSMS: ₹88.50 spent on Card XX9080 at NOVA EAST. Memo: \"café\\trial/path\"  line  controls:\b\t\n\f\r\u0001\u001e and नमस्ते ✅.\nCandidates: {\"amounts\":{\"A0\":\"88.50\"},\"accounts\":{\"C0\":\"Card XX9080\"},\"counterparties\":{\"PO0\":\"Card XX9080\",\"PA0\":\"NOVA EAST\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "valid_accepted_not_transaction",
+      "covers": [
+        "null",
+        "accepted_not_transaction"
+      ],
+      "input": {
+        "sender": "ZX-DEMON",
+        "sms": "INR 99.00 will be debited from A/c XX1010 for trial authorization.",
+        "message_timestamp_epoch_ms": 1786147205000
+      },
+      "gold": null,
+      "model_output": "{\"transaction\":0}",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PF0",
+            "PR0",
+            "PN"
+          ]
+        },
+        "target": {
+          "transaction": 0
+        },
+        "serialized_target": "{\"transaction\":0}",
+        "outcome": {
+          "status": "not_transaction",
+          "reason_code": "accepted_not_transaction"
+        },
+        "transaction": null,
+        "canonical_wire": {
+          "request_utf8_sha256": "1501e877d3de7146146e3f98d077788ee5ebdb760c9ce530c38b83d2d7d208f7",
+          "candidate_payload_utf8_sha256": "b9dc9eb0e4a56f778640f4a344dc3ea88202e8487c1364dc7c767206dee8ba3f",
+          "model_messages_utf8_sha256": "cffa199b7026b89fb487dd988cc3a421fb47fe6445dd98f31e604b4818710f15",
+          "candidate_evidence_utf8_sha256": "a526fa507beab004ceda1e5b7e191fdc4fec19ef6452e8f8f053287491d0291f",
+          "raw_model_output_utf8_sha256": "4a893b2cdbf9ce81168abc01d6ca29d851c4af5cdb12a536bda7721f2049ef48",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMON\nSMS: INR 99.00 will be debited from A/c XX1010 for trial authorization.\nCandidates: {\"amounts\":{\"A0\":\"99.00\"},\"accounts\":{\"C0\":\"A/c XX1010\"},\"counterparties\":{\"PF0\":\"A/c XX1010\",\"PR0\":\"trial authorization\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "filter_rejects_otp",
+      "covers": [
+        "filter",
+        "otp",
+        "no_model_invocation"
+      ],
+      "input": {
+        "sender": "ZX-DEMOF",
+        "sms": "OTP 246810 confirms INR 35.00 debited from A/c XX2020.",
+        "message_timestamp_epoch_ms": 1786147206000
+      },
+      "gold": null,
+      "model_output": null,
+      "expected": {
+        "prefilter": {
+          "accepted": false,
+          "rejection_stage": "otp",
+          "stage_index": 5
+        },
+        "model_invoked": false,
+        "candidate_ids": null,
+        "target": null,
+        "serialized_target": null,
+        "outcome": null,
+        "transaction": null,
+        "canonical_wire": {
+          "request_utf8_sha256": "3cc480dd3ff6b0cb28f05d1f6024676b3c4199f395d134a54c9da0bc8986ce1a",
+          "candidate_payload_utf8_sha256": null,
+          "model_messages_utf8_sha256": null,
+          "candidate_evidence_utf8_sha256": null,
+          "raw_model_output_utf8_sha256": null,
+          "model_messages": null
+        }
+      }
+    },
+    {
+      "id": "filter_rejects_missing_currency_amount",
+      "covers": [
+        "filter",
+        "missing_amount",
+        "stage_order",
+        "no_model_invocation"
+      ],
+      "input": {
+        "sender": "ZX-DEMOG",
+        "sms": "A/c XX3030 was debited for DEMO SUBSCRIPTION.",
+        "message_timestamp_epoch_ms": 1786147207000
+      },
+      "gold": null,
+      "model_output": null,
+      "expected": {
+        "prefilter": {
+          "accepted": false,
+          "rejection_stage": "currency_amount",
+          "stage_index": 2
+        },
+        "model_invoked": false,
+        "candidate_ids": null,
+        "target": null,
+        "serialized_target": null,
+        "outcome": null,
+        "transaction": null,
+        "canonical_wire": {
+          "request_utf8_sha256": "7826c133595a2721f7f360dbf624d6418bd9fb2317d96e9ecd538211da1f692e",
+          "candidate_payload_utf8_sha256": null,
+          "model_messages_utf8_sha256": null,
+          "candidate_evidence_utf8_sha256": null,
+          "raw_model_output_utf8_sha256": null,
+          "model_messages": null
+        }
+      }
+    },
+    {
+      "id": "invalid_duplicate_member",
+      "covers": [
+        "invalid_output",
+        "duplicate_key",
+        "fail_closed"
+      ],
+      "input": {
+        "sender": "ZX-DEMOI",
+        "sms": "INR 23.00 spent on Card XX0000 at DEMO SHOP.",
+        "message_timestamp_epoch_ms": 1786147208000
+      },
+      "gold": {
+        "amount": 23.0,
+        "counterparty": "DEMO SHOP",
+        "type": "debit",
+        "account": "Card XX0000"
+      },
+      "model_output": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"amount\":\"A1\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PO0",
+            "PA0",
+            "PN"
+          ]
+        },
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A0",
+          "account": "C0",
+          "counterparty": "PA0"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+        "outcome": {
+          "status": "rejected",
+          "reason_code": "duplicate_key"
+        },
+        "transaction": null,
+        "canonical_wire": {
+          "request_utf8_sha256": "bdcc2ac04bf5d31606e28145706ecf3d9f90ec975e86b3da7dab1429a3190f13",
+          "candidate_payload_utf8_sha256": "416405ffd57e5047cc5a4d767c8f01180e25965190ed8b2b6153d913b64f0a84",
+          "model_messages_utf8_sha256": "41442f1391d5b360f5304d7941afb0e4b296873b0bb8fb48bd5d672cbbf002c8",
+          "candidate_evidence_utf8_sha256": "7c2efb71113e1cde3e10dca4eb462fe9eddb4af7a84a91f109e91f657e5cf953",
+          "raw_model_output_utf8_sha256": "bc3f774b39ab1a6c9423b0e6f844368b53f29ccc8177a5950f6a306d7f17eee9",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOI\nSMS: INR 23.00 spent on Card XX0000 at DEMO SHOP.\nCandidates: {\"amounts\":{\"A0\":\"23.00\"},\"accounts\":{\"C0\":\"Card XX0000\"},\"counterparties\":{\"PO0\":\"Card XX0000\",\"PA0\":\"DEMO SHOP\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "invalid_extra_version_member",
+      "covers": [
+        "invalid_output",
+        "schema_mismatch",
+        "version_not_emitted",
+        "fail_closed"
+      ],
+      "input": {
+        "sender": "ZX-DEMOJ",
+        "sms": "INR 23.00 spent on Card XX0000 at DEMO SHOP.",
+        "message_timestamp_epoch_ms": 1786147209000
+      },
+      "gold": {
+        "amount": 23.0,
+        "counterparty": "DEMO SHOP",
+        "type": "debit",
+        "account": "Card XX0000"
+      },
+      "model_output": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\",\"version\":1}",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PO0",
+            "PA0",
+            "PN"
+          ]
+        },
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A0",
+          "account": "C0",
+          "counterparty": "PA0"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+        "outcome": {
+          "status": "rejected",
+          "reason_code": "schema_mismatch"
+        },
+        "transaction": null,
+        "canonical_wire": {
+          "request_utf8_sha256": "c1e2a933c505f253e9ab3d0f1f4d7e02c62676be82d3c6628431819776d0a5f1",
+          "candidate_payload_utf8_sha256": "416405ffd57e5047cc5a4d767c8f01180e25965190ed8b2b6153d913b64f0a84",
+          "model_messages_utf8_sha256": "b2b541ffea7ad272942122de5707a5064547ae077c47f939b3f5352e89053607",
+          "candidate_evidence_utf8_sha256": "7c2efb71113e1cde3e10dca4eb462fe9eddb4af7a84a91f109e91f657e5cf953",
+          "raw_model_output_utf8_sha256": "db2860ad189620b5d0910b23298e3a66fef3495a99931b11d7427611ebf46823",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOJ\nSMS: INR 23.00 spent on Card XX0000 at DEMO SHOP.\nCandidates: {\"amounts\":{\"A0\":\"23.00\"},\"accounts\":{\"C0\":\"Card XX0000\"},\"counterparties\":{\"PO0\":\"Card XX0000\",\"PA0\":\"DEMO SHOP\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "invalid_trailing_prose",
+      "covers": [
+        "invalid_output",
+        "trailing_content",
+        "fail_closed"
+      ],
+      "input": {
+        "sender": "ZX-DEMOK",
+        "sms": "INR 23.00 spent on Card XX0000 at DEMO SHOP.",
+        "message_timestamp_epoch_ms": 1786147210000
+      },
+      "gold": {
+        "amount": 23.0,
+        "counterparty": "DEMO SHOP",
+        "type": "debit",
+        "account": "Card XX0000"
+      },
+      "model_output": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"} done",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PO0",
+            "PA0",
+            "PN"
+          ]
+        },
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A0",
+          "account": "C0",
+          "counterparty": "PA0"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+        "outcome": {
+          "status": "rejected",
+          "reason_code": "trailing_content"
+        },
+        "transaction": null,
+        "canonical_wire": {
+          "request_utf8_sha256": "a1c4c059251bafb1865464c73374d31f809c6c47140637923af67b994865aae4",
+          "candidate_payload_utf8_sha256": "416405ffd57e5047cc5a4d767c8f01180e25965190ed8b2b6153d913b64f0a84",
+          "model_messages_utf8_sha256": "bc9c2f1c2f2430c2935a80821a656e26482b05ae9cc881b36d0fcf69a8c159fa",
+          "candidate_evidence_utf8_sha256": "7c2efb71113e1cde3e10dca4eb462fe9eddb4af7a84a91f109e91f657e5cf953",
+          "raw_model_output_utf8_sha256": "a55f195433b2cfaa0ce87ce665339f77148c9e7f5f6c55506ba116fcbe37e682",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOK\nSMS: INR 23.00 spent on Card XX0000 at DEMO SHOP.\nCandidates: {\"amounts\":{\"A0\":\"23.00\"},\"accounts\":{\"C0\":\"Card XX0000\"},\"counterparties\":{\"PO0\":\"Card XX0000\",\"PA0\":\"DEMO SHOP\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "invalid_unknown_amount_id",
+      "covers": [
+        "invalid_output",
+        "unknown_candidate_id",
+        "fail_closed"
+      ],
+      "input": {
+        "sender": "ZX-DEMOL",
+        "sms": "INR 23.00 spent on Card XX0000 at DEMO SHOP.",
+        "message_timestamp_epoch_ms": 1786147211000
+      },
+      "gold": {
+        "amount": 23.0,
+        "counterparty": "DEMO SHOP",
+        "type": "debit",
+        "account": "Card XX0000"
+      },
+      "model_output": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A9\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PO0",
+            "PA0",
+            "PN"
+          ]
+        },
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A0",
+          "account": "C0",
+          "counterparty": "PA0"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+        "outcome": {
+          "status": "rejected",
+          "reason_code": "unknown_amount_id"
+        },
+        "transaction": null,
+        "canonical_wire": {
+          "request_utf8_sha256": "b32982fa8476aa9720d2ee6340055f9102364e91fb2dca8b201684f4888c011e",
+          "candidate_payload_utf8_sha256": "416405ffd57e5047cc5a4d767c8f01180e25965190ed8b2b6153d913b64f0a84",
+          "model_messages_utf8_sha256": "b410a9c0c638ae08669be4de33d170b4bf56acf2a69aed4797c618d36af569d2",
+          "candidate_evidence_utf8_sha256": "7c2efb71113e1cde3e10dca4eb462fe9eddb4af7a84a91f109e91f657e5cf953",
+          "raw_model_output_utf8_sha256": "1376b0412c168817c40c2cec6119fa8e80eb85fc5951dbb75c0bfeec7401c9b7",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOL\nSMS: INR 23.00 spent on Card XX0000 at DEMO SHOP.\nCandidates: {\"amounts\":{\"A0\":\"23.00\"},\"accounts\":{\"C0\":\"Card XX0000\"},\"counterparties\":{\"PO0\":\"Card XX0000\",\"PA0\":\"DEMO SHOP\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "invalid_boolean_transaction_flag",
+      "covers": [
+        "invalid_output",
+        "invalid_transaction_flag",
+        "boolean_is_not_integer",
+        "fail_closed"
+      ],
+      "input": {
+        "sender": "ZX-DEMOM",
+        "sms": "INR 23.00 spent on Card XX0000 at DEMO SHOP.",
+        "message_timestamp_epoch_ms": 1786147212000
+      },
+      "gold": {
+        "amount": 23.0,
+        "counterparty": "DEMO SHOP",
+        "type": "debit",
+        "account": "Card XX0000"
+      },
+      "model_output": "{\"transaction\":true}",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PO0",
+            "PA0",
+            "PN"
+          ]
+        },
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A0",
+          "account": "C0",
+          "counterparty": "PA0"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+        "outcome": {
+          "status": "rejected",
+          "reason_code": "invalid_transaction_flag"
+        },
+        "transaction": null,
+        "canonical_wire": {
+          "request_utf8_sha256": "35e7f7c93a7e4ae807c26ae4231793c545c6cf7bb5ddce73f7bd96e5a6cd239a",
+          "candidate_payload_utf8_sha256": "416405ffd57e5047cc5a4d767c8f01180e25965190ed8b2b6153d913b64f0a84",
+          "model_messages_utf8_sha256": "36e107b71b2be1e02ac45c7244fb967a9ebeb36493a9180f8c209d9c64e1a8ab",
+          "candidate_evidence_utf8_sha256": "7c2efb71113e1cde3e10dca4eb462fe9eddb4af7a84a91f109e91f657e5cf953",
+          "raw_model_output_utf8_sha256": "35be988fe73cd98842e9898368464f13c9cd6a21561b365fdea203c140e9d1c2",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOM\nSMS: INR 23.00 spent on Card XX0000 at DEMO SHOP.\nCandidates: {\"amounts\":{\"A0\":\"23.00\"},\"accounts\":{\"C0\":\"Card XX0000\"},\"counterparties\":{\"PO0\":\"Card XX0000\",\"PA0\":\"DEMO SHOP\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "invalid_type_code",
+      "covers": [
+        "invalid_output",
+        "invalid_type_code",
+        "fail_closed"
+      ],
+      "input": {
+        "sender": "ZX-DEMOP",
+        "sms": "INR 23.00 spent on Card XX0000 at DEMO SHOP.",
+        "message_timestamp_epoch_ms": 1786147213000
+      },
+      "gold": {
+        "amount": 23.0,
+        "counterparty": "DEMO SHOP",
+        "type": "debit",
+        "account": "Card XX0000"
+      },
+      "model_output": "{\"transaction\":1,\"type\":\"X\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PO0",
+            "PA0",
+            "PN"
+          ]
+        },
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A0",
+          "account": "C0",
+          "counterparty": "PA0"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+        "outcome": {
+          "status": "rejected",
+          "reason_code": "invalid_type_code"
+        },
+        "transaction": null,
+        "canonical_wire": {
+          "request_utf8_sha256": "b3aa081926139f20d14f2c2e548cf6b4ee7ca72b87878ec4eb5faacf4b3bc830",
+          "candidate_payload_utf8_sha256": "416405ffd57e5047cc5a4d767c8f01180e25965190ed8b2b6153d913b64f0a84",
+          "model_messages_utf8_sha256": "12efd94faefa3dcf5e5d1895b55a180499b7a1fc8839ad18f77293625c6461bc",
+          "candidate_evidence_utf8_sha256": "7c2efb71113e1cde3e10dca4eb462fe9eddb4af7a84a91f109e91f657e5cf953",
+          "raw_model_output_utf8_sha256": "e3714410ff5c91b896e7ee0389dabec5badfcfa6de3b8ab8edc6fa9e6166bda9",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOP\nSMS: INR 23.00 spent on Card XX0000 at DEMO SHOP.\nCandidates: {\"amounts\":{\"A0\":\"23.00\"},\"accounts\":{\"C0\":\"Card XX0000\"},\"counterparties\":{\"PO0\":\"Card XX0000\",\"PA0\":\"DEMO SHOP\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "valid_large_exact_amounts",
+      "covers": [
+        "large_exact_amounts",
+        "binary_float_collision_resistance",
+        "portable_int64_minor_units",
+        "transaction"
+      ],
+      "input": {
+        "sender": "ZX-DEMOQ",
+        "sms": "INR 9,007,199,254,740,992.00 debited from A/c XX5500 at QUARTZ LABS. Available balance INR 9,007,199,254,740,993.00.",
+        "message_timestamp_epoch_ms": 1786147214000
+      },
+      "gold": {
+        "amount": 9007199254740992,
+        "counterparty": "QUARTZ LABS",
+        "type": "debit",
+        "account": "A/c XX5500"
+      },
+      "model_output": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0",
+            "A1"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PF0",
+            "PA0",
+            "PN"
+          ]
+        },
+        "exact_amounts": [
+          {
+            "id": "A0",
+            "decimal_text": "9007199254740992.00",
+            "minor_units": 900719925474099200
+          },
+          {
+            "id": "A1",
+            "decimal_text": "9007199254740993.00",
+            "minor_units": 900719925474099300
+          }
+        ],
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A0",
+          "account": "C0",
+          "counterparty": "PA0"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+        "outcome": {
+          "status": "transaction",
+          "reason_code": "accepted_transaction"
+        },
+        "transaction": {
+          "amount": 9007199254740992.0,
+          "counterparty": "QUARTZ LABS",
+          "type": "debit",
+          "account": "A/c XX5500"
+        },
+        "canonical_wire": {
+          "request_utf8_sha256": "d1c4f4fa235ebebf876c767c5952b7416e20633c5ff107c11826a43b3e5b9643",
+          "candidate_payload_utf8_sha256": "5d56a8d68321cb160e355bfe7324d2241f2d9f61b7d96e038730a37b63591805",
+          "model_messages_utf8_sha256": "87769ebbd4b4d682f52b33d495aef2860350887abcbfd9cf94898bb535b72e6b",
+          "candidate_evidence_utf8_sha256": "cfeb5304c116f983f4a0555e921dc18ff3542af84e150d6ca01039576d3db387",
+          "raw_model_output_utf8_sha256": "ac4adf9345587114d9abc17bbe3df04af222dd411a417627bf6555df9e03fa5e",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOQ\nSMS: INR 9,007,199,254,740,992.00 debited from A/c XX5500 at QUARTZ LABS. Available balance INR 9,007,199,254,740,993.00.\nCandidates: {\"amounts\":{\"A0\":\"9007199254740992.00\",\"A1\":\"9007199254740993.00\"},\"accounts\":{\"C0\":\"A/c XX5500\"},\"counterparties\":{\"PF0\":\"A/c XX5500\",\"PA0\":\"QUARTZ LABS\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "valid_large_exact_amount_a1",
+      "covers": [
+        "large_exact_amounts",
+        "binary_float_collision_resistance",
+        "exact_gold_integer",
+        "second_colliding_candidate_A1",
+        "transaction"
+      ],
+      "input": {
+        "sender": "ZX-DEMOR",
+        "sms": "INR 9,007,199,254,740,992.00 debited from A/c XX5500 at QUARTZ LABS. Available balance INR 9,007,199,254,740,993.00.",
+        "message_timestamp_epoch_ms": 1786147215000
+      },
+      "gold": {
+        "amount": 9007199254740993,
+        "counterparty": "QUARTZ LABS",
+        "type": "debit",
+        "account": "A/c XX5500"
+      },
+      "model_output": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A1\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+      "expected": {
+        "prefilter": {
+          "accepted": true,
+          "rejection_stage": null,
+          "stage_index": null
+        },
+        "model_invoked": true,
+        "candidate_ids": {
+          "amount": [
+            "A0",
+            "A1"
+          ],
+          "account": [
+            "C0"
+          ],
+          "counterparty": [
+            "PF0",
+            "PA0",
+            "PN"
+          ]
+        },
+        "exact_amounts": [
+          {
+            "id": "A0",
+            "decimal_text": "9007199254740992.00",
+            "minor_units": 900719925474099200
+          },
+          {
+            "id": "A1",
+            "decimal_text": "9007199254740993.00",
+            "minor_units": 900719925474099300
+          }
+        ],
+        "target": {
+          "transaction": 1,
+          "type": "D",
+          "amount": "A1",
+          "account": "C0",
+          "counterparty": "PA0"
+        },
+        "serialized_target": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A1\",\"account\":\"C0\",\"counterparty\":\"PA0\"}",
+        "outcome": {
+          "status": "transaction",
+          "reason_code": "accepted_transaction"
+        },
+        "transaction": {
+          "amount": 9007199254740992.0,
+          "counterparty": "QUARTZ LABS",
+          "type": "debit",
+          "account": "A/c XX5500"
+        },
+        "canonical_wire": {
+          "request_utf8_sha256": "f46c60428b3c0850d46b1f8e1d1ed6a29807322d96e516ccac5144b525f66f4b",
+          "candidate_payload_utf8_sha256": "5d56a8d68321cb160e355bfe7324d2241f2d9f61b7d96e038730a37b63591805",
+          "model_messages_utf8_sha256": "235972f2a2341e12773fd5ea122fb353bb0ce1c689c54e6372aaf556b1b53c7e",
+          "candidate_evidence_utf8_sha256": "cfeb5304c116f983f4a0555e921dc18ff3542af84e150d6ca01039576d3db387",
+          "raw_model_output_utf8_sha256": "0d7cd7dd622a6ea77ff110ac9b3b90ddd73fd088faa9f0790650bbe045d953af",
+          "model_messages": [
+            {
+              "role": "system",
+              "content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS."
+            },
+            {
+              "role": "user",
+              "content": "Sender: ZX-DEMOR\nSMS: INR 9,007,199,254,740,992.00 debited from A/c XX5500 at QUARTZ LABS. Available balance INR 9,007,199,254,740,993.00.\nCandidates: {\"amounts\":{\"A0\":\"9007199254740992.00\",\"A1\":\"9007199254740993.00\"},\"accounts\":{\"C0\":\"A/c XX5500\"},\"counterparties\":{\"PF0\":\"A/c XX5500\",\"PA0\":\"QUARTZ LABS\",\"PN\":null},\"type_hints\":[\"D\"]}\nOutput:"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

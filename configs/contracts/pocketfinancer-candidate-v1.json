@@ -1,0 +1,411 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_version": 1,
+  "profile": "candidate_protocol_v1",
+  "profile_version": 1,
+  "status": "experimental_not_android_deployed",
+  "audited_at": "2026-08-08",
+  "source_of_truth": "This versioned profile and lfm25.candidate_protocol",
+  "protocol_binding": {
+    "name": "candidate_protocol_v1",
+    "version": 1,
+    "version_location": "profile",
+    "version_emitted_by_model": false
+  },
+  "application_input": {
+    "member_order": [
+      "sender",
+      "sms",
+      "message_timestamp_epoch_ms"
+    ],
+    "schema": {
+      "type": "object",
+      "required": [
+        "sender",
+        "sms",
+        "message_timestamp_epoch_ms"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sender": {
+          "type": "string"
+        },
+        "sms": {
+          "type": "string"
+        },
+        "message_timestamp_epoch_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        }
+      }
+    },
+    "model_message_projection": {
+      "includes": [
+        "sender",
+        "sms",
+        "candidates"
+      ],
+      "excludes": [
+        "profile",
+        "profile_version",
+        "message_timestamp_epoch_ms",
+        "candidate_evidence"
+      ]
+    },
+    "portable_text_domain": "sender and sms must contain only Unicode scalar values encodable as strict UTF-8",
+    "portable_integer_ranges": {
+      "message_timestamp_epoch_ms": {
+        "minimum": 0,
+        "maximum": 9223372036854775807,
+        "representation": "signed_64_bit_integer_or_null",
+        "units": "milliseconds_since_unix_epoch"
+      }
+    }
+  },
+  "candidate_id_conventions": {
+    "case_sensitive": true,
+    "indexing": "zero_based_decimal_without_leading_zeroes",
+    "ordering": "first_source_span_order_after_semantic_deduplication",
+    "ordering_tie_break": "ascending source character start and end, followed by the field-specific tie rules below; IDs are assigned after semantic deduplication and PN is always last",
+    "enumeration_lexical_domain": {
+      "regex_classes": "\\b, \\d, \\s, and \\w use ASCII semantics only; Unicode properties and locale are never consulted",
+      "case_insensitive_matching": "Only ASCII A through Z fold to ASCII a through z; every other Unicode scalar remains unchanged",
+      "semantic_text_normalization": "Collapse one or more ASCII whitespace scalars U+0009 through U+000D or U+0020 to U+0020, trim the same set at both ends, and apply ASCII-only lowercase for identity",
+      "counterparty_value_alphabet": "ASCII letters and digits plus the punctuation explicitly present in the versioned extractor patterns; non-ASCII letters never satisfy an ASCII letter class",
+      "currency_markers": "literal U+20B9 RUPEE SIGN or ASCII-case-insensitive INR and RS",
+      "unicode_dependency": "Candidate enumeration has no Unicode database, locale, Java ICU, Swift Foundation, or Python casefold dependency",
+      "reference": "lfm25.candidates.extract_protocol_candidates"
+    },
+    "amount": {
+      "prefix": "A",
+      "pattern": "^A(?:0|[1-9][0-9]*)$",
+      "source_enumeration": "Parse canonical decimal_text directly from each currency source token and deduplicate by exact Decimal numeric equality before any binary floating-point projection.",
+      "numeric_token_boundary": "The complete grouped or ungrouped numeric token is consumed; fractional precision is unbounded and a match is rejected rather than stopped before a following digit, decimal point, or grouping comma.",
+      "tie_break": "decimal numeric value, decimal_text, then source_text",
+      "exact_metadata": {
+        "decimal_text": "finite positive base-10 value with source precision preserved and grouping separators removed",
+        "minor_units": "integer paise only when source precision is at most two decimal places and the result is within signed Int64 0 through 9223372036854775807; otherwise null",
+        "app_amount": "legacy finite floating-point projection only; decimal_text and minor_units remain authoritative for persistence"
+      }
+    },
+    "account": {
+      "prefix": "C",
+      "pattern": "^C(?:0|[1-9][0-9]*)$",
+      "tie_break": "ASCII-lowercased normalized value, normalized value, then source_text",
+      "local_hint_resolution_states": [
+        "zero_matches",
+        "unique_match",
+        "multiple_matches"
+      ],
+      "fail_closed_unless": "unique_match"
+    },
+    "counterparty": {
+      "relation_prefixes": {
+        "PA": "at",
+        "PT": "to",
+        "PB": "by",
+        "PF": "from",
+        "PV": "VPA",
+        "PL": "linked_mobile_or_vpa",
+        "PW": "towards",
+        "PU": "UPI_or_NEFT",
+        "PR": "for",
+        "PO": "on"
+      },
+      "source_tie_break_prefix_order": [
+        "PL",
+        "PV",
+        "PA",
+        "PT",
+        "PB",
+        "PF",
+        "PW",
+        "PU",
+        "PR",
+        "PO"
+      ],
+      "tie_break": "prefix rank, prefix text, ASCII-lowercased normalized value, normalized value, then source_text",
+      "pattern": "^(?:PN|P(?:A|T|B|F|V|L|W|U|R|O)(?:0|[1-9][0-9]*))$",
+      "null_id": "PN",
+      "null_id_cardinality": 1,
+      "null_id_is_only_null_candidate": true
+    },
+    "type_codes": {
+      "D": "debit",
+      "C": "credit"
+    },
+    "validation": "Every non-PN ID must resolve to exactly one candidate whose normalized value is derived from its validated source_text span in the current SMS; unknown, duplicate, malformed, forged-value, or cross-message IDs fail closed.",
+    "caller_supplied_candidate_sets": "A supplied CandidateSet is accepted only when it is exactly equal, including tuple order, contiguous IDs, values, source_text, spans, type hints, and PN-last placement, to deterministic enumeration of the same SMS."
+  },
+  "candidate_source_evidence": {
+    "scope": "host_only",
+    "model_visible": false,
+    "required_for": "every_non_PN_candidate",
+    "PN_evidence": null,
+    "offset_convention": "utf8_bytes",
+    "range_semantics": "half_open_start_inclusive_end_exclusive",
+    "coordinate_space": "UTF-8 bytes of the exact application_input.sms with no Unicode normalization",
+    "source_text_validation": "The declared UTF-8 byte slice must decode exactly to source_text, and the candidate value must equal the field-specific normalization of that source_text."
+  },
+  "supervision_oracle": {
+    "scope": "host_training_and_golden_generation_only",
+    "accepted_label_forms": "null, an exact four-field mapping, lowercase JSON null, or exact JSON text containing the four-field object",
+    "required_transaction_members": ["amount", "counterparty", "type", "account"],
+    "duplicate_members_allowed": false,
+    "additional_members_allowed": false,
+    "exact_amount_inputs": "Direct mapping integers and Decimal values are compared without binary floating-point conversion; fractional numeric lexemes in exact JSON text are decoded with Decimal-preserving number parsing",
+    "binary_float_inputs": "A finite positive binary float may be used only when exactly one candidate has the same finite binary-float projection",
+    "ambiguous_binary_float": "candidate_missing_amount_fail_closed",
+    "exact_json_whitespace_code_points": ["U+0009", "U+000A", "U+000D", "U+0020"],
+    "runtime_model_output_dependency": false
+  },
+  "model_output": {
+    "accepted_top_level": "one JSON object only",
+    "member_order_enforced": true,
+    "surrounding_json_whitespace_allowed": true,
+    "internal_json_whitespace_allowed": true,
+    "accepted_json_whitespace_code_points": ["U+0009", "U+000A", "U+000D", "U+0020"],
+    "all_other_unicode_whitespace": "not JSON whitespace; before the object is invalid_json and after the object is trailing_content",
+    "prose_markdown_fences_and_trailing_content_allowed": false,
+    "duplicate_members_allowed": false,
+    "version_member_allowed": false,
+    "schemas": {
+      "not_transaction": {
+        "member_order": [
+          "transaction"
+        ],
+        "canonical_example": "{\"transaction\":0}",
+        "schema": {
+          "type": "object",
+          "required": [
+            "transaction"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "transaction": {
+              "type": "integer",
+              "const": 0
+            }
+          }
+        }
+      },
+      "transaction": {
+        "member_order": [
+          "transaction",
+          "type",
+          "amount",
+          "account",
+          "counterparty"
+        ],
+        "canonical_example": "{\"transaction\":1,\"type\":\"D\",\"amount\":\"A0\",\"account\":\"C0\",\"counterparty\":\"PN\"}",
+        "schema": {
+          "type": "object",
+          "required": [
+            "transaction",
+            "type",
+            "amount",
+            "account",
+            "counterparty"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "transaction": {
+              "type": "integer",
+              "const": 1
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "D",
+                "C"
+              ]
+            },
+            "amount": {
+              "type": "string",
+              "pattern": "^A(?:0|[1-9][0-9]*)$"
+            },
+            "account": {
+              "type": "string",
+              "pattern": "^C(?:0|[1-9][0-9]*)$"
+            },
+            "counterparty": {
+              "type": "string",
+              "pattern": "^(?:PN|P(?:A|T|B|F|V|L|W|U|R|O)(?:0|[1-9][0-9]*))$"
+            }
+          }
+        }
+      }
+    }
+  },
+  "canonical_serialization": {
+    "character_encoding": "UTF-8",
+    "byte_order_mark": false,
+    "trailing_newline": false,
+    "ensure_ascii": false,
+    "object_member_separator": ",",
+    "name_value_separator": ":",
+    "insignificant_whitespace": false,
+    "member_order_source": "document-specific member_order declarations; selector target order comes from model_output.schemas.*.member_order",
+    "string_escaping": {
+      "quotation_mark_U+0022": "\\\"",
+      "reverse_solidus_U+005C": "\\\\",
+      "solidus_U+002F": "literal_unescaped",
+      "short_control_escapes": {
+        "U+0008": "\\b",
+        "U+0009": "\\t",
+        "U+000A": "\\n",
+        "U+000C": "\\f",
+        "U+000D": "\\r"
+      },
+      "other_U+0000_through_U+001F": "six ASCII characters \\u00xx using lowercase hexadecimal digits",
+      "U+2028_and_U+2029": "literal UTF-8, never \\u2028 or \\u2029",
+      "all_other_unicode_scalars": "literal UTF-8 with no normalization or optional escaping"
+    },
+    "unicode_normalization": "none; preserve source code points so candidate offsets remain valid",
+    "numbers": "base-10 JSON integers without exponent notation; booleans, NaN, and infinity are rejected",
+    "serializer_reference": "lfm25.candidate_protocol.serialize_selector_target",
+    "hashing": {
+      "algorithm": "SHA-256",
+      "input": "the exact canonical UTF-8 bytes with no BOM or trailing newline",
+      "output_encoding": "64 lowercase hexadecimal characters"
+    },
+    "byte_documents": {
+      "application_request": {
+        "member_order": [
+          "sender",
+          "sms",
+          "message_timestamp_epoch_ms"
+        ],
+        "serializer_reference": "lfm25.candidate_protocol.canonical_request_bytes"
+      },
+      "candidate_payload": {
+        "member_order": [
+          "amounts",
+          "accounts",
+          "counterparties",
+          "type_hints"
+        ],
+        "candidate_map_member_order": "candidate ID order emitted by deterministic source-span enumeration",
+        "serializer_reference": "lfm25.candidate_protocol.canonical_candidate_payload_bytes"
+      },
+      "model_messages": {
+        "array_order": ["system", "user"],
+        "message_member_order": ["role", "content"],
+        "system_content": "Classify one Indian financial SMS using only the candidates supplied by the user.\nReturn exactly one compact JSON object and no prose or markdown.\nFor everything other than a posted bank/card transaction return {\"transaction\":0}.\nFor a posted transaction return keys in this exact order: transaction=1, type D or C, amount ID, account ID, counterparty ID.\nCounterparty ID PN explicitly means that the SMS contains no counterparty.\nNever invent, copy, or modify a value. Select only IDs supplied for this SMS.",
+        "user_content_framing": "Sender: {sender}\nSMS: {sms}\nCandidates: {canonical_candidate_payload_json}\nOutput:",
+        "serializer_reference": "lfm25.candidate_protocol.canonical_model_messages_bytes"
+      },
+      "candidate_evidence": {
+        "array_order": "amounts_then_accounts_then_counterparties_in_candidate_order",
+        "member_order": [
+          "id",
+          "candidate_kind",
+          "source_text",
+          "start_utf8_byte",
+          "end_utf8_byte",
+          "offset_convention"
+        ],
+        "PN_included": false,
+        "serializer_reference": "lfm25.candidate_protocol.canonical_candidate_evidence_bytes"
+      },
+      "selector_target": {
+        "member_order": "model_output.schemas.*.member_order",
+        "serializer_reference": "lfm25.candidate_protocol.serialize_selector_target"
+      }
+    }
+  },
+  "prefilter": {
+    "required": true,
+    "on_reject": "do_not_invoke_model",
+    "profile_path": "configs/contracts/pocketfinancer-android-current.json",
+    "profile_sha256": "b818397851bb03fc3365710fe8ddfe82cadfe896525d931b93dbb8a6653c9d3f",
+    "profile": "pocketfinancer",
+    "profile_version": 3,
+    "implementation": "lfm25.android_contract.pocketfinancer_prefilter_sms",
+    "ordered_stages": [
+      "reject_personal_mobile_sender",
+      "require_currency_amount",
+      "require_masked_account_or_card",
+      "require_completed_transaction_verb",
+      "reject_otp_or_verification",
+      "reject_collect_or_mandate_request"
+    ]
+  },
+  "model_runtime_defaults": {
+    "model": "LiquidAI/LFM2.5-350M",
+    "thinking": false,
+    "temperature": 0.0,
+    "answer_max_tokens": 64,
+    "passes": 1,
+    "grammar": false,
+    "repeat_penalty": 1.0,
+    "determinism_note": "Greedy temperature-zero decoding is required; backend-specific kernels can still require parity verification."
+  },
+  "outcomes": {
+    "status_values": [
+      "not_transaction",
+      "transaction",
+      "rejected"
+    ],
+    "accepted_reason_codes": [
+      "accepted_not_transaction",
+      "accepted_transaction"
+    ],
+    "fail_closed_reason_codes": [
+      "output_not_text",
+      "empty_output",
+      "invalid_json",
+      "duplicate_key",
+      "trailing_content",
+      "output_not_object",
+      "schema_mismatch",
+      "invalid_transaction_flag",
+      "invalid_type_code",
+      "unknown_amount_id",
+      "unknown_account_id",
+      "unknown_counterparty_id",
+      "reconstruction_failed"
+    ],
+    "rejected_result": "No transaction is emitted or persisted. Rejection remains diagnostically distinct from an accepted not-transaction decision."
+  },
+  "platform_parity": {
+    "host_reference_implemented": true,
+    "android_implemented": false,
+    "ios_implemented": false,
+    "wire_compatible_with_pocketfinancer_android_current": false,
+    "gguf_runtime_validated": false,
+    "device_validated": false,
+    "required_comparison_fields": [
+      "prefilter_accepted",
+      "prefilter_rejection_stage",
+      "request_utf8_sha256",
+      "model_messages_utf8_sha256",
+      "candidate_payload_utf8_sha256",
+      "candidate_evidence_utf8_sha256",
+      "raw_model_output_utf8_sha256",
+      "outcome_status",
+      "outcome_reason_code",
+      "selected_candidate_ids",
+      "reconstructed_transaction"
+    ],
+    "known_gaps": [
+      "PocketFinancer Android current has no CandidateProtocolV1 request builder or strict parser.",
+      "No iOS source tree or iOS runtime profile is present or validated.",
+      "Host reference execution does not establish llama.cpp JNI token or byte parity.",
+      "Phone latency, memory, prefilter parity, and end-to-end persistence require an instrumented device run."
+    ],
+    "claim_policy": "Host golden-vector conformance is protocol evidence only and must not be presented as Android runtime or device parity."
+  },
+  "resources": {
+    "golden_vectors": {
+      "path": "DATA/candidate_protocol_v1_golden.json",
+      "schema_version": 2,
+      "sha256": "f9adec44390b749c3add8e10163131491729ca3fb36ddd7f4c814857a27f26f1",
+      "privacy": "invented_synthetic_only"
+    }
+  }
+}

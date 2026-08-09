@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import hashlib
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -31,6 +33,47 @@ def _load_script(script: Path) -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _locked_hf_inputs(
+    tmp_path: Path,
+) -> tuple[Path, Path, Path, Path]:
+    model = tmp_path / "model"
+    model.mkdir()
+    contents = {
+        "LICENSE": "license",
+        "README.md": "readme",
+        "chat_template.jinja": "template",
+        "config.json": "{}",
+        "generation_config.json": "{}",
+        "model.safetensors": "weights",
+        "tokenizer.json": "{}",
+        "tokenizer_config.json": "{}",
+    }
+    for name, content in contents.items():
+        (model / name).write_text(content, encoding="utf-8")
+    model_lock = tmp_path / "model.lock.json"
+    model_lock.write_text(
+        json.dumps(
+            {
+                "model": {
+                    "files": {
+                        name: hashlib.sha256(content.encode()).hexdigest()
+                        for name, content in contents.items()
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    dataset = tmp_path / "dataset.jsonl"
+    dataset.write_text('{"id":"one"}\n{"id":"two"}\n', encoding="utf-8")
+    adapter = tmp_path / "run" / "adapter"
+    adapter.mkdir(parents=True)
+    (adapter / "adapter_config.json").write_text("{}", encoding="utf-8")
+    (adapter / "adapter_model.safetensors").write_text("adapter", encoding="utf-8")
+    (adapter.parent / "run_manifest.json").write_text("{}", encoding="utf-8")
+    return model, model_lock, dataset, adapter
 
 
 def test_hf_auto_thinking_mode_matches_model_config_and_safe_defaults() -> None:
@@ -124,6 +167,109 @@ def test_hf_fingerprints_all_safetensor_shards_and_index(tmp_path: Path) -> None
     assert all("sha256" in item for item in evidence["files"].values())
 
 
+def test_hf_evaluator_requires_model_lock_before_importing_gpu_stack(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    evaluator = _load_script(HF_EVALUATOR)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            str(HF_EVALUATOR),
+            "--model",
+            str(tmp_path / "model"),
+            "--dataset",
+            str(tmp_path / "dataset.jsonl"),
+            "--output-dir",
+            str(tmp_path / "output"),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        evaluator.main()
+
+    assert error.value.code == 2
+
+
+def test_hf_evidence_matches_lock_and_is_path_safe_where_required(tmp_path: Path) -> None:
+    evaluator = _load_script(HF_EVALUATOR)
+    model, model_lock, dataset, adapter = _locked_hf_inputs(tmp_path)
+
+    evidence = evaluator._evaluation_input_evidence(
+        model=str(model),
+        adapter=adapter,
+        dataset=dataset,
+        model_lock=model_lock,
+    )
+
+    assert set(evidence["model"]["files"]) == {
+        "chat_template.jinja",
+        "config.json",
+        "generation_config.json",
+        "model.safetensors",
+        "tokenizer.json",
+        "tokenizer_config.json",
+    }
+    assert set(evidence["model_lock"]) == {"filename", "bytes", "sha256"}
+    assert evidence["model_lock"]["filename"] == "model.lock.json"
+    assert evidence["adapter"]["format"] == "peft_adapter_artifact_v1"
+    assert evidence["dataset"]["bytes"] == dataset.stat().st_size
+    assert evidence["training_run"]["present"] is True
+
+
+@pytest.mark.parametrize("changed", ["model", "adapter", "dataset", "manifest", "lock"])
+def test_hf_post_inference_evidence_rejects_replaced_inputs(
+    tmp_path: Path,
+    changed: str,
+) -> None:
+    evaluator = _load_script(HF_EVALUATOR)
+    model, model_lock, dataset, adapter = _locked_hf_inputs(tmp_path)
+    evidence = evaluator._evaluation_input_evidence(
+        model=str(model),
+        adapter=adapter,
+        dataset=dataset,
+        model_lock=model_lock,
+    )
+    targets = {
+        "model": model / "config.json",
+        "adapter": adapter / "adapter_config.json",
+        "dataset": dataset,
+        "manifest": adapter.parent / "run_manifest.json",
+        "lock": model_lock,
+    }
+    target = targets[changed]
+    replacement = tmp_path / f"{changed}.replacement"
+    if changed == "lock":
+        replacement.write_text(model_lock.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    else:
+        replacement.write_text(f"replacement-{changed}", encoding="utf-8")
+    replacement.replace(target)
+
+    with pytest.raises(RuntimeError, match="changed after the pre-inference snapshot"):
+        evaluator._assert_evaluation_inputs_unchanged(
+            evidence,
+            model=str(model),
+            adapter=adapter,
+            dataset=dataset,
+            model_lock=model_lock,
+        )
+
+
+def test_hf_post_inference_contract_check_rejects_code_replacement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    evaluator = _load_script(HF_EVALUATOR)
+    expected = evaluator._execution_contract_evidence("pocketfinancer")
+    monkeypatch.setattr(evaluator, "_execution_contract_evidence", lambda _contract: {})
+
+    with pytest.raises(RuntimeError, match="code or contract changed"):
+        evaluator._assert_execution_contract_unchanged(
+            expected,
+            contract="pocketfinancer",
+        )
+
+
 def test_hf_evaluator_uses_current_prompt_prefilter_and_direct_answer_profile() -> None:
     output = _help(HF_EVALUATOR)
 
@@ -134,6 +280,7 @@ def test_hf_evaluator_uses_current_prompt_prefilter_and_direct_answer_profile() 
     assert "--model-config" in output
     assert "--thinking-mode {auto,on,off}" in output
     assert "--thinking-tokens" in output
+    assert "--model-lock MODEL_LOCK" in output
     source = HF_EVALUATOR.read_text(encoding="utf-8")
     assert 'default="pocketfinancer"' in source
     assert '"android_runtime_parity": False' in source
@@ -201,9 +348,7 @@ def test_gguf_normalizes_transformers_generation_blocks_for_local_jinja() -> Non
     evaluator = _load_script(GGUF_EVALUATOR)
     template = "A{%- generation -%}B{% endgeneration %}C"
 
-    compatible, count = evaluator._normalize_chat_template_generation_tags(
-        template
-    )
+    compatible, count = evaluator._normalize_chat_template_generation_tags(template)
 
     assert count == 2
     assert compatible == "A{#- generation -#}B{# endgeneration #}C"
@@ -220,9 +365,7 @@ def test_gguf_thinking_prompt_reuses_the_template_opening() -> None:
         rendered + "\n",
         False,
     )
-    appended, changed = evaluator._prepare_thinking_prompt(
-        "<|im_start|>assistant\n"
-    )
+    appended, changed = evaluator._prepare_thinking_prompt("<|im_start|>assistant\n")
     assert changed is True
     assert appended.endswith("<think>\n")
     assert appended.count("<think>") == 1
@@ -289,13 +432,9 @@ def test_gguf_context_preflight_mirrors_completion_framing_and_fails_closed() ->
     model._model.add_eos = True
     assert evaluator._completion_prompt_token_count(model, "prompt") == 5
 
-    evaluator._require_completion_capacity(
-        2816, 3072, 256, phase="direct"
-    )
+    evaluator._require_completion_capacity(2816, 3072, 256, phase="direct")
     with pytest.raises(ValueError, match="direct prompt .* exceeds n_ctx=3072"):
-        evaluator._require_completion_capacity(
-            2817, 3072, 256, phase="direct"
-        )
+        evaluator._require_completion_capacity(2817, 3072, 256, phase="direct")
 
 
 def test_single_bos_ablation_removes_only_a_leading_template_bos() -> None:

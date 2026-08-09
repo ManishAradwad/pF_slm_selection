@@ -1,0 +1,460 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract_name": "annotation_component_evaluation",
+  "contract_version": 1,
+  "status": "local_annotation_workbench_only",
+  "record_format": "utf8_jsonl_paired_rows",
+  "character_encoding": "UTF-8 without a byte-order mark",
+  "offset_convention": "utf8_bytes",
+  "rate_representation": "fixed_6_decimal_string_or_null",
+  "purpose": "Aggregate-only evaluation of independently annotated gold records and per-row prefilter, candidate, and strict-parser outputs.",
+  "paired_row_schema": {
+    "$ref": "#/$defs/paired_row"
+  },
+  "$defs": {
+    "row_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "portable_timestamp": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "decimal_text": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+      "description": "Finite positive base-10 money with no sign, grouping, or exponent. Fractional precision is preserved from the source token."
+    },
+    "source_span": {
+      "type": "object",
+      "required": [
+        "text",
+        "start_utf8_byte",
+        "end_utf8_byte"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "start_utf8_byte": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_utf8_byte": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "text_annotation": {
+      "type": "object",
+      "required": [
+        "value",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "span": {
+          "$ref": "#/$defs/source_span"
+        }
+      }
+    },
+    "amount_annotation": {
+      "type": "object",
+      "required": [
+        "decimal",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "decimal": {
+          "$ref": "#/$defs/decimal_text"
+        },
+        "span": {
+          "$ref": "#/$defs/source_span"
+        }
+      }
+    },
+    "gold_transaction": {
+      "type": "object",
+      "required": [
+        "type",
+        "amount",
+        "account",
+        "counterparty"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "debit",
+            "credit"
+          ]
+        },
+        "amount": {
+          "$ref": "#/$defs/amount_annotation"
+        },
+        "account": {
+          "$ref": "#/$defs/text_annotation"
+        },
+        "counterparty": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/text_annotation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "required": [
+        "id",
+        "source",
+        "gold"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/row_id"
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "sender",
+            "sms",
+            "message_timestamp_epoch_ms"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "sender": {
+              "type": "string"
+            },
+            "sms": {
+              "type": "string"
+            },
+            "message_timestamp_epoch_ms": {
+              "$ref": "#/$defs/portable_timestamp"
+            }
+          }
+        },
+        "gold": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/gold_transaction"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "amount_candidate": {
+      "type": "object",
+      "required": [
+        "id",
+        "decimal",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^A(?:0|[1-9][0-9]*)$"
+        },
+        "decimal": {
+          "$ref": "#/$defs/decimal_text"
+        },
+        "span": {
+          "$ref": "#/$defs/source_span"
+        }
+      }
+    },
+    "account_candidate": {
+      "type": "object",
+      "required": [
+        "id",
+        "value",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^C(?:0|[1-9][0-9]*)$"
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "span": {
+          "$ref": "#/$defs/source_span"
+        }
+      }
+    },
+    "grounded_counterparty_candidate": {
+      "type": "object",
+      "required": [
+        "id",
+        "value",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^P(?:A|T|B|F|V|L|W|U|R|O)(?:0|[1-9][0-9]*)$"
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "span": {
+          "$ref": "#/$defs/source_span"
+        }
+      }
+    },
+    "null_counterparty_candidate": {
+      "type": "object",
+      "required": [
+        "id",
+        "value",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "const": "PN"
+        },
+        "value": {
+          "type": "null"
+        },
+        "span": {
+          "type": "null"
+        }
+      }
+    },
+    "candidate_output": {
+      "type": "object",
+      "required": [
+        "amounts",
+        "accounts",
+        "counterparties",
+        "type_hints"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "amounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/amount_candidate"
+          }
+        },
+        "accounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/account_candidate"
+          }
+        },
+        "counterparties": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/grounded_counterparty_candidate"
+              },
+              {
+                "$ref": "#/$defs/null_counterparty_candidate"
+              }
+            ]
+          }
+        },
+        "type_hints": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "D",
+              "C"
+            ]
+          }
+        }
+      }
+    },
+    "component_output": {
+      "type": "object",
+      "required": [
+        "id",
+        "prefilter",
+        "candidates",
+        "parser"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/row_id"
+        },
+        "prefilter": {
+          "type": "object",
+          "required": [
+            "model_invoked",
+            "rejection_stage"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "model_invoked": {
+              "type": "boolean"
+            },
+            "rejection_stage": {
+              "enum": [
+                null,
+                "personal_mobile_sender",
+                "currency_amount",
+                "masked_account_or_card",
+                "transaction_verb",
+                "otp",
+                "collect_or_mandate_request"
+              ]
+            }
+          }
+        },
+        "candidates": {
+          "$ref": "#/$defs/candidate_output"
+        },
+        "parser": {
+          "type": "object",
+          "required": [
+            "model_output"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "model_output": {}
+          }
+        }
+      }
+    },
+    "paired_row": {
+      "type": "object",
+      "required": [
+        "contract",
+        "annotation",
+        "component_output"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "contract": {
+          "type": "object",
+          "required": [
+            "name",
+            "version"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "const": "annotation_component_evaluation"
+            },
+            "version": {
+              "const": 1
+            }
+          }
+        },
+        "annotation": {
+          "$ref": "#/$defs/annotation"
+        },
+        "component_output": {
+          "$ref": "#/$defs/component_output"
+        }
+      }
+    }
+  },
+  "semantic_rules": {
+    "pairing": "annotation.id and component_output.id must be equal on every row; both ID streams must be unique and stay in the same JSONL order",
+    "json": "Duplicate object members, non-finite numeric extensions, malformed UTF-8, and extra members fail closed",
+    "source_evidence": "Every non-null amount, account, or counterparty span is a nonempty half-open slice of the exact UTF-8 bytes of annotation.source.sms and must decode exactly to span.text",
+    "transaction_type": "Gold type is exactly debit or credit and carries no source span; the shared human-annotation engine labels direction without a direction-cue span",
+    "money": "Gold and candidate decimal strings preserve the source token's fractional precision after removing grouping, a leading plus, and redundant leading integer zeroes; evaluation parses Decimal directly and never round-trips through binary floating point",
+    "candidate_order": {
+      "amounts": "ascending source span with contiguous IDs A0, A1, ...",
+      "accounts": "ascending source span with contiguous IDs C0, C1, ...",
+      "counterparties": "ascending non-null source spans; suffixes are contiguous independently per relation prefix; exactly one PN is last",
+      "type_hints": "unique D then C order"
+    },
+    "oracle_coverage": {
+      "amount": "exact Decimal equality",
+      "account": "ASCII account/card category plus the final up-to-four digits from the last ASCII digit run of length at least three",
+      "counterparty": "ASCII-case and ASCII-whitespace normalized equality, or guarded substring agreement of at least three characters; null requires PN",
+      "joint": "all three fields covered"
+    },
+    "exact_span_grounding": "A covering candidate must carry the identical gold SourceSpan; a null gold counterparty is grounded by PN",
+    "strict_parser": {
+      "complete_output_only": true,
+      "surrounding_json_whitespace": [
+        "U+0009",
+        "U+000A",
+        "U+000D",
+        "U+0020"
+      ],
+      "member_order_enforced": true,
+      "duplicate_members_allowed": false,
+      "unknown_candidate_ids_allowed": false,
+      "not_transaction_keys": [
+        "transaction"
+      ],
+      "transaction_keys": [
+        "transaction",
+        "type",
+        "amount",
+        "account",
+        "counterparty"
+      ],
+      "timestamp": "annotation.source.message_timestamp_epoch_ms is host-only and must be preserved for every parser outcome"
+    },
+    "pipeline": "A prefilter rejection, accepted not-transaction output, or parser rejection yields the fail-closed final null; only an accepted transaction yields a reconstructed transaction",
+    "exact_transaction": "type, account, and counterparty strings must equal gold exactly; amount requires both Decimal equality and identical decimal text"
+  },
+  "aggregate_report": {
+    "per_row_material_allowed": false,
+    "rates": "Decimal division rounded half-up to six digits after the decimal point as JSON strings, or null for a zero denominator",
+    "sections": [
+      "prefilter",
+      "candidates",
+      "parser",
+      "pipeline"
+    ],
+    "field_accuracy_denominator": "all human-gold transactions",
+    "transaction_exact_denominator": "all human-gold transactions",
+    "whole_pipeline_exact_denominator": "all rows"
+  },
+  "privacy": {
+    "execution": "strictly local; no network, hosted inference, telemetry, or remote labeling",
+    "stdout": "aggregate metrics only",
+    "persistent_output_roots": [
+      "PRIVATE_DATA",
+      "RESULTS"
+    ],
+    "forbidden_output": [
+      "SMS text",
+      "sender text",
+      "row IDs",
+      "source spans",
+      "raw model output",
+      "per-row predictions"
+    ]
+  }
+}

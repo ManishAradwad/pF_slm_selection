@@ -58,6 +58,30 @@ Do not combine a mechanical repository reorganization with new training behavior
 unless the dependency is unavoidable. Preserve provenance-compatible paths or add
 explicit shims/migrations.
 
+### Linked-worktree hygiene
+
+Keep development worktrees outside the canonical repository and outside ignored
+generated roots such as `TRAINING_ARTIFACTS/`. A suitable layout is
+`/home/tojinotzenin/worktrees/pF_slm_selection/<branch-name>`. Before editing or
+opening VS Code, verify the folder rather than relying on the window title:
+
+```bash
+git worktree list
+git rev-parse --show-toplevel
+git branch --show-current
+git status --short
+```
+
+Open the exact `--show-toplevel` directory in the WSL-connected VS Code window.
+Uncommitted changes belong to that worktree; do not delete, reset, or move them
+merely because another worktree shows a different branch. Remove a worktree only
+after its status is clean and its commits are preserved on the intended branch.
+
+Use linked worktrees only with synthetic fixtures until their changes are merged
+into the canonical checkout. The runtime privacy guard intentionally rejects a
+`PRIVATE_DATA` symlink whose target resolves outside that checkout. Never symlink
+or copy private data into a development worktree or a synced/shared location.
+
 ## Verification by change type
 
 | Change | Minimum verification |
@@ -78,6 +102,29 @@ Never include raw/private examples in tests, issues, pull requests, screenshots,
 logs. Aggregate reports may contain counts, hashes, and non-identifying run
 metadata. Per-row result files, adapters, checkpoints, GGUFs, private manifests,
 and candidate datasets stay outside Git.
+
+Annotation-workbench databases, lock files, rolling backups, reviewer projections,
+training-curation exports, notes, spans, and row-level component inputs or outputs
+are private artifacts under ignored `PRIVATE_DATA/lfm25`. Run the UI only on its
+`127.0.0.1` URL; never tunnel it, screen-share a private review, or move state into
+a synced folder. Do not diagnose a row by printing its SMS, sender, annotation,
+notes, or proposals to the console. Use opaque local IDs and aggregate counts only.
+
+Treat every annotation-assistance policy as a distinct private artifact lineage.
+Do not reuse or copy a review JSONL, internal map, metadata file, workbench DB,
+reviewed manifest, or import report between unaided and candidate-assisted runs.
+Initialize and operate each lineage only with its matching policy flag.
+
+Tests, documentation, demos, and any UI image must use wholly invented messages and
+identities. Never capture or attach a screenshot of a real review row, even when
+the surrounding issue or pull request is private.
+
+For annotation UI development, run
+`python scripts/run_lfm25_annotation_workbench_smoke.py` and open the printed
+loopback HTTP URL. Never open `lfm25/annotation_assets/index.html` directly: a
+`file://` page cannot load the authenticated server APIs and therefore shows no
+SMS. The smoke launcher uses only fixed invented rows and temporary state, making
+it the appropriate source for UI screenshots and manual browser checks.
 
 When adding or revising an experiment:
 
