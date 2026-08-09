@@ -24,13 +24,13 @@ The checked-in implementation currently has three tracks:
 | Short-prompt LFM training | `scripts/run_lfm25_experiments.py` | Legacy only |
 | Prompt-aligned direct/candidate SFT | contract-specific builders, trainer, evaluators | Active research |
 
-## Why no mass move in this pass
+## Why cleanup remains targeted
 
-Most v2 work is still untracked, several historical files are modified, tests import
-symbols from scripts, and provenance hashes bind exact source paths. A mass rename
-would mix behavior changes with mechanical movement and make old artifacts harder
-to audit. This pass adds navigation and status metadata while keeping every command
-working.
+Historical evaluators, reports, and reproducibility commands still have documented
+provenance tied to their current paths. Cleanup therefore removes only unreferenced
+one-off builders, redundant convenience wrappers, and generated legacy analysis
+artifacts. A package-wide move would mix behavior changes with mechanical movement
+and make named experiments harder to audit, so it remains a separate future change.
 
 ## Target package
 
