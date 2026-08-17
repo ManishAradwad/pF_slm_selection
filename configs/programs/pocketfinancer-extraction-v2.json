@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "program_id": "pocketfinancer-extraction-v2",
+  "program_version": 2,
+  "current_phase": {
+    "id": "B",
+    "name": "Workbench V2 and evaluation packages",
+    "status": "not_started"
+  },
+  "semantic_contract": {
+    "id": "pocketfinancer_semantic_v2",
+    "version": 2,
+    "schema_path": "configs/contracts/pocketfinancer-semantic-v2.schema.json",
+    "reference_path": "lfm25/semantic_v2.py",
+    "synthetic_conformance_path": "tests/fixtures/pocketfinancer_semantic_v2_synthetic_golden.json"
+  },
+  "expected_repositories": [
+    {
+      "id": "pf_slm_selection",
+      "path": "/home/tojinotzenin/pF_slm_selection",
+      "recorded_base_commit": "78509644dad110219e7a53d7c503cd746f9e0ab6",
+      "role": "shared research, semantic contract, evaluation, and experiment provenance"
+    },
+    {
+      "id": "pocketfinancer_android",
+      "path": "D:\\Personal_Projects\\pocket-financer\\pocket-financer-android",
+      "recorded_base_commit": "552ffbdfbd41773980aa249789b0cb508fdb19fd",
+      "role": "Android production authority and read-only evidence during Phase A"
+    },
+    {
+      "id": "pocketfinancer_ios",
+      "path": "D:\\Personal_Projects\\pocket-financer\\pocket-financer-ios",
+      "recorded_base_commit": "04f770b235f860080ecd96adad1a5d011f3c2c2c",
+      "role": "iOS production implementation and read-only evidence during Phase A"
+    }
+  ],
+  "phase_list": [
+    {
+      "id": "A",
+      "name": "Foundation and Semantic V2",
+      "status": "completed"
+    },
+    {
+      "id": "B",
+      "name": "Workbench V2 and evaluation packages",
+      "status": "not_started"
+    },
+    {
+      "id": "C",
+      "name": "Android baseline reproducibility and runtime instrumentation",
+      "status": "blocked_by_prior_phase"
+    },
+    {
+      "id": "D",
+      "name": "Android prompt/output-protocol laboratory",
+      "status": "blocked_by_prior_phase"
+    },
+    {
+      "id": "E",
+      "name": "LFM2.5-350M data, fine-tuning and quantization program",
+      "status": "blocked_by_prior_phase"
+    },
+    {
+      "id": "F",
+      "name": "Android evaluation-only model integration and device validation",
+      "status": "blocked_by_prior_phase"
+    },
+    {
+      "id": "G",
+      "name": "iOS Foundation Models evaluator and prompt/output-protocol laboratory",
+      "status": "blocked_by_prior_phase"
+    },
+    {
+      "id": "H",
+      "name": "Blinded cross-platform evaluation and profile selection",
+      "status": "blocked_by_prior_phase"
+    },
+    {
+      "id": "I",
+      "name": "Separate production-cutover phase",
+      "status": "blocked_by_prior_phase"
+    }
+  ],
+  "selected_profile_ids": {
+    "android": null,
+    "ios": null,
+    "lfm25_350m": null,
+    "cross_platform": null
+  },
+  "private_data_prohibition": {
+    "active": true,
+    "permitted_in_this_program_state": "invented_synthetic_only",
+    "forbidden": [
+      "inspection or printing of real private SMS rows during unapproved work",
+      "committing raw alerts, senders, account labels, private annotations, row-level predictions, stable source mappings, credentials, or model weights",
+      "hosted APIs, telemetry, remote labeling, cloud inference, upload, publication, or deployment without an explicit user decision"
+    ]
+  },
+  "last_completed_phase": {
+    "id": "A",
+    "commit": "823ce714e0015aac44415a842653ab744d776c53"
+  },
+  "next_allowed_phase": {
+    "id": "B",
+    "requires": [
+      "Read all applicable AGENTS.md files and preserve the recorded worktree bases.",
+      "Use Semantic V2 as the shared truth layer without choosing Direct V2 or Candidate V2.",
+      "Obtain explicit user authorization before inspecting or using any private annotation or SMS data.",
+      "Keep Android and iOS unchanged unless a later task explicitly scopes their changes."
+    ]
+  }
+}
