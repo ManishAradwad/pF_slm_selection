@@ -9,7 +9,6 @@ by the host and never accepted as a model field.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
 from enum import Enum
 import json
 from pathlib import Path
@@ -21,16 +20,17 @@ SEMANTIC_CONTRACT_ID = "pocketfinancer_semantic_v2"
 SEMANTIC_CONTRACT_VERSION = 2
 EVIDENCE_OFFSET_CONVENTION = "zero_based_half_open_utf8_bytes"
 PORTABLE_SIGNED_INT64_MAX = (1 << 63) - 1
+_PORTABLE_SIGNED_INT64_MAX_TEXT = str(PORTABLE_SIGNED_INT64_MAX)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SEMANTIC_V2_SCHEMA_PATH = _REPOSITORY_ROOT / "configs/contracts/pocketfinancer-semantic-v2.schema.json"
 _DECIMAL_TEXT_RE = re.compile(r"(?:0|[1-9][0-9]*)(?:\.[0-9]+)?\Z")
 _MONEY_NUMBER_RE = re.compile(r"(?:[0-9]{1,3}(?:,[0-9]{2,3})+|[0-9]+)(?:\.[0-9]+)?")
-_CURRENCY_MARKERS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("INR", re.compile(r"₹|\bINR\b|\bRs\.?\b", re.IGNORECASE)),
-    ("USD", re.compile(r"\$|\bUSD\b", re.IGNORECASE)),
-    ("EUR", re.compile(r"€|\bEUR\b", re.IGNORECASE)),
-    ("GBP", re.compile(r"£|\bGBP\b", re.IGNORECASE)),
+_UPPERCASE_CURRENCY_CODE_RE = re.compile(r"(?<![A-Z])[A-Z]{3}(?![A-Z])")
+_UNAMBIGUOUS_CURRENCY_MARKERS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("INR", re.compile(r"₹|\bRs\.?(?![A-Za-z])", re.IGNORECASE)),
+    ("EUR", re.compile(r"€")),
+    ("GBP", re.compile(r"£")),
 )
 _CURRENCY_MINOR_EXPONENTS = {"INR": 2, "USD": 2, "EUR": 2, "GBP": 2}
 
@@ -61,6 +61,17 @@ class Direction(str, Enum):
     CREDIT = "credit"
 
 
+_DIRECTION_EVIDENCE_LEXICON_VERSION = 1
+_DIRECTION_EVIDENCE_LEXEMES = {
+    Direction.DEBIT: frozenset(
+        {"debit", "debited", "deducted", "withdrawal", "withdrawn", "spent", "paid", "charged"}
+    ),
+    Direction.CREDIT: frozenset(
+        {"credit", "credited", "deposit", "deposited", "received", "refunded"}
+    ),
+}
+
+
 class CounterpartyState(str, Enum):
     PRESENT = "present"
     ABSENT = "absent"
@@ -81,6 +92,7 @@ class IneligibilityReason(str, Enum):
     SCOPE_NOT_BANK_CARD = "scope_not_bank_card"
     MISSING_AMOUNT = "missing_amount"
     CURRENCY_NOT_INR = "currency_not_inr"
+    EXACT_MINOR_UNITS_UNAVAILABLE = "exact_minor_units_unavailable"
     MISSING_DIRECTION = "missing_direction"
     MISSING_ACCOUNT = "missing_account"
 
@@ -155,7 +167,7 @@ class RuntimeTransactionProjection:
     event_id: str
     amount_decimal_text: str
     currency: str
-    minor_units: int | None
+    minor_units: int
     direction: Direction
     account_value: str
     counterparty_state: CounterpartyState
@@ -206,8 +218,8 @@ def slice_utf8_evidence(message: str, span: EvidenceSpan) -> str:
     start = span.start_utf8_byte
     end = span.end_utf8_byte
     encoded = message.encode("utf-8")
-    if start < 0 or end < start or end > len(encoded):
-        raise SemanticV2Error("evidence range is outside the UTF-8 message")
+    if start < 0 or end <= start or end > len(encoded):
+        raise SemanticV2Error("evidence range is empty or outside the UTF-8 message")
     try:
         return encoded[start:end].decode("utf-8")
     except UnicodeDecodeError as error:
@@ -215,12 +227,19 @@ def slice_utf8_evidence(message: str, span: EvidenceSpan) -> str:
 
 
 def derive_currency_from_amount_evidence(evidence_text: str) -> str:
-    """Derive an unambiguous supported currency from the selected amount bytes."""
+    """Derive one unambiguous currency from the selected amount bytes."""
 
-    matches = [currency for currency, pattern in _CURRENCY_MARKERS if pattern.search(evidence_text)]
+    if not isinstance(evidence_text, str) or not evidence_text:
+        raise SemanticV2Error("amount evidence must be non-empty text")
+    matches = set(_UPPERCASE_CURRENCY_CODE_RE.findall(evidence_text))
+    for currency, pattern in _UNAMBIGUOUS_CURRENCY_MARKERS:
+        if pattern.search(evidence_text):
+            matches.add(currency)
+    if "$" in evidence_text and "USD" not in matches:
+        raise SemanticV2Error("a bare dollar sign is ambiguous currency evidence")
     if len(matches) != 1:
-        raise SemanticV2Error("amount evidence must identify exactly one supported currency")
-    return matches[0]
+        raise SemanticV2Error("amount evidence must identify exactly one currency")
+    return next(iter(matches))
 
 
 def derive_decimal_text_from_amount_evidence(evidence_text: str) -> str:
@@ -235,18 +254,44 @@ def derive_decimal_text_from_amount_evidence(evidence_text: str) -> str:
     return decimal_text
 
 
+def derive_direction_from_evidence(evidence_text: str) -> Direction:
+    """Map one complete source lexeme using the Semantic V2 direction policy."""
+
+    if not isinstance(evidence_text, str) or not evidence_text:
+        raise SemanticV2Error("direction evidence must be non-empty text")
+    lexeme = evidence_text.strip().casefold()
+    for direction, lexemes in _DIRECTION_EVIDENCE_LEXEMES.items():
+        if lexeme in lexemes:
+            return direction
+    raise SemanticV2Error(
+        "direction evidence is not in the "
+        f"v{_DIRECTION_EVIDENCE_LEXICON_VERSION} direction lexicon"
+    )
+
+
 def derive_minor_units(decimal_text: str, currency: str) -> int | None:
     """Return exact currency minor units only when no rounding is necessary."""
 
-    if not _DECIMAL_TEXT_RE.fullmatch(decimal_text):
+    if not isinstance(decimal_text, str) or not _DECIMAL_TEXT_RE.fullmatch(decimal_text):
         raise SemanticV2Error("decimal_text is not canonical")
+    if not isinstance(currency, str) or not re.fullmatch(r"[A-Z]{3}", currency):
+        raise SemanticV2Error("currency must be an uppercase ISO-style code")
     exponent = _CURRENCY_MINOR_EXPONENTS.get(currency)
     if exponent is None:
         return None
-    scaled = Decimal(decimal_text) * (10**exponent)
-    if scaled % 1 != 0:
+
+    whole, separator, fraction = decimal_text.partition(".")
+    if separator and any(digit != "0" for digit in fraction[exponent:]):
         return None
-    return int(scaled)
+    scaled_fraction = (fraction[:exponent] + ("0" * exponent))[:exponent]
+    minor_units_text = (whole + scaled_fraction).lstrip("0") or "0"
+    if (
+        len(minor_units_text) > len(_PORTABLE_SIGNED_INT64_MAX_TEXT)
+        or len(minor_units_text) == len(_PORTABLE_SIGNED_INT64_MAX_TEXT)
+        and minor_units_text > _PORTABLE_SIGNED_INT64_MAX_TEXT
+    ):
+        raise SemanticV2Error("minor_units is outside the portable signed 64-bit range")
+    return int(minor_units_text)
 
 
 def inject_source_timestamp(
@@ -321,19 +366,23 @@ def project_initial_auto_post(record: SemanticRecord) -> RuntimeEligibilityProje
         reasons.append(IneligibilityReason.SCOPE_NOT_BANK_CARD)
 
     event = record.events[0] if record.event_cardinality is EventCardinality.SINGLE else None
-    if event is None or event.amount is None:
-        reasons.append(IneligibilityReason.MISSING_AMOUNT)
-    elif event.amount.currency != "INR":
-        reasons.append(IneligibilityReason.CURRENCY_NOT_INR)
-    if event is None or event.direction is None:
-        reasons.append(IneligibilityReason.MISSING_DIRECTION)
-    if event is None or event.account is None:
-        reasons.append(IneligibilityReason.MISSING_ACCOUNT)
+    if event is not None:
+        if event.amount is None:
+            reasons.append(IneligibilityReason.MISSING_AMOUNT)
+        elif event.amount.currency != "INR":
+            reasons.append(IneligibilityReason.CURRENCY_NOT_INR)
+        elif event.amount.minor_units is None:
+            reasons.append(IneligibilityReason.EXACT_MINOR_UNITS_UNAVAILABLE)
+        if event.direction is None:
+            reasons.append(IneligibilityReason.MISSING_DIRECTION)
+        if event.account is None:
+            reasons.append(IneligibilityReason.MISSING_ACCOUNT)
     if reasons:
         return RuntimeEligibilityProjection(False, tuple(reasons), None)
 
     assert event is not None
     assert event.amount is not None
+    assert event.amount.minor_units is not None
     assert event.direction is not None
     assert event.account is not None
     return RuntimeEligibilityProjection(
@@ -393,8 +442,8 @@ def _parse_span(value: Any, path: str) -> EvidenceSpan:
     _exact_keys(mapping, {"start_utf8_byte", "end_utf8_byte"}, path)
     start = _integer(mapping["start_utf8_byte"], f"{path}.start_utf8_byte")
     end = _integer(mapping["end_utf8_byte"], f"{path}.end_utf8_byte")
-    if end < start:
-        raise SemanticV2Error(f"{path} end precedes start")
+    if end <= start:
+        raise SemanticV2Error(f"{path} must be a non-empty range")
     return EvidenceSpan(start, end)
 
 
@@ -442,9 +491,12 @@ def _parse_direction(value: Any, *, message: str, path: str) -> DirectionEvidenc
         return None
     mapping = _object(value, path)
     _exact_keys(mapping, {"value", "evidence"}, path)
+    direction = _enum(Direction, mapping["value"], f"{path}.value")
     evidence = _parse_span(mapping["evidence"], f"{path}.evidence")
-    slice_utf8_evidence(message, evidence)
-    return DirectionEvidence(_enum(Direction, mapping["value"], f"{path}.value"), evidence)
+    evidence_text = slice_utf8_evidence(message, evidence)
+    if derive_direction_from_evidence(evidence_text) is not direction:
+        raise SemanticV2Error(f"{path}.value does not match direction evidence")
+    return DirectionEvidence(direction, evidence)
 
 
 def _parse_text_evidence(value: Any, *, message: str, path: str) -> TextEvidence | None:
@@ -456,7 +508,8 @@ def _parse_text_evidence(value: Any, *, message: str, path: str) -> TextEvidence
     if not isinstance(text, str) or not text:
         raise SemanticV2Error(f"{path}.value must be non-empty text")
     evidence = _parse_span(mapping["evidence"], f"{path}.evidence")
-    slice_utf8_evidence(message, evidence)
+    if slice_utf8_evidence(message, evidence) != text:
+        raise SemanticV2Error(f"{path}.value does not exactly match evidence")
     return TextEvidence(text, evidence)
 
 
@@ -471,7 +524,8 @@ def _parse_counterparty(value: Any, *, message: str, path: str) -> Counterparty:
     if not isinstance(text, str) or not text:
         raise SemanticV2Error(f"{path}.value must be non-empty text")
     evidence = _parse_span(mapping["evidence"], f"{path}.evidence")
-    slice_utf8_evidence(message, evidence)
+    if slice_utf8_evidence(message, evidence) != text:
+        raise SemanticV2Error(f"{path}.value does not exactly match evidence")
     return Counterparty(state, text, evidence)
 
 

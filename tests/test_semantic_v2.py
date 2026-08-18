@@ -14,7 +14,9 @@ from lfm25.semantic_v2 import (
     EvidenceSpan,
     SemanticV2Error,
     TimestampProvenance,
+    derive_currency_from_amount_evidence,
     derive_decimal_text_from_amount_evidence,
+    derive_direction_from_evidence,
     derive_minor_units,
     inject_source_timestamp,
     project_initial_auto_post,
@@ -62,6 +64,14 @@ def test_schema_is_versioned_platform_neutral_and_excludes_model_dates() -> None
         "received_at_epoch_ms",
         "received_at_provenance",
     ]
+    assert schema["$defs"]["evidenceSpan"]["properties"]["start_utf8_byte"]["maximum"] == (
+        (1 << 63) - 1
+    )
+    assert schema["$defs"]["money"]["properties"]["minor_units"]["maximum"] == (1 << 63) - 1
+    assert schema["x-pf-direction-evidence-lexicon-version"] == 1
+    assert "non-empty" in schema["x-pf-evidence-policy"]
+    assert "bare dollar sign is ambiguous" in schema["x-pf-currency-evidence-policy"]
+    assert "requires non-null exact minor_units" in schema["x-pf-money-policy"]
 
 
 def test_synthetic_golden_vectors_are_complete_and_project_as_declared() -> None:
@@ -89,6 +99,7 @@ def test_synthetic_golden_vectors_are_complete_and_project_as_declared() -> None
         "repeated_equal_amount_uses_first_utf8_span",
         "unicode_multibyte_evidence",
         "system_timestamp_injection",
+        "inr_fractional_minor_unit_unavailable",
     }
 
     for vector in golden["vectors"]:
@@ -100,6 +111,7 @@ def test_synthetic_golden_vectors_are_complete_and_project_as_declared() -> None
         assert [reason.value for reason in projection.reasons] == expected["reasons"], vector["id"]
         if projection.eligible:
             assert projection.transaction is not None
+            assert projection.transaction.minor_units is not None
             assert (
                 projection.transaction.received_at_epoch_ms
                 == vector["source_metadata"]["received_at_epoch_ms"]
@@ -142,12 +154,72 @@ def test_invalid_schema_and_semantic_combinations_fail_closed() -> None:
     with pytest.raises(SemanticV2Error, match="deterministic derivative"):
         validate_semantic_v2(rounded_minor_units, message=vector["message"])
 
+    empty_account_evidence = deepcopy(baseline)
+    empty_account_evidence["events"][0]["account"]["evidence"] = {
+        "start_utf8_byte": 37,
+        "end_utf8_byte": 37,
+    }
+    with pytest.raises(SemanticV2Error, match="non-empty range"):
+        validate_semantic_v2(empty_account_evidence, message=vector["message"])
+
+    hallucinated_account = deepcopy(baseline)
+    hallucinated_account["events"][0]["account"]["value"] = "Card XX0000"
+    with pytest.raises(SemanticV2Error, match="does not exactly match evidence"):
+        validate_semantic_v2(hallucinated_account, message=vector["message"])
+
+    hallucinated_counterparty = deepcopy(baseline)
+    hallucinated_counterparty["events"][0]["counterparty"]["value"] = "FICTIONAL SHOP"
+    with pytest.raises(SemanticV2Error, match="does not exactly match evidence"):
+        validate_semantic_v2(hallucinated_counterparty, message=vector["message"])
+
+    reversed_direction = deepcopy(baseline)
+    reversed_direction["events"][0]["direction"]["value"] = "credit"
+    with pytest.raises(SemanticV2Error, match="does not match direction evidence"):
+        validate_semantic_v2(reversed_direction, message=vector["message"])
+
+    unrelated_direction_evidence = deepcopy(baseline)
+    unrelated_direction_evidence["events"][0]["direction"]["evidence"] = {
+        "start_utf8_byte": 37,
+        "end_utf8_byte": 48,
+    }
+    with pytest.raises(SemanticV2Error, match="direction lexicon"):
+        validate_semantic_v2(unrelated_direction_evidence, message=vector["message"])
+
 
 def test_exact_decimal_derivation_never_rounds() -> None:
     assert derive_decimal_text_from_amount_evidence("₹1,25,000.50") == "125000.50"
     assert derive_minor_units("125000.50", "INR") == 12500050
     assert derive_minor_units("100.000", "INR") == 10000
     assert derive_minor_units("100.005", "INR") is None
+    assert derive_minor_units("92233720368547758.07", "INR") == (1 << 63) - 1
+    assert derive_minor_units("1.00", "CAD") is None
+    with pytest.raises(SemanticV2Error, match="signed 64-bit range"):
+        derive_minor_units("92233720368547758.08", "INR")
+    with pytest.raises(SemanticV2Error, match="signed 64-bit range"):
+        derive_minor_units("99999999999999999999999999999", "INR")
+
+
+def test_currency_and_direction_evidence_are_explicit_and_conservative() -> None:
+    assert derive_currency_from_amount_evidence("CAD 12.34") == "CAD"
+    assert derive_currency_from_amount_evidence("USD $12.34") == "USD"
+    assert derive_direction_from_evidence("  debited  ").value == "debit"
+    assert derive_direction_from_evidence("refunded").value == "credit"
+    with pytest.raises(SemanticV2Error, match="bare dollar sign"):
+        derive_currency_from_amount_evidence("$12.34")
+    with pytest.raises(SemanticV2Error, match="exactly one currency"):
+        derive_currency_from_amount_evidence("INR 10.00 or EUR 10.00")
+    with pytest.raises(SemanticV2Error, match="direction lexicon"):
+        derive_direction_from_evidence("transaction")
+
+    vector = _vector("non_inr_currency")
+    cad_message = vector["message"].replace("USD", "CAD")
+    cad_record = _full_record(vector)
+    cad_record["events"][0]["amount"]["currency"] = "CAD"
+    cad_record["events"][0]["amount"]["minor_units"] = None
+    record = validate_semantic_v2(cad_record, message=cad_message)
+    projection = project_initial_auto_post(record)
+    assert record.events[0].amount.currency == "CAD"
+    assert [reason.value for reason in projection.reasons] == ["currency_not_inr"]
 
 
 def test_utf8_evidence_slicing_selects_exact_span_and_rejects_split_code_point() -> None:
@@ -159,6 +231,8 @@ def test_utf8_evidence_slicing_selects_exact_span_and_rejects_split_code_point()
     assert slice_utf8_evidence(repeated["message"], amount_span) == "₹50.00"
     assert slice_utf8_evidence(repeated["message"], EvidenceSpan(**second_span)) == "₹50.00"
     assert amount_span != EvidenceSpan(**second_span)
+    with pytest.raises(SemanticV2Error, match="empty"):
+        slice_utf8_evidence(repeated["message"], EvidenceSpan(0, 0))
 
     unicode_vector = _vector("unicode_multibyte_evidence")
     unicode_record = validate_semantic_v2(_full_record(unicode_vector), message=unicode_vector["message"])

@@ -147,10 +147,7 @@
         "reasons": [
           "not_posted",
           "event_cardinality_not_single",
-          "scope_not_bank_card",
-          "missing_amount",
-          "missing_direction",
-          "missing_account"
+          "scope_not_bank_card"
         ]
       }
     },
@@ -353,10 +350,7 @@
       "expected_projection": {
         "eligible": false,
         "reasons": [
-          "event_cardinality_not_single",
-          "missing_amount",
-          "missing_direction",
-          "missing_account"
+          "event_cardinality_not_single"
         ]
       }
     },
@@ -687,6 +681,63 @@
       "expected_projection": {
         "eligible": true,
         "reasons": []
+      }
+    },
+    {
+      "id": "inr_fractional_minor_unit_unavailable",
+      "message": "Orbit Bank: INR 100.005 debited from A/c XX4545 at COPPER CAFE.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000124,
+        "received_at_provenance": "synthetic_system_timestamp_injected"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "bank_card",
+        "posting_status": "posted",
+        "event_cardinality": "single",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "100.005",
+              "currency": "INR",
+              "minor_units": null,
+              "evidence": {
+                "start_utf8_byte": 12,
+                "end_utf8_byte": 23
+              }
+            },
+            "direction": {
+              "value": "debit",
+              "evidence": {
+                "start_utf8_byte": 24,
+                "end_utf8_byte": 31
+              }
+            },
+            "account": {
+              "value": "A/c XX4545",
+              "evidence": {
+                "start_utf8_byte": 37,
+                "end_utf8_byte": 47
+              }
+            },
+            "counterparty": {
+              "state": "present",
+              "value": "COPPER CAFE",
+              "evidence": {
+                "start_utf8_byte": 51,
+                "end_utf8_byte": 62
+              }
+            }
+          }
+        ]
+      },
+      "expected_projection": {
+        "eligible": false,
+        "reasons": [
+          "exact_minor_units_unavailable"
+        ]
       }
     }
   ]
