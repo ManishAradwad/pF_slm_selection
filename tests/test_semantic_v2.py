@@ -185,6 +185,10 @@ def test_invalid_schema_and_semantic_combinations_fail_closed() -> None:
     with pytest.raises(SemanticV2Error, match="direction lexicon"):
         validate_semantic_v2(unrelated_direction_evidence, message=vector["message"])
 
+    evidence_free = _vector("not_transaction")
+    with pytest.raises(SemanticV2Error, match="message must be text"):
+        validate_semantic_v2(_full_record(evidence_free), message=None)
+
 
 def test_exact_decimal_derivation_never_rounds() -> None:
     assert derive_decimal_text_from_amount_evidence("₹1,25,000.50") == "125000.50"
@@ -201,6 +205,7 @@ def test_exact_decimal_derivation_never_rounds() -> None:
 
 def test_currency_and_direction_evidence_are_explicit_and_conservative() -> None:
     assert derive_currency_from_amount_evidence("CAD 12.34") == "CAD"
+    assert derive_currency_from_amount_evidence("INR100.00") == "INR"
     assert derive_currency_from_amount_evidence("USD $12.34") == "USD"
     assert derive_direction_from_evidence("  debited  ").value == "debit"
     assert derive_direction_from_evidence("refunded").value == "credit"
@@ -208,6 +213,10 @@ def test_currency_and_direction_evidence_are_explicit_and_conservative() -> None
         derive_currency_from_amount_evidence("$12.34")
     with pytest.raises(SemanticV2Error, match="exactly one currency"):
         derive_currency_from_amount_evidence("INR 10.00 or EUR 10.00")
+    with pytest.raises(SemanticV2Error, match="exactly one currency"):
+        derive_currency_from_amount_evidence("fooINRbar 12.34")
+    with pytest.raises(SemanticV2Error, match="exactly one currency"):
+        derive_currency_from_amount_evidence("xUSDy 12.34")
     with pytest.raises(SemanticV2Error, match="direction lexicon"):
         derive_direction_from_evidence("transaction")
 

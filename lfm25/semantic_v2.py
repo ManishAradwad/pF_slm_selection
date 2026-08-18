@@ -26,7 +26,7 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SEMANTIC_V2_SCHEMA_PATH = _REPOSITORY_ROOT / "configs/contracts/pocketfinancer-semantic-v2.schema.json"
 _DECIMAL_TEXT_RE = re.compile(r"(?:0|[1-9][0-9]*)(?:\.[0-9]+)?\Z")
 _MONEY_NUMBER_RE = re.compile(r"(?:[0-9]{1,3}(?:,[0-9]{2,3})+|[0-9]+)(?:\.[0-9]+)?")
-_UPPERCASE_CURRENCY_CODE_RE = re.compile(r"(?<![A-Z])[A-Z]{3}(?![A-Z])")
+_UPPERCASE_CURRENCY_CODE_RE = re.compile(r"(?<![A-Za-z])[A-Z]{3}(?![A-Za-z])")
 _UNAMBIGUOUS_CURRENCY_MARKERS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("INR", re.compile(r"₹|\bRs\.?(?![A-Za-z])", re.IGNORECASE)),
     ("EUR", re.compile(r"€")),
@@ -322,6 +322,8 @@ def inject_source_timestamp(
 def validate_semantic_v2(value: Any, *, message: str) -> SemanticRecord:
     """Validate a complete Semantic V2 record against schema and source evidence."""
 
+    if not isinstance(message, str):
+        raise SemanticV2Error("message must be text")
     semantic_v2_schema()
     root = _object(value, "record")
     _exact_keys(
