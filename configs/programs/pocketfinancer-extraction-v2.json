@@ -1,48 +1,119 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "program_id": "pocketfinancer-extraction-v2",
   "program_version": 2,
+  "normative_plan": {
+    "path": "docs/plans/POCKETFINANCER_EXTRACTION_PROGRAM_V2.md",
+    "sha256": "6eccc6c7d5df21b4998079ff40c2d5c92e51af53a83a6cbad5fc15c29c7203f5",
+    "status": "finalized"
+  },
   "current_phase": {
     "id": "B",
-    "name": "Workbench V2 and evaluation packages",
+    "name": "Workbench V2, evaluation packages, and frozen decision policy",
     "status": "not_started"
+  },
+  "phase_a_review": {
+    "status": "closed",
+    "foundation_commit": "823ce714e0015aac44415a842653ab744d776c53",
+    "hardening_commit": "0d1abf1be91a528baf0364d3475f2b4f25d72f5e",
+    "hardening_commits": [
+      "95cb4287076642867596fbbfe2835cb105ff6399",
+      "0d1abf1be91a528baf0364d3475f2b4f25d72f5e"
+    ],
+    "resolved_findings": [
+      "empty or ungrounded direction, account, and counterparty evidence",
+      "currency codes embedded inside larger ASCII words",
+      "non-text messages accepted by evidence-free records",
+      "raw Decimal precision exceptions during exact minor-unit derivation",
+      "misleading missing-field reasons for none and multiple cardinality",
+      "ambiguous bare-dollar and unsupported-currency policy mismatch",
+      "automatic-post eligibility when exact INR minor units are unavailable"
+    ]
   },
   "semantic_contract": {
     "id": "pocketfinancer_semantic_v2",
     "version": 2,
+    "hash_algorithm": "sha256",
+    "frozen": true,
+    "frozen_at_phase": "A",
+    "frozen_by_commit": "0d1abf1be91a528baf0364d3475f2b4f25d72f5e",
     "schema_path": "configs/contracts/pocketfinancer-semantic-v2.schema.json",
+    "schema_sha256": "6c65b29543a85ca314f45620ed6300300d802ecab58d11371cc85af314a27bf8",
     "reference_path": "lfm25/semantic_v2.py",
-    "synthetic_conformance_path": "tests/fixtures/pocketfinancer_semantic_v2_synthetic_golden.json"
+    "reference_sha256": "ae0da990999035b8e04999d81854ed7ce4a95914a9079ff08eb50da03874c018",
+    "synthetic_conformance_path": "tests/fixtures/pocketfinancer_semantic_v2_synthetic_golden.json",
+    "synthetic_conformance_sha256": "1bb7053d7b49066830eb0c08f546c8b3be5490e292f3497928c832f25b03f2fa"
+  },
+  "program_definition_of_done": {
+    "status": "not_achieved",
+    "engineering_integration_phase": "I",
+    "user_acceptance_and_release_phase": "J",
+    "requirements": [
+      "selected version-pinned Android runtime variants and the selected iOS pipeline implemented end to end in their owning repositories",
+      "exact-money and timestamp-provenance persistence with tested migrations and rollback where required",
+      "platform-appropriate local UI observability through saved, review, retry, or error outcome",
+      "shared conformance plus native unit, integration, UI, migration, build, recovery, and relevant device tests",
+      "a three-repository compatibility manifest binding exact compatible commits, profiles, hashes, and evidence",
+      "reproducible default-off Android and iOS UAT candidates ready for user hands-on testing"
+    ],
+    "release_requires": "recorded user acceptance and a separate explicit Phase J cutover or release decision"
+  },
+  "selection_decision_policy": {
+    "status": "required_in_phase_B",
+    "threshold_artifact_path": null,
+    "per_platform_decisions_required": true,
+    "android_runtime_variant_dispositions_required": true,
+    "minimum_selected_android_variants": 1,
+    "no_selection_is_valid": true,
+    "must_be_frozen_before_protected_or_blinded_scoring": true
+  },
+  "compatibility_manifest": {
+    "required": true,
+    "status": "required_in_phase_I",
+    "path": "configs/programs/pocketfinancer-extraction-v2-compatibility.json",
+    "must_pin": [
+      "preceding verified SLM implementation commit plus exact Android and iOS commits; the later manifest-record commit is reported externally",
+      "Semantic V2 schema, reference, and conformance hashes",
+      "selected platform profile IDs and threshold decision",
+      "platform prompts, output protocols, filters, parser adapters, and runtime/decode settings",
+      "model or system-runtime identity and artefact hashes where available",
+      "storage migrations, evaluator and split hashes, and verification evidence"
+    ]
+  },
+  "ui_observability": {
+    "android": "preserve or deliberately adapt runtime-emitted thinking and JSON token progress plus pipeline stages and final saved, review, retry, or error outcome",
+    "ios": "show cumulative Foundation Models structured-generation snapshots plus a truthful processing and persistence timeline; never claim token decoding or hidden reasoning",
+    "privacy": "diagnostics stay local and obey platform redaction rules"
   },
   "expected_repositories": [
     {
       "id": "pf_slm_selection",
       "path": "/home/tojinotzenin/pF_slm_selection",
       "recorded_base_commit": "78509644dad110219e7a53d7c503cd746f9e0ab6",
-      "role": "shared research, semantic contract, evaluation, and experiment provenance"
+      "role": "shared research, semantic contract, evaluation, selection policy, and compatibility provenance"
     },
     {
       "id": "pocketfinancer_android",
       "path": "D:\\Personal_Projects\\pocket-financer\\pocket-financer-android",
       "recorded_base_commit": "552ffbdfbd41773980aa249789b0cb508fdb19fd",
-      "role": "Android production authority and read-only evidence during Phase A"
+      "role": "Android production authority, evaluation integration owner, and Phase I implementation owner"
     },
     {
       "id": "pocketfinancer_ios",
       "path": "D:\\Personal_Projects\\pocket-financer\\pocket-financer-ios",
       "recorded_base_commit": "04f770b235f860080ecd96adad1a5d011f3c2c2c",
-      "role": "iOS production implementation and read-only evidence during Phase A"
+      "role": "iOS production authority, evaluation integration owner, and Phase I implementation owner"
     }
   ],
   "phase_list": [
     {
       "id": "A",
       "name": "Foundation and Semantic V2",
-      "status": "completed"
+      "status": "completed_and_reviewed"
     },
     {
       "id": "B",
-      "name": "Workbench V2 and evaluation packages",
+      "name": "Workbench V2, evaluation packages, and frozen decision policy",
       "status": "not_started"
     },
     {
@@ -77,15 +148,31 @@
     },
     {
       "id": "I",
-      "name": "Separate production-cutover phase",
+      "name": "Production-quality three-repository implementation and default-off UAT candidate",
+      "status": "blocked_by_prior_phase"
+    },
+    {
+      "id": "J",
+      "name": "User acceptance and optional default cutover/release",
       "status": "blocked_by_prior_phase"
     }
   ],
   "selected_profile_ids": {
-    "android": null,
+    "android_by_runtime_variant": {
+      "qwen3-0.6b-q8": null,
+      "qwen3-1.7b-q4": null,
+      "qwen3-1.7b-q8": null,
+      "gemma-4-e2b-q4": null,
+      "gemma-4-e2b-q8": null
+    },
     "ios": null,
     "lfm25_350m": null,
     "cross_platform": null
+  },
+  "android_runtime_variant_selection": {
+    "decision_value_policy": "selected profile ID or no_selection:<reason>",
+    "complete_disposition_required_before_phase_I": true,
+    "unselected_variants_are_outside_semantic_v2_uat": true
   },
   "private_data_prohibition": {
     "active": true,
@@ -98,15 +185,23 @@
   },
   "last_completed_phase": {
     "id": "A",
-    "commit": "823ce714e0015aac44415a842653ab744d776c53"
+    "status": "completed_and_reviewed",
+    "commit": "0d1abf1be91a528baf0364d3475f2b4f25d72f5e",
+    "foundation_commit": "823ce714e0015aac44415a842653ab744d776c53",
+    "hardening_commits": [
+      "95cb4287076642867596fbbfe2835cb105ff6399",
+      "0d1abf1be91a528baf0364d3475f2b4f25d72f5e"
+    ]
   },
   "next_allowed_phase": {
     "id": "B",
     "requires": [
       "Read all applicable AGENTS.md files and preserve the recorded worktree bases.",
+      "Verify the finalized plan and frozen Semantic V2 artifact hashes before work begins.",
       "Use Semantic V2 as the shared truth layer without choosing Direct V2 or Candidate V2.",
+      "Create and freeze the metric, confidence, threshold, tie, and no-selection policy before protected evaluation.",
       "Obtain explicit user authorization before inspecting or using any private annotation or SMS data.",
-      "Keep Android and iOS unchanged unless a later task explicitly scopes their changes."
+      "Keep Android and iOS read-only throughout Phase B."
     ]
   }
 }
