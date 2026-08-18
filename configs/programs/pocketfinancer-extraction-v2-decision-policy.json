@@ -1,0 +1,241 @@
+{
+  "policy_id": "pocketfinancer_extraction_v2_selection_policy",
+  "policy_version": 1,
+  "status": "frozen",
+  "frozen_in_phase": "B",
+  "authorization": {
+    "status": "authorized_by_explicit_phase_b_request",
+    "date": "2026-08-19",
+    "scope": "Freeze evaluation and selection rules only; this does not authorize private-data access, model execution, profile selection, application changes, deployment, or release."
+  },
+  "semantic_contract": {
+    "id": "pocketfinancer_semantic_v2",
+    "version": 2,
+    "schema_sha256": "6c65b29543a85ca314f45620ed6300300d802ecab58d11371cc85af314a27bf8",
+    "reference_sha256": "ae0da990999035b8e04999d81854ed7ce4a95914a9079ff08eb50da03874c018",
+    "conformance_sha256": "1bb7053d7b49066830eb0c08f546c8b3be5490e292f3497928c832f25b03f2fa"
+  },
+  "comparison_scope": {
+    "unit": "one platform and one runtime variant",
+    "cross_platform_pooling_forbidden": true,
+    "cross_runtime_variant_pooling_forbidden": true,
+    "protocol_portability_assumption_forbidden": true,
+    "direct_v2_status": "unselected_hypothesis",
+    "candidate_v2_status": "unselected_hypothesis"
+  },
+  "confidence": {
+    "proportion_interval": "Wilson score interval",
+    "confidence_level": 0.95,
+    "z": 1.959963984540054,
+    "bound_use": "Use the lower bound for floors and the upper bound for ceilings.",
+    "round_decimal_places": 6,
+    "zero_denominator": "missing_and_gate_fails",
+    "operational_quantile": "nearest-rank empirical p95",
+    "post_hoc_method_or_threshold_changes_forbidden": true
+  },
+  "sample_sizes": {
+    "protected_rows": 1000,
+    "gold_automatic_post_eligible_rows": 250,
+    "predicted_automatic_posts": 400,
+    "applicable_gold_events_per_field": 250,
+    "invalid_or_fault_injection_cases": 400,
+    "cases_per_critical_safety_category": 30,
+    "conformance_vectors": 13,
+    "operational_runs_per_device_class": 30,
+    "recovery_trials": 100,
+    "availability_trials": 100,
+    "battery_runs_per_device_class": 30
+  },
+  "metric_gates": {
+    "scope_accuracy": {
+      "definition": "Exact scope equality over every resolved protected row.",
+      "denominator": "protected_rows",
+      "minimum_denominator": 1000,
+      "bound": "lower",
+      "operator": ">=",
+      "threshold": 0.98
+    },
+    "posting_status_accuracy": {
+      "definition": "Exact posting-status equality over every resolved protected row.",
+      "denominator": "protected_rows",
+      "minimum_denominator": 1000,
+      "bound": "lower",
+      "operator": ">=",
+      "threshold": 0.98
+    },
+    "event_cardinality_accuracy": {
+      "definition": "Exact event-cardinality equality over every resolved protected row.",
+      "denominator": "protected_rows",
+      "minimum_denominator": 1000,
+      "bound": "lower",
+      "operator": ">=",
+      "threshold": 0.98
+    },
+    "amount_currency_exactness": {
+      "definition": "Exact decimal text, currency, and exact minor-unit equality for every applicable gold event; a missing aligned prediction is a failure.",
+      "denominator": "gold events with amount",
+      "minimum_denominator": 250,
+      "bound": "lower",
+      "operator": ">=",
+      "threshold": 0.95
+    },
+    "direction_exactness": {
+      "definition": "Exact direction equality for every applicable gold event; a missing aligned prediction is a failure.",
+      "denominator": "gold events with direction",
+      "minimum_denominator": 250,
+      "bound": "lower",
+      "operator": ">=",
+      "threshold": 0.95
+    },
+    "account_exactness": {
+      "definition": "Exact source-grounded account text equality for every applicable gold event; a missing aligned prediction is a failure.",
+      "denominator": "gold events with account",
+      "minimum_denominator": 250,
+      "bound": "lower",
+      "operator": ">=",
+      "threshold": 0.95
+    },
+    "counterparty_exactness": {
+      "definition": "Exact counterparty state and, when present, exact grounded text for every gold event.",
+      "denominator": "all gold events",
+      "minimum_denominator": 250,
+      "bound": "lower",
+      "operator": ">=",
+      "threshold": 0.95
+    },
+    "evidence_grounding_validity": {
+      "definition": "Independent Semantic V2 validation succeeds, including UTF-8 source grounding, over every protected row; invalid output is a failure.",
+      "denominator": "protected_rows",
+      "minimum_denominator": 1000,
+      "bound": "lower",
+      "operator": ">=",
+      "threshold": 0.99
+    },
+    "automatic_post_precision": {
+      "definition": "An automatic-post decision is correct only when the gold is eligible and the complete projected transaction exactly equals the gold projection.",
+      "denominator": "predicted automatic posts",
+      "minimum_denominator": 400,
+      "bound": "lower",
+      "operator": ">=",
+      "threshold": 0.99
+    },
+    "automatic_post_coverage": {
+      "definition": "Correct automatic posts divided by gold automatic-post-eligible rows.",
+      "denominator": "gold automatic-post-eligible rows",
+      "minimum_denominator": 250,
+      "bound": "lower",
+      "operator": ">=",
+      "threshold": 0.7
+    },
+    "invalid_output_rate": {
+      "definition": "Parser-declared invalid outputs plus records rejected by independent Semantic V2 validation, divided by protected rows.",
+      "denominator": "protected_rows",
+      "minimum_denominator": 1000,
+      "bound": "upper",
+      "operator": "<=",
+      "threshold": 0.02
+    },
+    "fail_closed_rate": {
+      "definition": "Invalid or fault-injected outputs that do not request automatic posting.",
+      "denominator": "invalid or fault-injection cases",
+      "minimum_denominator": 400,
+      "bound": "lower",
+      "operator": ">=",
+      "threshold": 0.99
+    }
+  },
+  "critical_safety_gate": {
+    "required_tags": [
+      "ungrounded_evidence",
+      "ambiguous_currency",
+      "not_posted",
+      "none_or_multiple",
+      "non_inr",
+      "inexact_money",
+      "missing_timestamp_provenance"
+    ],
+    "minimum_cases_per_tag": 30,
+    "maximum_automatic_post_violations_per_tag": 0,
+    "maximum_total_false_automatic_posts": 0,
+    "conformance_pass_rate": 1.0,
+    "maximum_uncaught_parser_or_validator_exceptions": 0
+  },
+  "provenance_gate": {
+    "requires_local_only_execution": true,
+    "requires_locked_protected_split": true,
+    "requires_semantic_and_evaluator_hashes": true,
+    "requires_annotation_and_split_hashes": true,
+    "requires_profile_model_runtime_prompt_parser_filter_decode_and_environment_pins": true,
+    "missing_or_mismatched_pin_result": "no_selection"
+  },
+  "baseline_regression_gate": {
+    "semantic_metric_lower_bound_tolerance": 0.005,
+    "automatic_post_precision_lower_bound_tolerance": 0.0,
+    "automatic_post_coverage_lower_bound_tolerance": 0.02,
+    "invalid_output_upper_bound_tolerance": 0.005,
+    "candidate_and_baseline_must_use_same_protected_rows": true,
+    "missing_reproducible_baseline_result": "no_selection"
+  },
+  "operational_gates": {
+    "evidence_class_must_match": true,
+    "host_timing_cannot_satisfy_device_gate": true,
+    "latency_p95_maximum_ratio_to_baseline": 1.1,
+    "peak_memory_p95_maximum_ratio_to_baseline": 1.1,
+    "battery_impact_maximum_percentage_point_increase_to_baseline": 1.0,
+    "recovery_success_lower_bound_minimum": 0.95,
+    "availability_lower_bound_minimum": 0.95,
+    "platform_hard_budget_attachment": "A versioned platform/device budget ID and SHA-256 must be frozen before the first protected device measurement; absence yields no selection.",
+    "all_applicable_operational_gates_required": true
+  },
+  "tie_policy": {
+    "comparison_order": [
+      {
+        "metric": "automatic_post_precision",
+        "value": "lower_bound",
+        "minimum_material_difference": 0.005,
+        "preference": "higher"
+      },
+      {
+        "metric": "automatic_post_coverage",
+        "value": "lower_bound",
+        "minimum_material_difference": 0.02,
+        "preference": "higher"
+      },
+      {
+        "metric": "semantic_macro_lower_bound",
+        "value": "derived_mean",
+        "minimum_material_difference": 0.005,
+        "preference": "higher"
+      },
+      {
+        "metric": "latency_p95_ms",
+        "value": "point_estimate",
+        "minimum_material_relative_difference": 0.1,
+        "preference": "lower"
+      },
+      {
+        "metric": "peak_memory_p95_bytes",
+        "value": "point_estimate",
+        "minimum_material_relative_difference": 0.1,
+        "preference": "lower"
+      }
+    ],
+    "still_tied_result": "no_selection:unresolved_material_tie",
+    "profile_id_lexical_order_must_not_break_ties": true
+  },
+  "no_selection_policy": {
+    "valid_outcome": true,
+    "required_when": [
+      "any hard gate fails",
+      "any required denominator is too small",
+      "any confidence bound misses its threshold",
+      "any critical safety violation is observed",
+      "any required provenance or budget attachment is missing or mismatched",
+      "the reproducible baseline is missing or a disallowed regression is observed",
+      "evidence is pooled across platforms or runtime variants",
+      "a material tie remains after the frozen tie order"
+    ],
+    "return_phase": "the relevant platform laboratory phase",
+    "selection_never_changes_production_defaults": true
+  }
+}
