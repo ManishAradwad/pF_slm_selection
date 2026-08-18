@@ -1,80 +1,172 @@
 # PocketFinancer Extraction V2 status
 
-## Completed and reviewed: Phase A — Foundation and Semantic V2
+## Completed and reviewed: Phase B — Workbench V2, evaluation packages, and frozen decision policy
 
-- Created the normative three-repository program plan and machine-readable state.
-- Added `pocketfinancer_semantic_v2` version 2, including its platform-neutral JSON Schema and dependency-free Python reference implementation.
-- Enforced scope, posting status, none/single/multiple cardinality, exact amount and currency derivation, explicit counterparty state, trusted host timestamp provenance, and zero-based half-open UTF-8 byte evidence.
-- Closed the Phase A review findings: evidence ranges must be non-empty; account and present-counterparty values must exactly match their decoded evidence; direction must match the version 1 source lexicon; uppercase currency codes are handled generically but not when embedded inside larger words; a bare dollar sign fails closed; every record requires a text message even when it has no evidence; exact minor-unit scaling is bounded string arithmetic; INR auto-posting requires exact minor units; and none/multiple cardinality no longer emits false missing-field reasons.
-- Added 13 fully invented conformance vectors and regression coverage for hallucinated, empty, reversed, unrelated, ambiguous-currency, inexact-money, signed-64-bit boundary, Unicode, repeated-value, and timestamp cases.
-- Android and iOS were read-only evidence. No real SMS, private annotation, hosted service, model download, CUDA operation, inference, app code, app database, or production default was changed.
+- Added the frozen `pocketfinancer_workbench_v2` contract and dependency-free
+  Python reference for local annotation-package creation, Semantic V2 validation,
+  sender/template split isolation, independent adjudication, provenance binding,
+  and export-scoped categorical anonymization.
+- Added aggregate-safe Semantic V2 evaluation packages. A profile-specific parser
+  may supply a valid mapped Semantic V2 record or an explicit invalid result; the
+  independent evaluator validates every claimed record, fails malformed records
+  closed, scores all required semantic fields, reports automatic-post precision
+  and useful coverage, and emits a zero-content failure taxonomy.
+- Added a local CLI that restricts raw and row-level inputs/outputs to ignored
+  `PRIVATE_DATA/`, restricts aggregate reports to ignored `RESULTS/`, and prints
+  structural or aggregate-safe values only. Its one public-input exception is the
+  exact committed invented fixture behind an explicit flag.
+- Froze decision-policy version 1 before any protected evaluation. It declares
+  Wilson 95% confidence intervals; sample denominators; semantic, precision,
+  coverage, invalid-output, and fail-closed thresholds; seven critical safety
+  categories with zero automatic-post tolerance; provenance, baseline, operational,
+  and platform-budget gates; material tie order; and explicit no-selection rules.
+- Kept the comparison unit to one platform and one runtime variant. Direct V2 and
+  Candidate V2 remain unselected hypotheses; neither is implemented or declared a
+  universal protocol.
+- Added an entirely invented four-row annotation/evaluation smoke package with
+  independent synthetic reviewers, adjudication, split groups, valid and malformed
+  Semantic V2 mappings, and all critical safety tags. Tests cover privacy path
+  guards, raw-value removal, split leakage, adjudicator independence, provenance
+  mismatch, malformed timestamp provenance, false automatic posting, aggregate
+  output, and no-selection on insufficient evidence.
 
-## Finalized program end state
+Phase B inspected no real SMS, annotation, sender, account, row-level prediction,
+model, or generated private artifact. It performed no training, download, CUDA,
+HF/GGUF inference, mobile build, deployment, release, or production-default change.
+Android and iOS remained read-only.
 
-- Phase I now requires every selected Android runtime-variant pipeline and the selected iOS pipeline to be implemented end to end in their owning repositories, not merely described in change plans.
-- Phase H must record a selected profile ID or an explicit no-selection/exclusion reason for each of the five current Android runtime variants. At least one Android variant and iOS must be selected for Phase I; excluded variants remain outside the Semantic V2 UAT claim.
-- Required work includes native adapters, filters, prompts/protocols, runtime integration, grounding and eligibility, exact-money and timestamp-provenance persistence, migrations and rollback, recovery/retry, and native unit, conformance, integration, UI, migration, build, and relevant device tests.
-- Android must preserve or deliberately adapt its existing thinking/JSON token progress and pipeline-stage presentation through the final saved/review/retry/error result.
-- iOS must expose the cumulative structured-generation snapshots Apple makes available and a truthful decision/persistence timeline. It must not claim token decoding, hidden reasoning, or chain-of-thought access.
-- A versioned compatibility manifest must bind the preceding verified SLM implementation commit and exact compatible Android/iOS commits, profiles, contract and artefact hashes, platform protocols, migrations, selection decision, and verification evidence. The later manifest-record commit is reported externally because a commit cannot contain its own object ID.
-- Phase I ends with reproducible default-off UAT candidates for the user's hands-on testing. Phase J records user acceptance and is the only phase that may separately authorize a default cutover or release.
+## Frozen decision-policy summary
+
+- Confidence: two-sided 95% Wilson score intervals; floors use the lower bound and
+  ceilings use the upper bound.
+- Minimum protected evidence: 1,000 rows, 250 gold-auto-post-eligible rows,
+  400 predicted auto-posts, 250 applicable gold events per field, 400 invalid or
+  fault-injection cases, 30 cases per critical safety category, and all 13 frozen
+  conformance vectors.
+- Lower-bound floors: scope/posting/cardinality 0.98; amount-currency, direction,
+  account, and counterparty exactness 0.95; evidence validity and auto-post precision
+  0.99; useful auto-post coverage 0.70; fail-closed rate 0.99.
+- Upper-bound ceiling: invalid-output rate 0.02.
+- Absolute safety: zero false automatic posts overall and zero automatic-post
+  violations for ungrounded evidence, ambiguous currency, not-posted, none/multiple,
+  non-INR, inexact-money, and missing-timestamp-provenance cases.
+- A candidate also needs exact provenance, a locked protected split, a reproducible
+  same-row baseline, same-tier operational evidence, and a versioned platform/device
+  hard-budget attachment frozen before measurement. Host timing cannot satisfy a
+  device gate.
+- Passing candidates use the frozen material order: auto-post precision lower bound,
+  coverage lower bound, semantic macro lower bound, latency p95, and memory p95.
+  Lexical profile order never breaks a tie. Missing/failed evidence or an unresolved
+  tie yields no selection.
+
+The full normative artifact is
+`configs/programs/pocketfinancer-extraction-v2-decision-policy.json`. The operator
+guide is `docs/guides/EXTRACTION_V2_WORKBENCH.md`.
 
 ## Branches, bases, and commits
 
-- SLM branch: `codex/extraction-v2-foundation` from `78509644dad110219e7a53d7c503cd746f9e0ab6`.
-- Android read-only base: `main` at `552ffbdfbd41773980aa249789b0cb508fdb19fd`.
-- iOS read-only base: `main` at `04f770b235f860080ecd96adad1a5d011f3c2c2c`.
-- Original program record: `2e50800` (`docs: record extraction V2 program`).
-- Semantic V2 foundation: `823ce714e0015aac44415a842653ab744d776c53` (`feat: add Semantic V2 foundation`).
-- Phase A review hardening: `95cb4287076642867596fbbfe2835cb105ff6399` (`fix: harden Semantic V2 contract`).
-- Final review-gap closure: `0d1abf1be91a528baf0364d3475f2b4f25d72f5e` (`fix: close Semantic V2 review gaps`).
+- Phase B SLM branch: `codex/extraction-v2-phase-b` from Phase A handoff
+  `cd5fa75d03af6d3056847e63ff2cbddd9c382ff1`.
+- Workbench foundation:
+  `6365422c7775fbc0b6343d2ef077402b97e8e44f`
+  (`feat: add Extraction V2 workbench foundation`).
+- Evaluator and frozen policy:
+  `e10a738603cf87656465046406bc8e444747592f`
+  (`feat: freeze Extraction V2 evaluation policy`).
+- Android read-only base remained `main` at
+  `552ffbdfbd41773980aa249789b0cb508fdb19fd`.
+- iOS read-only base remained `main` at
+  `04f770b235f860080ecd96adad1a5d011f3c2c2c`.
 
-The follow-on plan/state/handoff commit intentionally records the immutable hardening commit above. Its own hash is reported by the task that creates it; a commit cannot contain its own final Git object ID.
+Android and iOS both had extensive unrelated pre-existing working-tree changes at
+entry. Phase B did not inspect their contents, stage them, or write either worktree.
+The final state/handoff commit records the immutable implementation commits above;
+its own final object ID is reported by the task that creates it because a commit
+cannot contain its own hash.
 
 ## Frozen SHA-256 artifacts
+
+Phase A artifacts remain unchanged and hash-locked:
 
 - Normative plan: `6eccc6c7d5df21b4998079ff40c2d5c92e51af53a83a6cbad5fc15c29c7203f5`.
 - Semantic V2 schema: `6c65b29543a85ca314f45620ed6300300d802ecab58d11371cc85af314a27bf8`.
 - Semantic V2 reference: `ae0da990999035b8e04999d81854ed7ce4a95914a9079ff08eb50da03874c018`.
-- Invented conformance fixture: `1bb7053d7b49066830eb0c08f546c8b3be5490e292f3497928c832f25b03f2fa`.
+- Semantic V2 invented conformance fixture:
+  `1bb7053d7b49066830eb0c08f546c8b3be5490e292f3497928c832f25b03f2fa`.
 
-`tests/test_extraction_v2_program_state.py` recomputes these hashes and fails on unrecorded drift.
+Phase B artifacts:
+
+- Workbench V2 contract:
+  `99f765f9d78411decaf0ab6cc6b72af388cf023d03725e2c71c536b33f4e1627`.
+- Workbench V2 reference:
+  `8daf92a7eba0b97ea61bb695d8a53719e1f56ac877e95a5d7f7afb3fcdefa65f`.
+- Invented Workbench V2 fixture:
+  `d0229c86f6ba8afa17ade9226e6ef4ed630a70c486821f4996f2a784ac8de3cb`.
+- Frozen decision policy:
+  `96dd8d2f4bff4cf8ec964dc668b05cbf75dd3ee11323bca623fe220fc55b49a4`.
+- Semantic V2 evaluator:
+  `559e6484e96f6cee85c97c158d529eb7acc12136f15c7c60351b4c58bb3547e3`.
+- Local Workbench V2 CLI:
+  `e311066aeb3dd39c6f9ccad9cc50b6b8ca68db394b981f7a2253d74e6422e407`.
+- Workbench V2 operator guide:
+  `ed6614ce413d4130316167074cbe5cea9be24b8974134a0dfc239e351bf5a43f`.
+
+The program-state tests recompute these hashes and fail on unrecorded drift.
 
 ## Verification
 
-- `pytest -q tests/test_extraction_v2_program_state.py tests/test_semantic_v2.py` — 8 passed.
-- `python scripts/check_repo_safety.py` — passed; it reported only the pre-existing publication-review exception for `DATA/extraction_ds.jsonl`.
+- Entry hash lock:
+  `pytest -q tests/test_extraction_v2_program_state.py` — 1 passed before any
+  branch or implementation action.
+- Phase B target:
+  `pytest -q tests/test_workbench_v2.py tests/test_workbench_v2_cli.py tests/test_evaluation_v2.py`
+  — 16 passed.
+- `python scripts/check_repo_safety.py` — passed; it reported only the pre-existing
+  publication-review exception for `DATA/extraction_ds.jsonl`.
 - `ruff check .` — passed.
 - `ruff check --select E4,E7,E9,F lfm25 scripts tests` — passed.
-- `pytest -q` — 563 passed.
+- `pytest -q` — 579 passed.
 - `git diff --check` — passed.
 
-Only the lightweight repository tier was run. CUDA, model downloads, HF/GGUF inference, Android build/device validation, and iOS build/device validation were intentionally not run because Phase A did not change those layers.
+Only the lightweight repository tier ran. Model downloads, training, CUDA,
+HF/GGUF inference, Android builds/devices, and iOS builds/devices were intentionally
+not run because they are outside Phase B.
 
-## Unresolved empirical and implementation questions
+## Program status and unresolved work
 
-- Which Direct V2, Candidate V2, or other protocol best serves each Qwen, Gemma, LFM, and Apple Foundation Models family remains unselected.
-- Phase B must define and freeze the metric, confidence, sample-size, threshold, tie, and no-selection policy before protected or blinded evaluation.
-- The current Android fleet's per-device parser acceptance, latency, memory, battery, recovery, persistence, and UI evidence has not been regenerated under Semantic V2.
-- Android's current amount persistence uses binary floating point; the exact-money storage migration and rollback design must be baselined and tested before Phase I can complete.
-- Apple Foundation Models behaviour remains OS/device dependent; no installed model revision is known or claimed.
-- Real-data annotation policy, adjudication, data rights, sender/template-held-out splits, and acceptance thresholds require the user's explicit decisions.
-- LFM2.5-350M trainability/quantization and LFM2.5-2.6B ceiling comparisons are unmeasured for this program.
-- Neither native app has a Semantic V2 production adapter or manifest-bound UAT build yet; those are explicit later-phase deliverables.
+- The program definition of done is not achieved. No profile is selected, no
+  Android runtime variant has a Phase H disposition, and no iOS profile is selected.
+- Protected or blinded scoring remains unauthorized. The user must separately
+  authorize data rights, annotation/adjudication policy, private sources, and the
+  locked protected split before any real-data work.
+- Device-specific hard budgets remain deliberately absent. Each applicable budget
+  must be versioned and frozen before that platform's first protected device
+  measurement; absence yields no selection.
+- Android parser acceptance, latency, memory, battery, recovery, persistence, exact
+  money/time storage, and UI evidence have not been regenerated under Semantic V2.
+- Apple Foundation Models behavior remains OS/device dependent and unmeasured in
+  this program.
+- Neither mobile application contains a Semantic V2 production adapter or a
+  manifest-bound default-off UAT candidate.
 
-## Next phase: B — Workbench V2, evaluation packages, and frozen decision policy
+## Next allowed phase: C — Android baseline reproducibility and runtime instrumentation
 
-Prerequisites:
+Phase C may start only in a new task from the final Phase B handoff commit reported
+by this task. It must:
 
-1. Start from `codex/extraction-v2-foundation` after the final plan/state/handoff commit reported by this task.
-2. Read the applicable `AGENTS.md` guidance completely and verify the hash-lock test before acting.
-3. Keep Semantic V2 and its frozen artifacts as the shared semantic boundary; version any intentional contract change instead of silently replacing a frozen hash.
-4. Keep Android and iOS read-only throughout Phase B.
-5. Do not inspect, print, modify, or transmit real SMS or private annotations. Obtain explicit user authorization before introducing any local private-data workflow.
-6. Build the local workbench/evaluator, invented synthetic tests, and predeclared selection-policy artifact only. Do not train, select a profile, change production defaults, or proceed into Phase C.
+1. read every applicable `AGENTS.md` completely and run the program state hash-lock
+   tests before acting;
+2. preserve all unrelated changes in every worktree and keep iOS read-only;
+3. keep Semantic V2, Workbench V2, and the decision policy hash-locked, versioning
+   any intentional change;
+4. audit the current Android source/profile relationship and capture a reproducible
+   baseline without changing locked production defaults;
+5. label host and Android-device evidence separately and avoid private SMS or
+   annotations without separate explicit user authorization; and
+6. not select Direct V2, Candidate V2, or any profile, and not proceed into Phase D.
 
 Copy-paste prompt for the next task:
 
 ```text
-Continue the PocketFinancer Extraction V2 program with Phase B only: Workbench V2, evaluation packages, and frozen decision policy. Start from the branch, commits, finalized plan, and hash-locked state recorded in docs/plans/POCKETFINANCER_EXTRACTION_V2_STATUS.md and configs/programs/pocketfinancer-extraction-v2.json. Read every applicable AGENTS.md completely before acting and run the state hash-lock test first. Preserve all unrelated changes. Keep Android and iOS read-only throughout Phase B. Use Semantic V2 as the shared semantic truth, but do not select, implement, or declare Direct V2 or Candidate V2 as a universal protocol. Build only local, privacy-safe workbench/evaluation foundations and the versioned metric, confidence, sample-size, threshold, tie, and no-selection policy, using invented synthetic tests. Do not inspect, print, modify, or transmit real SMS or private annotation rows, and do not train, download models, run CUDA/inference, change production defaults, or proceed into Phase C. Make focused local Conventional Commits, run the relevant lightweight checks, and update the program state and handoff with exact completed-commit IDs and the next allowed phase. Do not push or open a pull request.
+Continue the PocketFinancer Extraction V2 program with Phase C only: Android baseline reproducibility and runtime instrumentation. Start from the Phase B branch, commits, finalized plan, hash-locked program state, frozen Workbench V2 artifacts, and frozen decision policy recorded in docs/plans/POCKETFINANCER_EXTRACTION_V2_STATUS.md and configs/programs/pocketfinancer-extraction-v2.json. Read every applicable AGENTS.md completely and run the program state hash-lock tests first. Preserve all unrelated changes. Keep iOS read-only. Audit the current Android source/profile relationship and capture a reproducible baseline without changing production defaults. Keep host and device evidence distinct. Do not inspect private SMS or annotations without separate explicit authorization, do not select Direct V2, Candidate V2, or any profile, and do not proceed into Phase D. Run the relevant checks, make focused local Conventional Commits, and update the program state and handoff with exact commit IDs and the next allowed phase. Do not push or open a pull request.
 ```
