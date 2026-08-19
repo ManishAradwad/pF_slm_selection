@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "contract_id": "pocketfinancer_android_phase_d_protocol_lab",
+  "contract_version": 1,
+  "status": "phase_d_evaluation_only_frozen_contract",
+  "privacy_classification": "aggregate_only_invented_synthetic",
+  "required_baseline_binding": {
+    "baseline_id": "pocketfinancer-android-552ffbdf-phase-c",
+    "baseline_manifest_sha256": "9274e5a63524b46bb4149e11d5190bae4ebcfef15170a69af77ad050b31167fc",
+    "android_commit": "552ffbdfbd41773980aa249789b0cb508fdb19fd"
+  },
+  "runtime_variant_ids": [
+    "qwen3-0.6b-q8",
+    "qwen3-1.7b-q4",
+    "qwen3-1.7b-q8",
+    "gemma-4-e2b-q4",
+    "gemma-4-e2b-q8"
+  ],
+  "protocol_ids": [
+    "direct_v2",
+    "candidate_v2"
+  ],
+  "comparison_policy": {
+    "profiles_required": 10,
+    "protocols_per_runtime_variant": 2,
+    "cross_family_pooling_forbidden": true,
+    "cross_runtime_variant_pooling_forbidden": true,
+    "one_material_variable": "prompt_and_output_protocol",
+    "universal_protocol_claim_forbidden": true
+  },
+  "evidence_classes": [
+    "source_static",
+    "host_hf",
+    "host_gguf",
+    "android_device"
+  ],
+  "capture_statuses": [
+    "measured",
+    "not_measured",
+    "not_applicable"
+  ],
+  "allowed_gap_codes": [
+    "hf_artifact_not_in_phase_d_scope",
+    "gguf_artifact_missing",
+    "gguf_artifact_hash_mismatch",
+    "gguf_host_run_not_requested",
+    "gguf_host_runtime_error",
+    "android_device_run_not_requested",
+    "android_protocol_harness_unavailable",
+    "no_attached_android_device",
+    "no_peak_memory_instrumentation",
+    "no_battery_instrumentation",
+    "no_recovery_trials",
+    "no_reproducible_quality_baseline",
+    "insufficient_synthetic_sample",
+    "protected_scoring_not_authorized"
+  ],
+  "parser_failure_codes": [
+    "empty_output",
+    "unclosed_thinking_block",
+    "non_json_output",
+    "json_root_not_object",
+    "forbidden_source_metadata",
+    "forbidden_timestamp_field",
+    "protocol_shape_invalid",
+    "ungrounded_evidence",
+    "semantic_validation_failed",
+    "runtime_error"
+  ],
+  "forbidden_result_content": [
+    "raw message or sender",
+    "account or counterparty text",
+    "model prompt or output",
+    "annotation or prediction row",
+    "stable device identifier or raw build fingerprint"
+  ],
+  "selection_policy": {
+    "selected_profile_id_must_be_null": true,
+    "allowed_result": "no_selection",
+    "production_defaults_changed": false,
+    "phase_e_started": false
+  }
+}

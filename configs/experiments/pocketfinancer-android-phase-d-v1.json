@@ -1,0 +1,318 @@
+{
+  "schema_version": 1,
+  "lab_id": "pocketfinancer-android-phase-d-protocol-lab",
+  "lab_version": 1,
+  "status": "phase_d_evaluation_only",
+  "bindings": {
+    "baseline_id": "pocketfinancer-android-552ffbdf-phase-c",
+    "baseline_manifest_sha256": "9274e5a63524b46bb4149e11d5190bae4ebcfef15170a69af77ad050b31167fc",
+    "android_commit": "552ffbdfbd41773980aa249789b0cb508fdb19fd",
+    "locked_production_profile_revision": "a9b7df44be2183daac3a05cadbfd40b8f309cd4b"
+  },
+  "resources": {
+    "lab_contract": {
+      "path": "configs/contracts/pocketfinancer-android-phase-d-lab-v1.json",
+      "sha256": "f0af91d3eaed9e34ec24411eb344dbd8e79831710f6d25f29024c1f4c9075131"
+    },
+    "runtime_profile": {
+      "path": "configs/experiments/pocketfinancer-android-phase-d-runtime-v1.json",
+      "sha256": "fc0e8cc64e71cffaa572e5c8e6a1e83c82d10b6090560d47ebf06c003ad19f83"
+    },
+    "parser": {
+      "path": "lfm25/android_protocol_lab.py",
+      "sha256": "3dbb7b1df10acb88969d3120cbe9721155a0e1cb49cf2503f079da76ef8673a8"
+    },
+    "runner": {
+      "path": "scripts/run_pocketfinancer_android_phase_d_lab.py",
+      "sha256": "3a80c8903e25888959118ddf0587ee0c13483961f233a497d78221c116371b56"
+    },
+    "evaluator": {
+      "path": "lfm25/evaluation_v2.py",
+      "sha256": "559e6484e96f6cee85c97c158d529eb7acc12136f15c7c60351b4c58bb3547e3"
+    },
+    "synthetic_fixture": {
+      "path": "tests/fixtures/pocketfinancer_workbench_v2_synthetic.json",
+      "sha256": "d0229c86f6ba8afa17ade9226e6ef4ed630a70c486821f4996f2a784ac8de3cb"
+    },
+    "semantic_conformance_fixture": {
+      "path": "tests/fixtures/pocketfinancer_semantic_v2_synthetic_golden.json",
+      "sha256": "1bb7053d7b49066830eb0c08f546c8b3be5490e292f3497928c832f25b03f2fa"
+    },
+    "decision_policy": {
+      "path": "configs/programs/pocketfinancer-extraction-v2-decision-policy.json",
+      "sha256": "96dd8d2f4bff4cf8ec964dc668b05cbf75dd3ee11323bca623fe220fc55b49a4"
+    }
+  },
+  "comparison": {
+    "material_variable": "prompt_and_output_protocol",
+    "held_constant": [
+      "Android and Phase C baseline binding",
+      "runtime variant and exact GGUF artifact within each pair",
+      "embedded GGUF chat template within each pair",
+      "host runtime and decode settings within each pair",
+      "invented synthetic fixture and split",
+      "Semantic V2 reference, evaluator, filter, and frozen decision policy"
+    ],
+    "cross_runtime_pooling": "forbidden",
+    "universal_protocol_claim": "forbidden"
+  },
+  "profiles": [
+    {
+      "experiment_profile_id": "android-qwen3-0.6b-q8-direct-v2-v1",
+      "runtime_variant_id": "qwen3-0.6b-q8",
+      "app_tier_id": "qwen3-0.6b-q8_0",
+      "model_family": "qwen3",
+      "model": {
+        "artifact_name": "Qwen3-0.6B-Q8_0.gguf",
+        "artifact_path": "MODELS/Qwen3-0.6B-Q8_0.gguf",
+        "artifact_sha256": "e150ed544dfe6016930c026a93913a5e3184181ebfe6ab2223ae01dd0491784c",
+        "artifact_identity_basis": "local_sha256_verified_before_inference",
+        "upstream_repository": "https://huggingface.co/unsloth/Qwen3-0.6B-GGUF",
+        "model_revision": "gguf-sha256:e150ed544dfe6016930c026a93913a5e3184181ebfe6ab2223ae01dd0491784c",
+        "quantization": "Q8_0",
+        "thinking_enabled": true,
+        "gguf_architecture": "qwen3",
+        "gguf_name": "Qwen3-0.6B",
+        "chat_template_sha256": "5da44855ab7e0641774d5ed0ff0b4f89671d01df7d316e54d06557a962211cb4"
+      },
+      "protocol_id": "direct_v2",
+      "prompt_profile": {
+        "path": "configs/prompts/pocketfinancer-android-qwen-direct-v2-v1.json",
+        "sha256": "66c7e616cdea7346e1250eb4b41de43a25b5911d28aae4ebd34f373381dc1cae"
+      },
+      "selected_profile_id": null
+    },
+    {
+      "experiment_profile_id": "android-qwen3-0.6b-q8-candidate-v2-v1",
+      "runtime_variant_id": "qwen3-0.6b-q8",
+      "app_tier_id": "qwen3-0.6b-q8_0",
+      "model_family": "qwen3",
+      "model": {
+        "artifact_name": "Qwen3-0.6B-Q8_0.gguf",
+        "artifact_path": "MODELS/Qwen3-0.6B-Q8_0.gguf",
+        "artifact_sha256": "e150ed544dfe6016930c026a93913a5e3184181ebfe6ab2223ae01dd0491784c",
+        "artifact_identity_basis": "local_sha256_verified_before_inference",
+        "upstream_repository": "https://huggingface.co/unsloth/Qwen3-0.6B-GGUF",
+        "model_revision": "gguf-sha256:e150ed544dfe6016930c026a93913a5e3184181ebfe6ab2223ae01dd0491784c",
+        "quantization": "Q8_0",
+        "thinking_enabled": true,
+        "gguf_architecture": "qwen3",
+        "gguf_name": "Qwen3-0.6B",
+        "chat_template_sha256": "5da44855ab7e0641774d5ed0ff0b4f89671d01df7d316e54d06557a962211cb4"
+      },
+      "protocol_id": "candidate_v2",
+      "prompt_profile": {
+        "path": "configs/prompts/pocketfinancer-android-qwen-candidate-v2-v1.json",
+        "sha256": "440720a9f8f2bcb8b5cbac0d7baeed6f0ce9172f0a4b4bdcdbc69a207170f4c2"
+      },
+      "selected_profile_id": null
+    },
+    {
+      "experiment_profile_id": "android-qwen3-1.7b-q4-direct-v2-v1",
+      "runtime_variant_id": "qwen3-1.7b-q4",
+      "app_tier_id": "qwen3-1.7b-q4_k_m",
+      "model_family": "qwen3",
+      "model": {
+        "artifact_name": "Qwen3-1.7B-Q4_K_M.gguf",
+        "artifact_path": "MODELS/Qwen3-1.7B-Q4_K_M.gguf",
+        "artifact_sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
+        "artifact_identity_basis": "local_sha256_verified_before_inference",
+        "upstream_repository": "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF",
+        "model_revision": "gguf-sha256:b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
+        "quantization": "Q4_K_M",
+        "thinking_enabled": true,
+        "gguf_architecture": "qwen3",
+        "gguf_name": "Qwen3-1.7B",
+        "chat_template_sha256": "8428c815ac94d82064e35ff1e841dcbe260e7e53a8d0bd3b94afa2eefa9bccab"
+      },
+      "protocol_id": "direct_v2",
+      "prompt_profile": {
+        "path": "configs/prompts/pocketfinancer-android-qwen-direct-v2-v1.json",
+        "sha256": "66c7e616cdea7346e1250eb4b41de43a25b5911d28aae4ebd34f373381dc1cae"
+      },
+      "selected_profile_id": null
+    },
+    {
+      "experiment_profile_id": "android-qwen3-1.7b-q4-candidate-v2-v1",
+      "runtime_variant_id": "qwen3-1.7b-q4",
+      "app_tier_id": "qwen3-1.7b-q4_k_m",
+      "model_family": "qwen3",
+      "model": {
+        "artifact_name": "Qwen3-1.7B-Q4_K_M.gguf",
+        "artifact_path": "MODELS/Qwen3-1.7B-Q4_K_M.gguf",
+        "artifact_sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
+        "artifact_identity_basis": "local_sha256_verified_before_inference",
+        "upstream_repository": "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF",
+        "model_revision": "gguf-sha256:b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
+        "quantization": "Q4_K_M",
+        "thinking_enabled": true,
+        "gguf_architecture": "qwen3",
+        "gguf_name": "Qwen3-1.7B",
+        "chat_template_sha256": "8428c815ac94d82064e35ff1e841dcbe260e7e53a8d0bd3b94afa2eefa9bccab"
+      },
+      "protocol_id": "candidate_v2",
+      "prompt_profile": {
+        "path": "configs/prompts/pocketfinancer-android-qwen-candidate-v2-v1.json",
+        "sha256": "440720a9f8f2bcb8b5cbac0d7baeed6f0ce9172f0a4b4bdcdbc69a207170f4c2"
+      },
+      "selected_profile_id": null
+    },
+    {
+      "experiment_profile_id": "android-qwen3-1.7b-q8-direct-v2-v1",
+      "runtime_variant_id": "qwen3-1.7b-q8",
+      "app_tier_id": "qwen3-1.7b-q8_0",
+      "model_family": "qwen3",
+      "model": {
+        "artifact_name": "Qwen3-1.7B-Q8_0.gguf",
+        "artifact_path": "MODELS/Qwen3-1.7B-Q8_0.gguf",
+        "artifact_sha256": "0becaa825564295d82e9af4d008bca5f8b7f5f73bf1c6a0b58f7c53ef26b47fd",
+        "artifact_identity_basis": "local_sha256_verified_before_inference",
+        "upstream_repository": "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF",
+        "model_revision": "gguf-sha256:0becaa825564295d82e9af4d008bca5f8b7f5f73bf1c6a0b58f7c53ef26b47fd",
+        "quantization": "Q8_0",
+        "thinking_enabled": true,
+        "gguf_architecture": "qwen3",
+        "gguf_name": "Qwen3-1.7B",
+        "chat_template_sha256": "8428c815ac94d82064e35ff1e841dcbe260e7e53a8d0bd3b94afa2eefa9bccab"
+      },
+      "protocol_id": "direct_v2",
+      "prompt_profile": {
+        "path": "configs/prompts/pocketfinancer-android-qwen-direct-v2-v1.json",
+        "sha256": "66c7e616cdea7346e1250eb4b41de43a25b5911d28aae4ebd34f373381dc1cae"
+      },
+      "selected_profile_id": null
+    },
+    {
+      "experiment_profile_id": "android-qwen3-1.7b-q8-candidate-v2-v1",
+      "runtime_variant_id": "qwen3-1.7b-q8",
+      "app_tier_id": "qwen3-1.7b-q8_0",
+      "model_family": "qwen3",
+      "model": {
+        "artifact_name": "Qwen3-1.7B-Q8_0.gguf",
+        "artifact_path": "MODELS/Qwen3-1.7B-Q8_0.gguf",
+        "artifact_sha256": "0becaa825564295d82e9af4d008bca5f8b7f5f73bf1c6a0b58f7c53ef26b47fd",
+        "artifact_identity_basis": "local_sha256_verified_before_inference",
+        "upstream_repository": "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF",
+        "model_revision": "gguf-sha256:0becaa825564295d82e9af4d008bca5f8b7f5f73bf1c6a0b58f7c53ef26b47fd",
+        "quantization": "Q8_0",
+        "thinking_enabled": true,
+        "gguf_architecture": "qwen3",
+        "gguf_name": "Qwen3-1.7B",
+        "chat_template_sha256": "8428c815ac94d82064e35ff1e841dcbe260e7e53a8d0bd3b94afa2eefa9bccab"
+      },
+      "protocol_id": "candidate_v2",
+      "prompt_profile": {
+        "path": "configs/prompts/pocketfinancer-android-qwen-candidate-v2-v1.json",
+        "sha256": "440720a9f8f2bcb8b5cbac0d7baeed6f0ce9172f0a4b4bdcdbc69a207170f4c2"
+      },
+      "selected_profile_id": null
+    },
+    {
+      "experiment_profile_id": "android-gemma-4-e2b-q4-direct-v2-v1",
+      "runtime_variant_id": "gemma-4-e2b-q4",
+      "app_tier_id": "gemma4-e2b-q4_k_m",
+      "model_family": "gemma4",
+      "model": {
+        "artifact_name": "gemma-4-E2B-it-Q4_K_M.gguf",
+        "artifact_path": "MODELS/gemma-4-E2B-it-Q4_K_M.gguf",
+        "artifact_sha256": "ac0069ebccd39925d836f24a88c0f0c858d20578c29b21ab7cedce66ee576845",
+        "artifact_identity_basis": "local_sha256_verified_before_inference",
+        "upstream_repository": "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF",
+        "model_revision": "gguf-sha256:ac0069ebccd39925d836f24a88c0f0c858d20578c29b21ab7cedce66ee576845",
+        "quantization": "Q4_K_M",
+        "thinking_enabled": false,
+        "gguf_architecture": "gemma4",
+        "gguf_name": "Gemma-4-E2B-It",
+        "chat_template_sha256": "781d10940fbc44be40064b5d43a056fc486c84ceaa55538226368b57314132bf"
+      },
+      "protocol_id": "direct_v2",
+      "prompt_profile": {
+        "path": "configs/prompts/pocketfinancer-android-gemma-direct-v2-v1.json",
+        "sha256": "2feb51c67eb7a90f627fe4fbfa8738e3f3231f5a182728124e8bcca8d95c2853"
+      },
+      "selected_profile_id": null
+    },
+    {
+      "experiment_profile_id": "android-gemma-4-e2b-q4-candidate-v2-v1",
+      "runtime_variant_id": "gemma-4-e2b-q4",
+      "app_tier_id": "gemma4-e2b-q4_k_m",
+      "model_family": "gemma4",
+      "model": {
+        "artifact_name": "gemma-4-E2B-it-Q4_K_M.gguf",
+        "artifact_path": "MODELS/gemma-4-E2B-it-Q4_K_M.gguf",
+        "artifact_sha256": "ac0069ebccd39925d836f24a88c0f0c858d20578c29b21ab7cedce66ee576845",
+        "artifact_identity_basis": "local_sha256_verified_before_inference",
+        "upstream_repository": "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF",
+        "model_revision": "gguf-sha256:ac0069ebccd39925d836f24a88c0f0c858d20578c29b21ab7cedce66ee576845",
+        "quantization": "Q4_K_M",
+        "thinking_enabled": false,
+        "gguf_architecture": "gemma4",
+        "gguf_name": "Gemma-4-E2B-It",
+        "chat_template_sha256": "781d10940fbc44be40064b5d43a056fc486c84ceaa55538226368b57314132bf"
+      },
+      "protocol_id": "candidate_v2",
+      "prompt_profile": {
+        "path": "configs/prompts/pocketfinancer-android-gemma-candidate-v2-v1.json",
+        "sha256": "72c15f69f0e645c4478ce7957823490bbb741344766cb3528676070c14a1cc83"
+      },
+      "selected_profile_id": null
+    },
+    {
+      "experiment_profile_id": "android-gemma-4-e2b-q8-direct-v2-v1",
+      "runtime_variant_id": "gemma-4-e2b-q8",
+      "app_tier_id": "gemma4-e2b-q8_0",
+      "model_family": "gemma4",
+      "model": {
+        "artifact_name": "gemma-4-E2B-it-Q8_0.gguf",
+        "artifact_path": "MODELS/gemma-4-E2B-it-Q8_0.gguf",
+        "artifact_sha256": "6db0088e7e2b6459dfb29fa59b0b1d7299d249ef28debc464d4d564caf444511",
+        "artifact_identity_basis": "local_sha256_verified_before_inference",
+        "upstream_repository": "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF",
+        "model_revision": "gguf-sha256:6db0088e7e2b6459dfb29fa59b0b1d7299d249ef28debc464d4d564caf444511",
+        "quantization": "Q8_0",
+        "thinking_enabled": false,
+        "gguf_architecture": "gemma4",
+        "gguf_name": "Gemma-4-E2B-It",
+        "chat_template_sha256": "781d10940fbc44be40064b5d43a056fc486c84ceaa55538226368b57314132bf"
+      },
+      "protocol_id": "direct_v2",
+      "prompt_profile": {
+        "path": "configs/prompts/pocketfinancer-android-gemma-direct-v2-v1.json",
+        "sha256": "2feb51c67eb7a90f627fe4fbfa8738e3f3231f5a182728124e8bcca8d95c2853"
+      },
+      "selected_profile_id": null
+    },
+    {
+      "experiment_profile_id": "android-gemma-4-e2b-q8-candidate-v2-v1",
+      "runtime_variant_id": "gemma-4-e2b-q8",
+      "app_tier_id": "gemma4-e2b-q8_0",
+      "model_family": "gemma4",
+      "model": {
+        "artifact_name": "gemma-4-E2B-it-Q8_0.gguf",
+        "artifact_path": "MODELS/gemma-4-E2B-it-Q8_0.gguf",
+        "artifact_sha256": "6db0088e7e2b6459dfb29fa59b0b1d7299d249ef28debc464d4d564caf444511",
+        "artifact_identity_basis": "local_sha256_verified_before_inference",
+        "upstream_repository": "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF",
+        "model_revision": "gguf-sha256:6db0088e7e2b6459dfb29fa59b0b1d7299d249ef28debc464d4d564caf444511",
+        "quantization": "Q8_0",
+        "thinking_enabled": false,
+        "gguf_architecture": "gemma4",
+        "gguf_name": "Gemma-4-E2B-It",
+        "chat_template_sha256": "781d10940fbc44be40064b5d43a056fc486c84ceaa55538226368b57314132bf"
+      },
+      "protocol_id": "candidate_v2",
+      "prompt_profile": {
+        "path": "configs/prompts/pocketfinancer-android-gemma-candidate-v2-v1.json",
+        "sha256": "72c15f69f0e645c4478ce7957823490bbb741344766cb3528676070c14a1cc83"
+      },
+      "selected_profile_id": null
+    }
+  ],
+  "selection": {
+    "selected_profile_id": null,
+    "direct_v2_status": "unselected_hypothesis",
+    "candidate_v2_status": "unselected_hypothesis",
+    "production_defaults_changed": false,
+    "phase_e_started": false
+  }
+}

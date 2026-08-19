@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "prompt_profile_id": "pocketfinancer-android-qwen-candidate-v2-v1",
+  "model_family": "qwen3",
+  "protocol_id": "candidate_v2",
+  "chat_messages": {
+    "system": "You are an evaluation-only financial-message evidence locator. Reason only in the runtime-provided thinking channel. Your final response must be one compact JSON object and nothing else.",
+    "user_template": "Interpret the invented message below. Return exactly {scope,posting_status,event_cardinality,events}. Never output source_metadata, a date, a timestamp, amount values, currency values, direction values, account text, or counterparty text. The host derives every value from evidence. scope is bank_card, wallet_bnpl, or other. posting_status is posted or not_posted. event_cardinality is none, single, or multiple and must agree with events. Each event has exactly amount_evidence, direction_evidence, account_evidence, and counterparty. The first three are null or {start_utf8_byte,end_utf8_byte}. counterparty is {state:absent} or {state:present,evidence:{start_utf8_byte,end_utf8_byte}}. Evidence uses zero-based half-open UTF-8 byte offsets into the exact message. Select the currency marker and number together for amount evidence, and one complete debit/credit lexeme for direction evidence.\n\nMESSAGE_UTF8:\n{{MESSAGE}}\n\nFINAL_JSON:"
+  },
+  "output_contract": {
+    "adapter": "host_derived_candidate_v2",
+    "strict_json_object": true,
+    "host_injects_source_metadata": true,
+    "host_derives_values_and_minor_units": true,
+    "grammar": null
+  }
+}
