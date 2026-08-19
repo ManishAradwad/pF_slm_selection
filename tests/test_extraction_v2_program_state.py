@@ -28,8 +28,8 @@ def test_extraction_v2_program_state_is_finalized_and_hash_locked() -> None:
     assert state["schema_version"] == 2
     assert state["program_id"] == "pocketfinancer-extraction-v2"
     assert state["current_phase"] == {
-        "id": "C",
-        "name": "Android baseline reproducibility and runtime instrumentation",
+        "id": "D",
+        "name": "Android prompt/output-protocol laboratory",
         "status": "not_started",
     }
     assert state["phase_a_review"]["status"] == "closed"
@@ -88,6 +88,83 @@ def test_extraction_v2_program_state_is_finalized_and_hash_locked() -> None:
     assert workbench["private_workflow_authorized"] is False
     assert workbench["committed_fixture_classification"] == "invented_synthetic_only"
 
+    phase_c = state["phase_c_review"]
+    assert phase_c["status"] == "completed_and_reviewed"
+    assert phase_c["branch"] == "codex/extraction-v2-phase-c"
+    assert phase_c["starting_handoff_commit"] == (
+        "7eb22ec76a90c7dac72cac8af8665e71fef6dd6b"
+    )
+    assert phase_c["implementation_commits"] == [
+        phase_c["implementation_commit"]
+    ]
+    assert all(
+        COMMIT_RE.fullmatch(commit)
+        for commit in phase_c["implementation_commits"]
+    )
+    assert phase_c["android_baseline_commit"] == (
+        "552ffbdfbd41773980aa249789b0cb508fdb19fd"
+    )
+    assert phase_c["locked_production_profile_revision"] == (
+        "a9b7df44be2183daac3a05cadbfd40b8f309cd4b"
+    )
+    assert phase_c["verification"]["verification_tier"] == (
+        "source_static_and_lightweight_host_only"
+    )
+    assert phase_c["verification"]["pytest_full"] == "591 passed"
+    assert phase_c["verification"]["git_diff_check"] == "passed"
+    assert "not measured" in phase_c["verification"]["android_device"]
+
+    android_baseline = state["android_baseline"]
+    assert android_baseline["status"] == "completed_and_reviewed"
+    assert android_baseline["baseline_id"] == (
+        "pocketfinancer-android-552ffbdf-phase-c"
+    )
+    assert android_baseline["baseline_version"] == 1
+    for path_key, hash_key in (
+        ("manifest_path", "manifest_sha256"),
+        ("reference_path", "reference_sha256"),
+        ("cli_path", "cli_sha256"),
+        (
+            "runtime_evidence_contract_path",
+            "runtime_evidence_contract_sha256",
+        ),
+        (
+            "runtime_evidence_reference_path",
+            "runtime_evidence_reference_sha256",
+        ),
+        (
+            "runtime_evidence_cli_path",
+            "runtime_evidence_cli_sha256",
+        ),
+        ("synthetic_fixture_path", "synthetic_fixture_sha256"),
+        ("report_path", "report_sha256"),
+    ):
+        assert _sha256(android_baseline[path_key]) == android_baseline[hash_key]
+    baseline_manifest = json.loads(
+        (
+            REPOSITORY_ROOT / android_baseline["manifest_path"]
+        ).read_text(encoding="utf-8")
+    )
+    assert baseline_manifest["source_snapshot"]["revision"] == (
+        android_baseline["android_commit"]
+    )
+    assert baseline_manifest["production_profile_relationship"][
+        "profile_revision"
+    ] == android_baseline["locked_profile_revision"]
+    assert baseline_manifest["production_profile_relationship"][
+        "profile_sha256"
+    ] == android_baseline["locked_profile_sha256"]
+    assert baseline_manifest["evidence_classes"]["host"][
+        "runtime_measurement_claim"
+    ] is False
+    assert baseline_manifest["evidence_classes"]["android_device"][
+        "status"
+    ] == "not_measured_no_device"
+    assert baseline_manifest["selection"]["selected_profile_id"] is None
+    assert android_baseline["production_defaults_changed"] is False
+    assert android_baseline["private_data_accessed"] is False
+    assert android_baseline["selected_profile_id"] is None
+
     policy_state = state["selection_decision_policy"]
     assert policy_state["status"] == "frozen_in_phase_B"
     assert policy_state["policy_id"] == "pocketfinancer_extraction_v2_selection_policy"
@@ -119,8 +196,12 @@ def test_extraction_v2_program_state_is_finalized_and_hash_locked() -> None:
     assert [phase["id"] for phase in phases] == list("ABCDEFGHIJ")
     assert phases[0]["status"] == "completed_and_reviewed"
     assert phases[1]["status"] == "completed_and_reviewed"
-    assert phases[2]["status"] == "not_started"
-    assert all(phase["status"] == "blocked_by_prior_phase" for phase in phases[3:])
+    assert phases[2]["status"] == "completed_and_reviewed"
+    assert phases[3]["status"] == "not_started"
+    assert all(
+        phase["status"] == "blocked_by_prior_phase"
+        for phase in phases[4:]
+    )
     assert phases[8]["name"] == (
         "Production-quality three-repository implementation and default-off UAT candidate"
     )
@@ -153,15 +234,23 @@ def test_extraction_v2_program_state_is_finalized_and_hash_locked() -> None:
     )
     assert state["selected_profile_ids"]["ios"] is None
     assert state["last_completed_phase"] == {
-        "id": "B",
+        "id": "C",
         "status": "completed_and_reviewed",
-        "workbench_commit": phase_b["workbench_commit"],
-        "evaluation_policy_commit": phase_b["evaluation_policy_commit"],
-        "implementation_commits": phase_b["implementation_commits"],
+        "implementation_commit": phase_c["implementation_commit"],
+        "implementation_commits": phase_c["implementation_commits"],
+        "android_baseline_id": android_baseline["baseline_id"],
+        "android_commit": android_baseline["android_commit"],
     }
     assert state["private_data_prohibition"]["active"] is True
     assert state["private_data_prohibition"]["permitted_in_this_program_state"] == (
         "invented_synthetic_only"
     )
-    assert state["next_allowed_phase"]["id"] == "C"
-    assert any("Do not select Direct V2" in item for item in state["next_allowed_phase"]["requires"])
+    assert state["next_allowed_phase"]["id"] == "D"
+    assert any(
+        "Do not select Direct V2" in item
+        for item in state["next_allowed_phase"]["requires"]
+    )
+    assert any(
+        "proceed into Phase E" in item
+        for item in state["next_allowed_phase"]["requires"]
+    )

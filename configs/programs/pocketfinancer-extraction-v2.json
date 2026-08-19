@@ -8,8 +8,8 @@
     "status": "finalized"
   },
   "current_phase": {
-    "id": "C",
-    "name": "Android baseline reproducibility and runtime instrumentation",
+    "id": "D",
+    "name": "Android prompt/output-protocol laboratory",
     "status": "not_started"
   },
   "phase_a_review": {
@@ -65,6 +65,45 @@
       "verification_tier": "lightweight_only"
     }
   },
+  "phase_c_review": {
+    "status": "completed_and_reviewed",
+    "branch": "codex/extraction-v2-phase-c",
+    "starting_handoff_commit": "7eb22ec76a90c7dac72cac8af8665e71fef6dd6b",
+    "implementation_commit": "4ab91ec8ffb71f4531861211e674edca639a28f0",
+    "implementation_commits": [
+      "4ab91ec8ffb71f4531861211e674edca639a28f0"
+    ],
+    "android_baseline_commit": "552ffbdfbd41773980aa249789b0cb508fdb19fd",
+    "locked_production_profile_revision": "a9b7df44be2183daac3a05cadbfd40b8f309cd4b",
+    "scope": [
+      "immutable Git-blob verification of the current committed Android source baseline",
+      "explicit audit of the locked production profile revision versus current Android HEAD",
+      "filter, prompt, parser, chat-template, decode/runtime, fleet, persistence/time, instrumentation, and UI-stage capture",
+      "aggregate-only host versus Android-device runtime evidence contract and fail-closed validator",
+      "invented synthetic aggregate evidence smoke package"
+    ],
+    "excluded": [
+      "private SMS, sender, account, annotation, prediction, prompt/output, model, app-storage, or device-log access",
+      "model training, download, CUDA, HF/GGUF inference, or device inference",
+      "Direct V2, Candidate V2, model, runtime-profile, or production-default selection",
+      "Android or iOS working-tree modification",
+      "Phase D implementation"
+    ],
+    "verification": {
+      "state_hash_lock_entry": "pytest -q tests/test_extraction_v2_program_state.py: 1 passed before branch or implementation changes",
+      "phase_c_targeted": "pytest -q tests/test_android_baseline.py tests/test_android_runtime_evidence.py tests/test_android_profile_sync.py tests/test_android_contract.py: 41 passed",
+      "baseline_verifier": "31 baseline blobs at 552ffbdf and 13 profile blobs at a9b7df44 verified; one profiled path changed",
+      "invented_runtime_fixture": "valid aggregate-only host and Android-device smoke package",
+      "repository_safety": "passed with only the pre-existing DATA/extraction_ds.jsonl publication-review exception",
+      "ruff_default": "passed",
+      "ruff_strict": "passed",
+      "pytest_full": "591 passed",
+      "git_diff_check": "passed",
+      "pipeline_check": "attempted but refused the pre-existing auto-discovered WSL Android checkout at a6c8a11 because it differs from the locked a9b7df44 profile revision; no pipeline/profile/lock/orchestration file changed",
+      "verification_tier": "source_static_and_lightweight_host_only",
+      "android_device": "not measured: ADB reported no attached devices or emulators and inference was not authorized"
+    }
+  },
   "semantic_contract": {
     "id": "pocketfinancer_semantic_v2",
     "version": 2,
@@ -99,6 +138,35 @@
     "aggregate_output_root": "RESULTS",
     "private_workflow_authorized": false,
     "committed_fixture_classification": "invented_synthetic_only"
+  },
+  "android_baseline": {
+    "status": "completed_and_reviewed",
+    "baseline_id": "pocketfinancer-android-552ffbdf-phase-c",
+    "baseline_version": 1,
+    "manifest_path": "configs/baselines/pocketfinancer-android-552ffbdf-phase-c.json",
+    "manifest_sha256": "9274e5a63524b46bb4149e11d5190bae4ebcfef15170a69af77ad050b31167fc",
+    "reference_path": "lfm25/android_baseline.py",
+    "reference_sha256": "08ddcd4c4aceb59b9252b01538e2a941754b6ad010db586d0701d61ae7b9641d",
+    "cli_path": "scripts/check_pocketfinancer_android_baseline.py",
+    "cli_sha256": "8ddf1fc242857b1b0a4513fa577bbb8895dec9c8cf7b23298516b443a2367086",
+    "runtime_evidence_contract_path": "configs/contracts/pocketfinancer-android-runtime-evidence-v1.json",
+    "runtime_evidence_contract_sha256": "710b05a6a84b1434633b533389d50dfd693170919ef0ee368eac9d390787e18f",
+    "runtime_evidence_reference_path": "lfm25/android_runtime_evidence.py",
+    "runtime_evidence_reference_sha256": "e2b9e0ed21f00f86bc637023fe89891cd533d703b562bd909b3a71fc790960bc",
+    "runtime_evidence_cli_path": "scripts/validate_pocketfinancer_android_runtime_evidence.py",
+    "runtime_evidence_cli_sha256": "71e73b768779684e82612680b58f1c454f3af0c848437eaec3f682ecbf862ead",
+    "synthetic_fixture_path": "tests/fixtures/pocketfinancer_android_runtime_evidence_synthetic.json",
+    "synthetic_fixture_sha256": "45eb91c0f184cd18f5e394c6abb29b027382f954ce0af2d64b96990ba083e3fb",
+    "report_path": "docs/architecture/POCKETFINANCER_ANDROID_BASELINE_PHASE_C.md",
+    "report_sha256": "49e66435a26f656f9d91fa031e0136838a7e4e75c261f3adf014e6c83b6146f7",
+    "android_commit": "552ffbdfbd41773980aa249789b0cb508fdb19fd",
+    "locked_profile_revision": "a9b7df44be2183daac3a05cadbfd40b8f309cd4b",
+    "locked_profile_sha256": "b818397851bb03fc3365710fe8ddfe82cadfe896525d931b93dbb8a6653c9d3f",
+    "host_runtime_measurement_claim": false,
+    "android_device_measurement_status": "not_measured_no_device",
+    "production_defaults_changed": false,
+    "private_data_accessed": false,
+    "selected_profile_id": null
   },
   "program_definition_of_done": {
     "status": "not_achieved",
@@ -181,12 +249,12 @@
     {
       "id": "C",
       "name": "Android baseline reproducibility and runtime instrumentation",
-      "status": "not_started"
+      "status": "completed_and_reviewed"
     },
     {
       "id": "D",
       "name": "Android prompt/output-protocol laboratory",
-      "status": "blocked_by_prior_phase"
+      "status": "not_started"
     },
     {
       "id": "E",
@@ -246,26 +314,27 @@
     ]
   },
   "last_completed_phase": {
-    "id": "B",
+    "id": "C",
     "status": "completed_and_reviewed",
-    "workbench_commit": "6365422c7775fbc0b6343d2ef077402b97e8e44f",
-    "evaluation_policy_commit": "e10a738603cf87656465046406bc8e444747592f",
+    "implementation_commit": "4ab91ec8ffb71f4531861211e674edca639a28f0",
     "implementation_commits": [
-      "6365422c7775fbc0b6343d2ef077402b97e8e44f",
-      "e10a738603cf87656465046406bc8e444747592f"
-    ]
+      "4ab91ec8ffb71f4531861211e674edca639a28f0"
+    ],
+    "android_baseline_id": "pocketfinancer-android-552ffbdf-phase-c",
+    "android_commit": "552ffbdfbd41773980aa249789b0cb508fdb19fd"
   },
   "next_allowed_phase": {
-    "id": "C",
-    "name": "Android baseline reproducibility and runtime instrumentation",
+    "id": "D",
+    "name": "Android prompt/output-protocol laboratory",
     "requires": [
-      "Start from the completed Phase B handoff commit reported by the task and read every applicable AGENTS.md completely.",
+      "Start from the completed Phase C handoff commit reported by the task and read every applicable AGENTS.md completely.",
       "Run the program state hash-lock tests before acting and preserve unrelated changes in every worktree.",
-      "Keep Semantic V2, Workbench V2, and the frozen decision policy hash-locked; version intentional changes rather than silently drifting them.",
-      "Audit the current Android source/profile relationship and capture a reproducible baseline without changing production defaults.",
-      "Keep iOS read-only and do not treat host timing as Android-device timing.",
+      "Keep Semantic V2, Workbench V2, the frozen decision policy, and the Phase C Android baseline/runtime evidence artifacts hash-locked.",
+      "Use controlled evaluation-only comparisons that bind the exact Android baseline and independently test Direct V2 and Candidate V2 for Qwen and Gemma; do not imply a universal protocol.",
+      "Keep iOS read-only, preserve production defaults, and keep host, GGUF-host, and Android-device evidence explicitly separate.",
       "Do not inspect private SMS or annotations without separate explicit user authorization.",
-      "Do not select Direct V2, Candidate V2, a model profile, or proceed into Phase D."
+      "Do not train or download models, run CUDA, protected scoring, or private-data inference without separate explicit authorization.",
+      "Do not select Direct V2, Candidate V2, a model, or a profile, modify either mobile application, or proceed into Phase E."
     ]
   }
 }
