@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "contract_id": "pocketfinancer_android_runtime_evidence",
+  "contract_version": 1,
+  "status": "phase_c_frozen_aggregate_contract",
+  "privacy_classification": "aggregate_only_no_message_content",
+  "evidence_classes": {
+    "host": "Host-only measurements; never presented as phone timing or memory.",
+    "android_device": "Measurements collected on an attached Android device; never inferred from host evidence."
+  },
+  "capture_statuses": [
+    "measured",
+    "synthetic_fixture",
+    "not_measured"
+  ],
+  "measurement_fields": [
+    "prompt_eval_ms",
+    "generation_ms",
+    "generated_tokens",
+    "tokens_per_second",
+    "peak_rss_mib",
+    "battery_delta_pct"
+  ],
+  "allowed_gap_codes": [
+    "no_attached_android_device",
+    "no_authorized_inference",
+    "no_peak_memory_instrumentation",
+    "no_battery_instrumentation",
+    "no_end_to_end_latency_instrumentation",
+    "native_build_not_run",
+    "device_measurement_not_run"
+  ],
+  "forbidden_content": [
+    "raw SMS or sender",
+    "account or counterparty text",
+    "model prompt or output",
+    "annotation or prediction row",
+    "stable device serial or raw build fingerprint"
+  ],
+  "required_baseline_binding": [
+    "baseline_id",
+    "baseline_manifest_sha256",
+    "android_commit"
+  ]
+}

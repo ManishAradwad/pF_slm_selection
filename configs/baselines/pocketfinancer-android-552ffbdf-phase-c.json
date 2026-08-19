@@ -1,0 +1,296 @@
+{
+  "schema_version": 1,
+  "baseline_id": "pocketfinancer-android-552ffbdf-phase-c",
+  "baseline_version": 1,
+  "status": "captured_static_baseline",
+  "captured_at": "2026-08-19",
+  "source_snapshot": {
+    "repository": "https://github.com/ManishAradwad/pocket-financer-android",
+    "revision": "552ffbdfbd41773980aa249789b0cb508fdb19fd",
+    "hash_basis": "sha256_of_git_blob_content_at_revision",
+    "paths": [
+      "app/src/main/java/com/pocketfinancer/SlmModelSpecs.kt",
+      "hardware/src/main/java/com/pocketfinancer/hardware/SlmSelector.kt",
+      "inference/src/main/assets/few_shot_examples.json",
+      "inference/src/main/assets/sms_extraction.gbnf",
+      "inference/src/main/assets/system_prompt.txt",
+      "inference/src/main/cpp/CMakeLists.txt",
+      "inference/src/main/cpp/llama_jni.cpp",
+      "inference/src/main/java/com/pocketfinancer/inference/LlamaEngine.kt",
+      "inference/src/main/java/com/pocketfinancer/inference/SlmRuntime.kt",
+      "inference/src/main/java/com/pocketfinancer/inference/SlmRuntimeCoordinator.kt",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/AutomaticSmsProcessingActivity.kt",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/ExtractionParser.kt",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/PipelineService.kt",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/PromptBuilder.kt",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/SlmProcessingPreferences.kt",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/SmsFilterPipeline.kt",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/SmsParserWorker.kt",
+      "data/src/main/java/com/pocketfinancer/data/db/AppDatabase.kt",
+      "data/src/main/java/com/pocketfinancer/data/db/entity/TransactionEntity.kt",
+      "data/src/main/java/com/pocketfinancer/data/repository/TransactionRepository.kt",
+      "data/schemas/com.pocketfinancer.data.db.AppDatabase/5.json",
+      "sms/src/main/java/com/pocketfinancer/sms/SmsReader.kt",
+      "sms/src/main/java/com/pocketfinancer/sms/SmsReceiver.kt",
+      "app/src/main/java/com/pocketfinancer/ui/onboarding/HistoricalSmsProcessingActivity.kt",
+      "app/src/main/java/com/pocketfinancer/ui/smsprocessing/SmsPipelineActivityCard.kt",
+      "app/src/main/java/com/pocketfinancer/ui/smsprocessing/SmsProcessingModels.kt",
+      "app/src/main/java/com/pocketfinancer/ui/smsprocessing/SmsTelemetryModels.kt",
+      "app/src/main/java/com/pocketfinancer/ui/smsprocessing/SmsTelemetryViewer.kt",
+      "pipeline/src/test/java/com/pocketfinancer/pipeline/PipelineServiceTest.kt",
+      "app/src/test/java/com/pocketfinancer/ui/smsprocessing/SmsProcessingPresentationTest.kt",
+      "app/src/androidTest/java/com/pocketfinancer/ui/smsprocessing/SmsProcessingComposeUiTest.kt"
+    ],
+    "files_sha256": {
+      "app/src/main/java/com/pocketfinancer/SlmModelSpecs.kt": "49fa500801b8e5ef0129244a6ef9863c985627fe42d762976cbedfd729f848c0",
+      "hardware/src/main/java/com/pocketfinancer/hardware/SlmSelector.kt": "03c53546fab7848a77be951010fc573f40e547408c2adf30f18b974caf046e37",
+      "inference/src/main/assets/few_shot_examples.json": "ea4e57c646f2232b5e1d24c1211b8ee6ac68cfef2f69c52ac9ae3765116749aa",
+      "inference/src/main/assets/sms_extraction.gbnf": "c321daca16ea3dbdf4269c6504f7cbab5e587d1ce849e3b79133e5449d1c7939",
+      "inference/src/main/assets/system_prompt.txt": "16e042a07a18165e1cd0b1c0d0cd3bcee67f64825df8adc74e568b3eadffd64a",
+      "inference/src/main/cpp/CMakeLists.txt": "11b69f0903f3fe20754110b242a66d88ca38fc93e8a84f4eab56db651853158e",
+      "inference/src/main/cpp/llama_jni.cpp": "c80fe00d19f2005e57a87931be3f307d459775a05c129d1adfc85b8f6f2a7dde",
+      "inference/src/main/java/com/pocketfinancer/inference/LlamaEngine.kt": "7210c81268390fa261cd1b95d68b749e9344497c7f945035c49657c48055fee9",
+      "inference/src/main/java/com/pocketfinancer/inference/SlmRuntime.kt": "f4b1bbc2dd538fab79d8766f69639c5da89f5ac34aab76bc2f65742d1ba9fbf4",
+      "inference/src/main/java/com/pocketfinancer/inference/SlmRuntimeCoordinator.kt": "f6c0e2e441c7fe8a01c9ad75c37fca7cdba021168dacc52f6a6e99158132bae0",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/AutomaticSmsProcessingActivity.kt": "046bfe7d373d11efc938c7eb70831c54e1ee005be5d53303d402b9e7b3a0249a",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/ExtractionParser.kt": "7d394a6cbd1097b1cecc71a463450b9489a88ca8b9a75a90edb064e32b10091c",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/PipelineService.kt": "769a1f8c3feec820b0a191dcf32bd85ba0812b168d45a9d92f414077228c156d",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/PromptBuilder.kt": "316c9df493184c6ae67e38d837363f8f94ec470a3c867d34b67b7ed97896bdfa",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/SlmProcessingPreferences.kt": "a795a4d90686bb37c402e63c134eb71906004de448061fa43dfc1d73a4041d7e",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/SmsFilterPipeline.kt": "2df07947474177729659cb2c4db0d4828fce63e02b5aae915f8972899ef51999",
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/SmsParserWorker.kt": "39eb30b1b006d07543ec0880c7779daaebdb89118c3d7547a8c270d9d0897812",
+      "data/src/main/java/com/pocketfinancer/data/db/AppDatabase.kt": "86758144ac1ab74bdac5a70f0a2ac861dad6b41465a43c9f4d6450cb45b03b21",
+      "data/src/main/java/com/pocketfinancer/data/db/entity/TransactionEntity.kt": "2e094f50ae894a7d6164d7920a8970aa5ee82689f27f2759f19831c9e20c58c9",
+      "data/src/main/java/com/pocketfinancer/data/repository/TransactionRepository.kt": "a1fd25a8403656d8c427b10047cf1c2235f792aa852cfaefe3640804d7772fa1",
+      "data/schemas/com.pocketfinancer.data.db.AppDatabase/5.json": "5efd42acf518ce279cb8f24b483c445f3e02981e3e93e5cfd15cbd491a178aeb",
+      "sms/src/main/java/com/pocketfinancer/sms/SmsReader.kt": "16c6941edc1606f850ec3a403230e63c3ea7efacabe52cb9785931a77143efef",
+      "sms/src/main/java/com/pocketfinancer/sms/SmsReceiver.kt": "9eb16e7c6fda136ecb2f279f5dd4f242a2483d274ef334f9459a7888c2da09da",
+      "app/src/main/java/com/pocketfinancer/ui/onboarding/HistoricalSmsProcessingActivity.kt": "450b50651066b32b8f960ec986157b96de1f77fc10d42d80499c2904cd4853ea",
+      "app/src/main/java/com/pocketfinancer/ui/smsprocessing/SmsPipelineActivityCard.kt": "eb3a48faf264f6245f8ba347da226080a7b5bb53e34bc41cbf36ea1b518c2d4e",
+      "app/src/main/java/com/pocketfinancer/ui/smsprocessing/SmsProcessingModels.kt": "7249665deb9b590b2751e4e7294399c70ae9e2ab5acf66c6377eb9d18df40428",
+      "app/src/main/java/com/pocketfinancer/ui/smsprocessing/SmsTelemetryModels.kt": "107a8f2775866d5d44106f5489486779aaaa0b6b50a5d0d85548a3cb05b3a32d",
+      "app/src/main/java/com/pocketfinancer/ui/smsprocessing/SmsTelemetryViewer.kt": "e9eb9d21ca6ab2567b58607abb6e19e0d4ae0da12685c060cc466948ca08b4fc",
+      "pipeline/src/test/java/com/pocketfinancer/pipeline/PipelineServiceTest.kt": "3933ea8fddbba134507b2521a8eed10577201abaece45a9b1d0826107253e270",
+      "app/src/test/java/com/pocketfinancer/ui/smsprocessing/SmsProcessingPresentationTest.kt": "6de523d807dec8cc1ed0400b9e6d4221772f74877c442a3e207bd7fe395e801c",
+      "app/src/androidTest/java/com/pocketfinancer/ui/smsprocessing/SmsProcessingComposeUiTest.kt": "2ac16b7262a3ab8680f35c3b1f968390060bdd3dec46dc3674207a7a24337373"
+    }
+  },
+  "production_profile_relationship": {
+    "profile_path": "configs/contracts/pocketfinancer-android-current.json",
+    "profile_sha256": "b818397851bb03fc3365710fe8ddfe82cadfe896525d931b93dbb8a6653c9d3f",
+    "profile_revision": "a9b7df44be2183daac3a05cadbfd40b8f309cd4b",
+    "baseline_revision": "552ffbdfbd41773980aa249789b0cb508fdb19fd",
+    "profile_is_ancestor": true,
+    "commit_distance": 3,
+    "profiled_paths_changed": [
+      "pipeline/src/main/java/com/pocketfinancer/pipeline/PipelineService.kt"
+    ],
+    "production_defaults_changed": false
+  },
+  "behavior": {
+    "deterministic_filter": {
+      "enabled": true,
+      "ordered_stages": [
+        "reject_personal_mobile_sender",
+        "require_currency_amount",
+        "require_masked_account_or_card",
+        "require_completed_transaction_verb",
+        "reject_otp_or_verification",
+        "reject_collect_or_mandate_request"
+      ]
+    },
+    "prompt": {
+      "outer_system_message": "You are a helpful financial SMS extraction assistant.",
+      "roles": [
+        "system",
+        "user"
+      ],
+      "long_policy_location": "user_message",
+      "few_shot_examples": 7,
+      "system_prompt_sha256": "16e042a07a18165e1cd0b1c0d0cd3bcee67f64825df8adc74e568b3eadffd64a",
+      "few_shot_examples_sha256": "ea4e57c646f2232b5e1d24c1211b8ee6ac68cfef2f69c52ac9ae3765116749aa",
+      "grammar_sha256": "c321daca16ea3dbdf4269c6504f7cbab5e587d1ce849e3b79133e5449d1c7939"
+    },
+    "parser": {
+      "implementation": "ExtractionParser.kt",
+      "literal_null_case_insensitive": true,
+      "json_window": "first_open_brace_to_last_close_brace",
+      "required_non_nullish_fields": [
+        "amount",
+        "type",
+        "account"
+      ],
+      "amount_storage_input": "positive_binary_floating_point",
+      "accepted_types": [
+        "debit",
+        "credit"
+      ],
+      "counterparty_optional": true,
+      "invalid_output_outcome": "skipped"
+    },
+    "runtime": {
+      "backend": "custom_kotlin_jni_llama_cpp",
+      "llama_cpp_revision": "b9198",
+      "device": "android_cpu",
+      "n_gpu_layers": 0,
+      "n_ctx": 3072,
+      "n_batch": 512,
+      "n_ubatch": 256,
+      "threads": "runtime_auto_capped_at_4",
+      "flash_attention": true,
+      "kv_cache_type": "f16_when_fp16_capable_else_q8_0",
+      "use_mmap": false,
+      "chat_template": "gguf_builtin_with_fallback_prompt",
+      "sampler": "greedy",
+      "temperature": 0,
+      "repeat_penalty": "not_applied",
+      "thinking_max_tokens": 1024,
+      "answer_max_tokens": 256,
+      "grammar_default_enabled": false,
+      "prefix_session_cache": true
+    },
+    "model_identifiers": [
+      {
+        "runtime_variant_id": "qwen3-0.6b-q8",
+        "app_tier_id": "qwen3-0.6b-q8_0",
+        "artifact_name": "Qwen3-0.6B-Q8_0.gguf",
+        "thinking_enabled": true
+      },
+      {
+        "runtime_variant_id": "qwen3-1.7b-q4",
+        "app_tier_id": "qwen3-1.7b-q4_k_m",
+        "artifact_name": "Qwen3-1.7B-Q4_K_M.gguf",
+        "thinking_enabled": true
+      },
+      {
+        "runtime_variant_id": "qwen3-1.7b-q8",
+        "app_tier_id": "qwen3-1.7b-q8_0",
+        "artifact_name": "Qwen3-1.7B-Q8_0.gguf",
+        "thinking_enabled": true
+      },
+      {
+        "runtime_variant_id": "gemma-4-e2b-q4",
+        "app_tier_id": "gemma4-e2b-q4_k_m",
+        "artifact_name": "gemma-4-E2B-it-Q4_K_M.gguf",
+        "thinking_enabled": false
+      },
+      {
+        "runtime_variant_id": "gemma-4-e2b-q8",
+        "app_tier_id": "gemma4-e2b-q8_0",
+        "artifact_name": "gemma-4-E2B-it-Q8_0.gguf",
+        "thinking_enabled": false
+      }
+    ],
+    "persistence_and_time": {
+      "amount_source_of_truth": "Double",
+      "transaction_date": "SmsMessage.date epoch milliseconds",
+      "source_identity_timestamp": "date_sent when positive else received date",
+      "timestamp_provenance_persisted_explicitly": false,
+      "raw_evidence_persistence": "SQLCipher-backed transaction or queued candidate",
+      "runtime_fields_persisted": [
+        "slmPromptEvalMs",
+        "slmEvalMs",
+        "slmNumTokens",
+        "slmModelName"
+      ]
+    },
+    "ui_stage_behavior": {
+      "stages": [
+        "SMS pre-filter check",
+        "KV cache and prompt preparation",
+        "local SLM inference execution",
+        "encrypted persistence"
+      ],
+      "live_outputs": [
+        "runtime-emitted thinking token deltas",
+        "runtime-emitted JSON token deltas"
+      ],
+      "runtime_facts": [
+        "grammar flag",
+        "token budgets",
+        "prompt evaluation milliseconds",
+        "generation milliseconds",
+        "generated tokens",
+        "prefix cache attempted/hit/prefix tokens"
+      ],
+      "terminal_states": [
+        "saved",
+        "already_saved",
+        "filtered_out",
+        "retrying",
+        "error",
+        "stopped"
+      ],
+      "private_content_scope": "local candidate-scoped inspect UI; not saveable UI state"
+    }
+  },
+  "instrumentation": {
+    "current_source_events": [
+      "deterministic_filter_started",
+      "deterministic_filter_rejected",
+      "deterministic_filter_passed",
+      "inference_started",
+      "thinking_token_delta",
+      "json_token_delta",
+      "inference_completed",
+      "persistence_started"
+    ],
+    "current_native_metrics": [
+      "t_load_ms",
+      "t_p_eval_ms",
+      "t_eval_ms",
+      "n_tokens"
+    ],
+    "current_cache_metrics": [
+      "attempted",
+      "hit",
+      "prefix_tokens"
+    ],
+    "aggregate_contract": "configs/contracts/pocketfinancer-android-runtime-evidence-v1.json",
+    "aggregate_export_in_android_source": false,
+    "gaps": [
+      "native_t_load_ms_is_reset_at_operation_start_and_not_a_verified_model_load_measure",
+      "no_end_to_end_stage_latency",
+      "no_peak_memory_measurement",
+      "no_battery_measurement",
+      "no_content_free_aggregate_export",
+      "no_phone_measurement_in_phase_c"
+    ]
+  },
+  "evidence_classes": {
+    "source_static": {
+      "status": "captured",
+      "revision": "552ffbdfbd41773980aa249789b0cb508fdb19fd",
+      "measurement_claim": false
+    },
+    "host": {
+      "evidence_class": "host",
+      "status": "lightweight_verifier_and_tests_only",
+      "runtime_measurement_claim": false
+    },
+    "android_device": {
+      "evidence_class": "android_device",
+      "status": "not_measured_no_device",
+      "reason": "adb_get_state_reported_no_devices_or_emulators; inference was not authorized",
+      "runtime_measurement_claim": false
+    }
+  },
+  "selection": {
+    "direct_v2": "unselected_hypothesis",
+    "candidate_v2": "unselected_hypothesis",
+    "selected_profile_id": null
+  },
+  "privacy": {
+    "classification": "aggregate_safe_source_only",
+    "private_data_accessed": false,
+    "android_worktree_files_hashed": false,
+    "ios_read_only": true,
+    "forbidden": [
+      "raw SMS or sender",
+      "annotation rows",
+      "row-level predictions",
+      "model prompts or outputs",
+      "stable device identifiers"
+    ]
+  }
+}
