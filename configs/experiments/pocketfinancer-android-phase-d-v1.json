@@ -15,16 +15,16 @@
       "sha256": "f0af91d3eaed9e34ec24411eb344dbd8e79831710f6d25f29024c1f4c9075131"
     },
     "runtime_profile": {
-      "path": "configs/experiments/pocketfinancer-android-phase-d-runtime-v1.json",
-      "sha256": "fc0e8cc64e71cffaa572e5c8e6a1e83c82d10b6090560d47ebf06c003ad19f83"
+      "path": "configs/experiments/pocketfinancer-android-phase-d-runtime-cuda-v1.json",
+      "sha256": "1c68fe057f20c957b4f3a2bf79ce798b3dfc38a0463ac73903f9d9914a096ab0"
     },
     "parser": {
       "path": "lfm25/android_protocol_lab.py",
-      "sha256": "ee5049ecebdb44c1370458a576c94622a8ab97eaea296a95193373c95761f6c7"
+      "sha256": "9615142da913044a2c819fb7801a99c47ba29582db0fa3c4f2cb7e2aab72db85"
     },
     "runner": {
       "path": "scripts/run_pocketfinancer_android_phase_d_lab.py",
-      "sha256": "3a80c8903e25888959118ddf0587ee0c13483961f233a497d78221c116371b56"
+      "sha256": "e67f8818d88325ace6e55cf49d92c77457cca6873bebe76ff90a121bf3b70e20"
     },
     "evaluator": {
       "path": "lfm25/evaluation_v2.py",

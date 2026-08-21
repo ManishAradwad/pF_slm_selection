@@ -145,6 +145,15 @@ def test_manifest_declares_independent_protocol_pair_for_every_runtime_variant()
     assert all(profile["selected_profile_id"] is None for profile in manifest["profiles"])
     assert manifest["bindings"]["android_commit"] == ANDROID_COMMIT
     assert manifest["bindings"]["baseline_manifest_sha256"] == BASELINE_SHA256
+    runtime_resource = manifest["resources"]["runtime_profile"]
+    assert runtime_resource["path"].endswith("phase-d-runtime-cuda-v1.json")
+    runtime = json.loads(
+        (REPOSITORY_ROOT / runtime_resource["path"]).read_text(encoding="utf-8")
+    )["host_gguf_runtime"]
+    assert runtime["model_runtime_id"] == "llama-cpp-python-0.3.20-cuda"
+    assert runtime["accelerator"] == "nvidia_cuda"
+    assert runtime["n_gpu_layers"] == -1
+    assert runtime["gpu_offload_required"] is True
 
 
 def test_qwen_and_gemma_use_separate_prompt_and_chat_strategies():

@@ -23,7 +23,6 @@ from lfm25.android_protocol_lab import (  # noqa: E402
     BASELINE_SHA256,
     LAB_ID,
     LAB_VERSION,
-    RUNTIME_PROFILE_PATH,
     SYNTHETIC_FIXTURE_PATH,
     AndroidProtocolLabError,
     load_lab_manifest,
@@ -106,6 +105,19 @@ def _profile_gap(
     }
 
 
+def _verify_runtime_capabilities(runtime: Mapping[str, Any]) -> None:
+    if runtime["accelerator"] != "nvidia_cuda":
+        return
+    from llama_cpp import llama_cpp
+
+    if runtime["n_gpu_layers"] != -1 or not runtime["gpu_offload_required"]:
+        raise AndroidProtocolLabError(
+            "CUDA runtime must require all-layer GPU offload"
+        )
+    if not llama_cpp.llama_supports_gpu_offload():
+        raise AndroidProtocolLabError("llama.cpp CUDA GPU offload is unavailable")
+
+
 def _load_llama(profile: Mapping[str, Any], runtime: Mapping[str, Any]):
     from llama_cpp import Llama
 
@@ -140,7 +152,7 @@ def _result_set(
         "schema_version": 1,
         "lab_id": LAB_ID,
         "lab_version": LAB_VERSION,
-        "result_set_id": "pocketfinancer-android-phase-d-synthetic-v1",
+        "result_set_id": "pocketfinancer-android-phase-d-synthetic-cuda-v1",
         "status": "completed_evaluation_only_no_selection",
         "implementation_commit": implementation_commit,
         "bindings": {
@@ -220,8 +232,12 @@ def main() -> int:
         implementation_commit = args.implementation_commit or _git_head()
         if len(implementation_commit) != 40:
             raise AndroidProtocolLabError("implementation commit must be a full Git object ID")
-        runtime_profile = _read_json(RUNTIME_PROFILE_PATH)
+        runtime_profile_path = (
+            REPOSITORY_ROOT / manifest["resources"]["runtime_profile"]["path"]
+        )
+        runtime_profile = _read_json(runtime_profile_path)
         runtime = runtime_profile["host_gguf_runtime"]
+        _verify_runtime_capabilities(runtime)
         annotation_package = _read_json(SYNTHETIC_FIXTURE_PATH)
         conformance_by_protocol = conformance["protocols"]
 

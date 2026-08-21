@@ -53,10 +53,6 @@ LAB_MANIFEST_PATH = (
     REPOSITORY_ROOT
     / "configs/experiments/pocketfinancer-android-phase-d-v1.json"
 )
-RUNTIME_PROFILE_PATH = (
-    REPOSITORY_ROOT
-    / "configs/experiments/pocketfinancer-android-phase-d-runtime-v1.json"
-)
 SYNTHETIC_FIXTURE_PATH = (
     REPOSITORY_ROOT
     / "tests/fixtures/pocketfinancer_workbench_v2_synthetic.json"
@@ -793,10 +789,16 @@ def verify_local_artifact(profile: Mapping[str, Any]) -> dict[str, Any]:
     return {"status": "verified", "sha256": actual, "path": path}
 
 
-def _runtime_environment_sha256(runtime: Mapping[str, Any]) -> str:
+def _runtime_profile_path(manifest: Mapping[str, Any]) -> Path:
+    return REPOSITORY_ROOT / manifest["resources"]["runtime_profile"]["path"]
+
+
+def _runtime_environment_sha256(
+    runtime: Mapping[str, Any], runtime_profile_path: Path
+) -> str:
     return sha256_json(
         {
-            "runtime_profile_sha256": sha256_file(RUNTIME_PROFILE_PATH),
+            "runtime_profile_sha256": sha256_file(runtime_profile_path),
             "host_gguf_runtime": runtime,
         }
     )
@@ -810,6 +812,7 @@ def _prediction_package(
     rows: list[dict[str, Any]],
     conformance: Mapping[str, Any],
     runtime: Mapping[str, Any],
+    manifest: Mapping[str, Any],
 ) -> dict[str, Any]:
     annotation_summary = validate_annotation_package(annotation_package)
     semantic = workbench_contract()["semantic_contract"]
@@ -823,6 +826,7 @@ def _prediction_package(
     filter_sha256 = baseline["source_snapshot"]["files_sha256"][
         "pipeline/src/main/java/com/pocketfinancer/pipeline/SmsFilterPipeline.kt"
     ]
+    runtime_profile_path = _runtime_profile_path(manifest)
     return {
         "evaluation_contract": {
             "id": EVALUATION_CONTRACT_ID,
@@ -848,12 +852,14 @@ def _prediction_package(
             "semantic_reference_sha256": semantic["reference_sha256"],
             "semantic_conformance_sha256": semantic["conformance_sha256"],
             "prompt_sha256": profile["prompt_profile"]["sha256"],
-            "decode_settings_sha256": sha256_file(RUNTIME_PROFILE_PATH),
+            "decode_settings_sha256": sha256_file(runtime_profile_path),
             "parser_sha256": sha256_file(Path(__file__)),
             "filter_sha256": filter_sha256,
-            "runtime_environment_sha256": _runtime_environment_sha256(runtime),
+            "runtime_environment_sha256": _runtime_environment_sha256(
+                runtime, runtime_profile_path
+            ),
             "evaluator_id": EVALUATION_CONTRACT_ID,
-            "model_runtime_id": "llama-cpp-python-0.3.20-cpu",
+            "model_runtime_id": runtime["model_runtime_id"],
             "model_revision": profile["model"]["model_revision"],
             "prompt_profile_id": prompt_profile["prompt_profile_id"],
             "chat_template_sha256": profile["model"]["chat_template_sha256"],
@@ -963,6 +969,7 @@ def run_host_gguf_profile(
         rows=rows,
         conformance=conformance,
         runtime=runtime,
+        manifest=manifest,
     )
     report = score_evaluation_package(annotation_package, prediction)
     assessment = assess_candidate(report, baseline_report=None)
@@ -982,7 +989,7 @@ def run_host_gguf_profile(
             "prompt_profile_id": prompt_profile["prompt_profile_id"],
             "prompt_sha256": profile["prompt_profile"]["sha256"],
             "parser_sha256": sha256_file(Path(__file__)),
-            "runtime_profile_sha256": sha256_file(RUNTIME_PROFILE_PATH),
+            "runtime_profile_sha256": sha256_file(_runtime_profile_path(manifest)),
             "evaluator_sha256": manifest["resources"]["evaluator"]["sha256"],
             "fixture_sha256": manifest["resources"]["synthetic_fixture"]["sha256"],
         },
@@ -1000,6 +1007,13 @@ def run_host_gguf_profile(
                 "aggregate_report": report,
                 "parser_failure_taxonomy": failure_taxonomy,
                 "runtime_parity": "host_only_not_android_device",
+                "runtime_execution": {
+                    "model_runtime_id": runtime["model_runtime_id"],
+                    "accelerator": runtime["accelerator"],
+                    "device_ordinal": runtime["device_ordinal"],
+                    "n_gpu_layers": runtime["n_gpu_layers"],
+                    "gpu_offload_required": runtime["gpu_offload_required"],
+                },
             },
             "android_device": {
                 "status": "not_measured",
