@@ -20,7 +20,7 @@
     },
     "parser": {
       "path": "lfm25/android_protocol_lab.py",
-      "sha256": "3dbb7b1df10acb88969d3120cbe9721155a0e1cb49cf2503f079da76ef8673a8"
+      "sha256": "ee5049ecebdb44c1370458a576c94622a8ab97eaea296a95193373c95761f6c7"
     },
     "runner": {
       "path": "scripts/run_pocketfinancer_android_phase_d_lab.py",

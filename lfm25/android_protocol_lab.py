@@ -38,7 +38,6 @@ from .semantic_v2 import (
     EvidenceSpan,
 )
 from .workbench_v2 import (
-    package_sha256,
     resolved_annotation_rows,
     validate_annotation_package,
     workbench_contract,
