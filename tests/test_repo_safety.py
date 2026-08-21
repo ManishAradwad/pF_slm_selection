@@ -63,6 +63,8 @@ def test_versioned_candidate_protocol_artifacts_have_exact_exceptions() -> None:
         "DATA/annotation_component_v1_synthetic.jsonl",
         "configs/contracts/pocketfinancer-candidate-v1.json",
         "configs/pipelines/pocketfinancer-lfm2.5-350m-candidate-v1.json",
+        "configs/prompts/pocketfinancer-android-gemma-candidate-v2-v1.json",
+        "configs/prompts/pocketfinancer-android-qwen-candidate-v2-v1.json",
     ]
 
     assert find_violations(paths) == []
@@ -72,6 +74,8 @@ def test_versioned_candidate_protocol_artifacts_have_exact_exceptions() -> None:
         "DATA/annotation_component_v1_synthetic-copy.jsonl",
         "configs/contracts/pocketfinancer-candidate-v1-copy.json",
         "configs/pipelines/pocketfinancer-lfm2.5-350m-candidate-v1-copy.json",
+        "configs/prompts/pocketfinancer-android-gemma-candidate-v2-v1-copy.json",
+        "configs/prompts/pocketfinancer-android-qwen-candidate-v2-v1-copy.json",
     ]
 
     assert find_violations(near_misses) == [
@@ -79,6 +83,8 @@ def test_versioned_candidate_protocol_artifacts_have_exact_exceptions() -> None:
         Violation(near_misses[1], "raw export"),
         Violation(near_misses[2], "raw export"),
         Violation(near_misses[3], "raw export"),
+        Violation(near_misses[4], "raw export"),
+        Violation(near_misses[5], "raw export"),
     ]
 
 

@@ -34,6 +34,8 @@ VERSIONED_PUBLIC_ARTIFACT_PATHS = frozenset(
         "DATA/annotation_component_v1_synthetic.jsonl",
         "configs/contracts/pocketfinancer-candidate-v1.json",
         "configs/pipelines/pocketfinancer-lfm2.5-350m-candidate-v1.json",
+        "configs/prompts/pocketfinancer-android-gemma-candidate-v2-v1.json",
+        "configs/prompts/pocketfinancer-android-qwen-candidate-v2-v1.json",
     }
 )
 
