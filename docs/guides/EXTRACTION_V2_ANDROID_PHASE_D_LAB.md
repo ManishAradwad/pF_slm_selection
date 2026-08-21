@@ -30,9 +30,10 @@ and ungrounded evidence. The trusted SMS timestamp is injected after parsing.
 - `source_static` covers prompt/adapter validation and all 13 invented Semantic
   V2 conformance vectors.
 - `host_hf` is not part of this laboratory and cannot be inferred from GGUF.
-- `host_gguf` uses already-local SHA-256-verified artifacts, CPU-only
-  `llama-cpp-python`, and the committed four-row invented Workbench smoke
-  fixture. Host latency is not phone latency.
+- `host_gguf` uses already-local SHA-256-verified artifacts and the versioned
+  CUDA `llama-cpp-python` profile with required all-layer offload, plus the
+  committed four-row invented Workbench smoke fixture. Host GPU latency is not
+  emulator, simulator, or physical-phone latency.
 - `android_device` is recorded independently. A baseline app/runtime smoke does
   not become protocol-comparison evidence unless an evaluation-only Direct or
   Candidate harness runs the exact profile on the device.
@@ -57,15 +58,22 @@ Hash all five expected local artifacts without downloading anything:
 python scripts/run_pocketfinancer_android_phase_d_lab.py --verify-artifacts
 ```
 
-After the implementation commit exists, run the controlled CPU-only GGUF smoke
-and write only aggregate evidence under the ignored `RESULTS/` root:
+After the implementation commit exists, confirm the CUDA binding reports GPU
+offload support, then run the controlled CUDA GGUF smoke and write only aggregate
+evidence under the ignored `RESULTS/` root:
 
 ```bash
+python -c 'from llama_cpp import llama_cpp; assert llama_cpp.llama_supports_gpu_offload()'
+
 python scripts/run_pocketfinancer_android_phase_d_lab.py \
   --run-host-gguf \
   --implementation-commit FULL_IMPLEMENTATION_COMMIT \
-  --output RESULTS/phase_d/pocketfinancer-android-phase-d-synthetic-v1.json
+  --device-smoke-json RESULTS/phase_d/pocketfinancer-android-phase-d-emulator-smoke-v1.json \
+  --output RESULTS/phase_d/pocketfinancer-android-phase-d-synthetic-cuda-v1.json
 ```
+
+Sample `nvidia-smi` while the runner is active and record the NVIDIA device,
+utilization, VRAM, and power observation in the reviewed aggregate handoff.
 
 The runner keeps prompts, raw output, and row predictions in memory only. The
 committed result, if reviewed and copied from `RESULTS/`, may contain aggregate

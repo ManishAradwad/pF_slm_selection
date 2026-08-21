@@ -4,13 +4,27 @@
   "program_version": 2,
   "normative_plan": {
     "path": "docs/plans/POCKETFINANCER_EXTRACTION_PROGRAM_V2.md",
-    "sha256": "6eccc6c7d5df21b4998079ff40c2d5c92e51af53a83a6cbad5fc15c29c7203f5",
+    "sha256": "a7cf0747756dc9931b9d862368ca5ea039ce031658009afbea0c969a3bd991f3",
     "status": "finalized"
   },
   "current_phase": {
-    "id": "D",
-    "name": "Android prompt/output-protocol laboratory",
+    "id": "E",
+    "name": "LFM2.5-350M data, fine-tuning and quantization program",
     "status": "not_started"
+  },
+  "hardware_execution_policy": {
+    "status": "user_authorized_2026-08-22",
+    "principle": "best_available_applicable_hardware",
+    "authorized_tiers": [
+      "nvidia_cuda_for_gpu_suitable_local_workloads",
+      "windows_android_emulator",
+      "macos_android_emulator_or_ios_simulator_when_available",
+      "attached_physical_devices_when_available_and_in_scope"
+    ],
+    "evidence_separation": "host CPU, host GPU, Windows emulator, macOS emulator/simulator, and physical-device evidence remain separate",
+    "availability_note": "Windows Android emulator and NVIDIA RTX 4070 were available and used in Phase D; no macOS execution host was attached",
+    "gpu_coordination": "before shared-GPU work, tell the user which workload needs it and why; defer while the user reports an interactive GPU workload",
+    "scope_boundary": "does not itself authorize private data, downloads, training/fine-tuning, conversion, quantization, selection, deployment, or release"
   },
   "phase_a_review": {
     "status": "closed",
@@ -102,6 +116,146 @@
       "pipeline_check": "attempted but refused the pre-existing auto-discovered WSL Android checkout at a6c8a11 because it differs from the locked a9b7df44 profile revision; no pipeline/profile/lock/orchestration file changed",
       "verification_tier": "source_static_and_lightweight_host_only",
       "android_device": "not measured: ADB reported no attached devices or emulators and inference was not authorized"
+    }
+  },
+  "phase_d_review": {
+    "status": "completed_and_reviewed",
+    "branch": "codex/extraction-v2-phase-d",
+    "starting_handoff_commit": "61672935d8af21179a40346e097610c2ba09da46",
+    "implementation_commit": "51112815f854e00a933db9bc9df18385a4923c94",
+    "implementation_commits": [
+      "51112815f854e00a933db9bc9df18385a4923c94",
+      "3c77cd60710649fb074eea73cba36e0dbf59d0ab",
+      "adc7b0ff795d7137a8874217d29a4590fcd7ec7b",
+      "965620d09136c7fc689da5bb7d974db80e6f9db3"
+    ],
+    "bindings": {
+      "android_commit": "552ffbdfbd41773980aa249789b0cb508fdb19fd",
+      "baseline_id": "pocketfinancer-android-552ffbdf-phase-c",
+      "baseline_manifest_sha256": "9274e5a63524b46bb4149e11d5190bae4ebcfef15170a69af77ad050b31167fc",
+      "locked_production_profile_revision": "a9b7df44be2183daac3a05cadbfd40b8f309cd4b",
+      "ios_commit": "04f770b235f860080ecd96adad1a5d011f3c2c2c"
+    },
+    "scope": [
+      "ten independent Direct V2 and Candidate V2 profiles across five Android Qwen and Gemma runtime variants",
+      "family-specific prompt and chat-template strategies with exact parser, runtime, model, evaluator, fixture, and baseline provenance",
+      "aggregate-only invented-synthetic parser conformance, host GGUF failure taxonomy, and frozen-policy gate assessment",
+      "authorized Android emulator build, content-free launch, and invented-only instrumentation smoke kept separate from protocol inference"
+    ],
+    "excluded": [
+      "private SMS, sender, account, annotation, row-level prediction, app-storage, or log-content access",
+      "training, fine-tuning, merge, conversion, quantization, model download, protected scoring, or blinded scoring",
+      "Android Direct V2 or Candidate V2 protocol inference because no evaluation-only device harness exists",
+      "physical-phone measurement, protocol/model/profile selection, production-default changes, deployment, release, or Phase E work"
+    ],
+    "lab": {
+      "id": "pocketfinancer-android-phase-d-protocol-lab",
+      "version": 1,
+      "manifest_path": "configs/experiments/pocketfinancer-android-phase-d-v1.json",
+      "manifest_sha256": "c38214b536d14b04c4322c790f79d7c0d36743d125b0aa60b39c1d4d5f401c8a",
+      "resolved_manifest_sha256": "6368f6d3b8861958e4f5164b047b52761490cd40b5c7e47c59eaf23d727297f0",
+      "contract_path": "configs/contracts/pocketfinancer-android-phase-d-lab-v1.json",
+      "contract_sha256": "f0af91d3eaed9e34ec24411eb344dbd8e79831710f6d25f29024c1f4c9075131",
+      "runtime_profile_path": "configs/experiments/pocketfinancer-android-phase-d-runtime-cuda-v1.json",
+      "runtime_profile_sha256": "1c68fe057f20c957b4f3a2bf79ce798b3dfc38a0463ac73903f9d9914a096ab0",
+      "parser_path": "lfm25/android_protocol_lab.py",
+      "parser_sha256": "9615142da913044a2c819fb7801a99c47ba29582db0fa3c4f2cb7e2aab72db85",
+      "runner_path": "scripts/run_pocketfinancer_android_phase_d_lab.py",
+      "runner_sha256": "e67f8818d88325ace6e55cf49d92c77457cca6873bebe76ff90a121bf3b70e20",
+      "evaluator_path": "lfm25/evaluation_v2.py",
+      "evaluator_sha256": "559e6484e96f6cee85c97c158d529eb7acc12136f15c7c60351b4c58bb3547e3",
+      "synthetic_fixture_path": "tests/fixtures/pocketfinancer_workbench_v2_synthetic.json",
+      "synthetic_fixture_sha256": "d0229c86f6ba8afa17ade9226e6ef4ed630a70c486821f4996f2a784ac8de3cb",
+      "semantic_conformance_path": "tests/fixtures/pocketfinancer_semantic_v2_synthetic_golden.json",
+      "semantic_conformance_sha256": "1bb7053d7b49066830eb0c08f546c8b3be5490e292f3497928c832f25b03f2fa",
+      "decision_policy_path": "configs/programs/pocketfinancer-extraction-v2-decision-policy.json",
+      "decision_policy_sha256": "96dd8d2f4bff4cf8ec964dc668b05cbf75dd3ee11323bca623fe220fc55b49a4",
+      "guide_path": "docs/guides/EXTRACTION_V2_ANDROID_PHASE_D_LAB.md",
+      "guide_sha256": "155da8b3b2a8ae3d16aa2e52cb9512d2c4976dfc0f283ab8542ff5b49564915b",
+      "test_path": "tests/test_android_protocol_lab.py",
+      "test_sha256": "2578f94f1985f01cf25fa695177708e09507fd02003aafeb02f385825f22a8f2",
+      "prompt_profiles": [
+        {
+          "path": "configs/prompts/pocketfinancer-android-qwen-direct-v2-v1.json",
+          "sha256": "66c7e616cdea7346e1250eb4b41de43a25b5911d28aae4ebd34f373381dc1cae"
+        },
+        {
+          "path": "configs/prompts/pocketfinancer-android-qwen-candidate-v2-v1.json",
+          "sha256": "440720a9f8f2bcb8b5cbac0d7baeed6f0ce9172f0a4b4bdcdbc69a207170f4c2"
+        },
+        {
+          "path": "configs/prompts/pocketfinancer-android-gemma-direct-v2-v1.json",
+          "sha256": "2feb51c67eb7a90f627fe4fbfa8738e3f3231f5a182728124e8bcca8d95c2853"
+        },
+        {
+          "path": "configs/prompts/pocketfinancer-android-gemma-candidate-v2-v1.json",
+          "sha256": "72c15f69f0e645c4478ce7957823490bbb741344766cb3528676070c14a1cc83"
+        }
+      ]
+    },
+    "aggregate_result": {
+      "result_set_id": "pocketfinancer-android-phase-d-synthetic-cuda-v1",
+      "local_path": "RESULTS/phase_d/pocketfinancer-android-phase-d-synthetic-cuda-v1.json",
+      "sha256": "933c2e6aafac0209bda2c56455af81c97eb1806ed4868e3182f2286da8ad0828",
+      "committed": false,
+      "classification": "aggregate_only_invented_synthetic",
+      "profiles_recorded": 10,
+      "host_gguf_profiles_measured": 10,
+      "android_protocol_profiles_measured": 0,
+      "decision": "no_selection",
+      "selected_profile_id": null
+    },
+    "android_emulator_smoke": {
+      "status": "measured_baseline_runtime_only",
+      "evidence_class": "android_device",
+      "environment_class": "android_emulator_not_physical_phone",
+      "protocol_comparison_claim": false,
+      "android_commit": "552ffbdfbd41773980aa249789b0cb508fdb19fd",
+      "api_level": 35,
+      "primary_abi": "x86_64",
+      "application_id": "com.pocketfinancer.debug",
+      "version_name": "1.1.0-debug",
+      "apk_sha256": "a88b26d495b695f9e2af52ba45415033e1772a94768f1b15c9a0007a5b721b39",
+      "build": "forced debug rebuild passed from native-clean bound Android commit",
+      "privacy_boundary": "qualifying launch ran after SMS permissions were revoked; a post-instrumentation audit found both regranted, then force-stopped and revoked them again; final relaunch confirmed both false; no app storage, message content, or log content was inspected",
+      "launch": "initial qualifying cold launch status ok at emulator-only 2328 ms; final post-instrumentation cold relaunch status ok at emulator-only 8162 ms",
+      "instrumentation": "13 app UI tests and 1 inference-filesystem test passed using invented-only state",
+      "gap_codes": [
+        "android_protocol_harness_unavailable",
+        "no_physical_phone_measurement",
+        "no_peak_memory_instrumentation",
+        "no_battery_instrumentation",
+        "no_recovery_trials"
+      ]
+    },
+    "report_path": "docs/architecture/POCKETFINANCER_ANDROID_PROTOCOL_LAB_PHASE_D.md",
+    "report_sha256": "44373e812d360aa964ba99e79016d0fa4212b7d2d432121ffae79c42482d75e8",
+    "selection": {
+      "decision": "no_selection",
+      "selected_profile_id": null,
+      "production_defaults_changed": false,
+      "phase_e_started": false
+    },
+    "verification": {
+      "entry_state_hash_lock": "pytest -q tests/test_extraction_v2_program_state.py: 1 passed before Phase D changes",
+      "phase_d_targeted": "pytest -q tests/test_android_protocol_lab.py: 12 passed",
+      "final_state_hash_lock": "pytest -q tests/test_extraction_v2_program_state.py: 1 passed",
+      "repository_safety_unit": "pytest -q tests/test_repo_safety.py: 25 passed",
+      "artifact_verification": "all five already-local GGUF artifacts verified by SHA-256",
+      "parser_conformance": "Direct V2 13/13 and Candidate V2 13/13 with zero uncaught exceptions",
+      "host_gguf": "10/10 profiles measured with required all-layer CUDA offload on NVIDIA RTX 4070; aggregate result retained under ignored RESULTS root",
+      "repository_safety": "passed with only the pre-existing DATA/extraction_ds.jsonl publication-review exception",
+      "ruff_default": "passed",
+      "ruff_strict": "passed",
+      "pytest_full": "603 passed",
+      "git_diff_check": "passed",
+      "baseline_verifier": "31 baseline blobs and 13 locked-profile blobs verified against the explicitly named Android repository",
+      "android_build": "app:assembleDebug forced rebuild passed",
+      "android_emulator_instrumentation": "14 passed",
+      "mobile_native_git_status": "Android and iOS clean at expected commits before and after device work",
+      "pipeline_check": "refused the pre-existing auto-discovered WSL Android checkout at a6c8a11 because it differs from locked profile revision a9b7df44; explicit baseline verification passed and no guard was weakened",
+      "gpu": "RTX 4070 CUDA offload capability passed; live evaluation sampled at 67-76% SM, 2870 MiB VRAM, and approximately 119-122 W",
+      "verification_tier": "source_static_host_gguf_cuda_and_android_emulator_smoke_no_device_protocol_inference"
     }
   },
   "semantic_contract": {
@@ -254,12 +408,12 @@
     {
       "id": "D",
       "name": "Android prompt/output-protocol laboratory",
-      "status": "not_started"
+      "status": "completed_and_reviewed"
     },
     {
       "id": "E",
       "name": "LFM2.5-350M data, fine-tuning and quantization program",
-      "status": "blocked_by_prior_phase"
+      "status": "not_started"
     },
     {
       "id": "F",
@@ -314,27 +468,29 @@
     ]
   },
   "last_completed_phase": {
-    "id": "C",
+    "id": "D",
     "status": "completed_and_reviewed",
-    "implementation_commit": "4ab91ec8ffb71f4531861211e674edca639a28f0",
+    "implementation_commit": "51112815f854e00a933db9bc9df18385a4923c94",
     "implementation_commits": [
-      "4ab91ec8ffb71f4531861211e674edca639a28f0"
+      "51112815f854e00a933db9bc9df18385a4923c94",
+      "3c77cd60710649fb074eea73cba36e0dbf59d0ab",
+      "adc7b0ff795d7137a8874217d29a4590fcd7ec7b",
+      "965620d09136c7fc689da5bb7d974db80e6f9db3"
     ],
-    "android_baseline_id": "pocketfinancer-android-552ffbdf-phase-c",
+    "lab_id": "pocketfinancer-android-phase-d-protocol-lab",
+    "aggregate_result_sha256": "933c2e6aafac0209bda2c56455af81c97eb1806ed4868e3182f2286da8ad0828",
     "android_commit": "552ffbdfbd41773980aa249789b0cb508fdb19fd"
   },
   "next_allowed_phase": {
-    "id": "D",
-    "name": "Android prompt/output-protocol laboratory",
+    "id": "E",
+    "name": "LFM2.5-350M data, fine-tuning and quantization program",
     "requires": [
-      "Start from the completed Phase C handoff commit reported by the task and read every applicable AGENTS.md completely.",
-      "Run the program state hash-lock tests before acting and preserve unrelated changes in every worktree.",
-      "Keep Semantic V2, Workbench V2, the frozen decision policy, and the Phase C Android baseline/runtime evidence artifacts hash-locked.",
-      "Use controlled evaluation-only comparisons that bind the exact Android baseline and independently test Direct V2 and Candidate V2 for Qwen and Gemma; do not imply a universal protocol.",
-      "Keep iOS read-only, preserve production defaults, and keep host, GGUF-host, and Android-device evidence explicitly separate.",
-      "Do not inspect private SMS or annotations without separate explicit user authorization.",
-      "Do not train or download models, run CUDA, protected scoring, or private-data inference without separate explicit authorization.",
-      "Do not select Direct V2, Candidate V2, a model, or a profile, modify either mobile application, or proceed into Phase E."
+      "Start in a separate task from the completed Phase D handoff commit and rerun the program-state hash-lock test before acting.",
+      "Name the exact LFM2.5-350M experiment profile and keep the Phase D no-selection result, Semantic V2, Workbench V2, decision policy, and Android evidence hash-locked.",
+      "Obtain explicit user approval for any real labels, sources, annotation/adjudication policy, and split governance; otherwise use only invented synthetic material.",
+      "Apply the standing best-available-hardware policy to each otherwise-authorized Phase E workload; CUDA is permitted, but training, fine-tuning, merge, conversion, quantization, and downloads still require explicit Phase E authorization.",
+      "Make data build, training, checkpoint selection, merge, conversion, and quantization non-overwriting and fully provenance-bound.",
+      "Do not infer Android deployability from host/HF/GGUF evidence, do not select any Android/iOS/cross-platform profile, do not change production defaults, and do not proceed into Phase F."
     ]
   }
 }
