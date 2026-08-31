@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import re
 import sys
 from pathlib import Path
 from typing import Any, Mapping
@@ -13,7 +12,7 @@ SCRIPT_ROOT = Path(__file__).resolve().parents[1]
 if str(SCRIPT_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPT_ROOT))
 
-from lfm25.semantic_v2 import (
+from lfm25.semantic_v2 import (  # noqa: E402
     SEMANTIC_CONTRACT_ID,
     SEMANTIC_CONTRACT_VERSION,
     derive_minor_units,
@@ -193,7 +192,7 @@ def main() -> int:
 
             try:
                 v2_record = convert_annotation_to_semantic_v2(sms, sender, ann)
-            except Exception as exc:
+            except Exception:
                 # If error in span alignment, fallback to not_transaction
                 ann_fallback = {"decision": "not_transaction"}
                 v2_record = convert_annotation_to_semantic_v2(sms, sender, ann_fallback)
@@ -242,7 +241,7 @@ def main() -> int:
             except Exception:
                 pass
 
-    print(f"Dataset Row Counts:")
+    print("Dataset Row Counts:")
     print(f"  Universal Test Gold Set: {len(test_rows)} rows")
     print(f"  Universal Dev Set:       {len(dev_rows)} rows")
     print(f"  Universal Train Set:     {len(train_rows)} rows (including {reclaimed_count} reclaimed rows)")

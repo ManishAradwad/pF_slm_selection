@@ -13,12 +13,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from lfm25.prefilter_simulator import (
+from lfm25.prefilter_simulator import (  # noqa: E402
     run_android_prefilter,
     run_ios_prefilter,
     run_unified_prefilter,
 )
-from lfm25.taxonomy import CATEGORIES_METADATA, classify_sms_record
+from lfm25.taxonomy import CATEGORIES_METADATA, classify_sms_record  # noqa: E402
 
 
 class TestDatasetSegregation(unittest.TestCase):
