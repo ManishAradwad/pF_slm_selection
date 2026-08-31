@@ -19,6 +19,9 @@ from scripts.check_repo_safety import Violation, find_violations
         ("archive/results_analysis.ipynb", "result artifact"),
         ("candidate.jsonl", "raw export"),
         ("scripts/example.py.orig", "patch backup"),
+        ("pocketfinancer_v2_datasets.zip", "archive"),
+        ("private/archive.tar.gz", "archive"),
+        ("docs/.DS_Store", "operating-system metadata"),
     ],
 )
 def test_private_and_generated_paths_are_rejected(path: str, category: str) -> None:
@@ -86,6 +89,26 @@ def test_versioned_candidate_protocol_artifacts_have_exact_exceptions() -> None:
         Violation(near_misses[4], "raw export"),
         Violation(near_misses[5], "raw export"),
     ]
+
+
+def test_sms_processing_source_contracts_have_exact_exceptions() -> None:
+    paths = [
+        "configs/sms_processing/archive-india-inr.json",
+        "configs/sms_processing/contracts/canonical-label.schema.json",
+        "configs/sms_processing/contracts/corpus-record.schema.json",
+        "configs/sms_processing/contracts/grounded-candidate-selector.schema.json",
+        "configs/sms_processing/contracts/processing-result.schema.json",
+        "configs/sms_processing/contracts/processing-trace.schema.json",
+        "configs/sms_processing/contracts/sms-analysis.schema.json",
+        "configs/sms_processing/contracts/user-feedback.schema.json",
+        "configs/sms_processing/currency/iso-4217.json",
+        "configs/sms_processing/profiles/core-en.json",
+        "configs/sms_processing/profiles/india.json",
+    ]
+
+    assert find_violations(paths) == []
+    near_miss = "configs/sms_processing/contracts/grounded-candidate-selector-copy.json"
+    assert find_violations([near_miss]) == [Violation(near_miss, "raw export")]
 
 
 def test_grandfather_exception_is_exact() -> None:
