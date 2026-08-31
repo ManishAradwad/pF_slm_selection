@@ -13,6 +13,8 @@
     "protected_test": 10
   },
   "source_id_key_path": "PRIVATE_DATA/sms_processing/.source-id-key",
+  "regression_fixture_path": "DATA/extraction_ds.jsonl",
+  "legacy_review_path": "PRIVATE_DATA/lfm25/blinded_test_review.jsonl",
   "permissions": {"directory": "0700", "file": "0600"},
   "offline_retention": "retain_every_source_row",
   "build_sft_targets": false
