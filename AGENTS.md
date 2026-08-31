@@ -5,6 +5,28 @@ tools. It is intentionally independent of any editor, coding agent, or model
 provider. Read this file before changing code, data builders, evaluation behavior,
 or experiment documentation.
 
+## Codex collaboration model profile
+
+This repository currently uses the following Codex collaboration profile
+(recorded 2026-08-31). It governs the coding agents working on this repository,
+not the models evaluated, trained, or deployed by this project.
+
+- The primary/root agent uses `gpt-5.6-sol` with `medium` reasoning. It owns
+  scope, integration, and final verification.
+- An `explorer` subagent uses `gpt-5.6-luna` with `medium` reasoning for
+  read-only repository discovery and behavior tracing.
+- A `worker` subagent uses `gpt-5.6-terra` with `medium` reasoning for bounded
+  implementation and verification tasks.
+- A `reviewer` subagent uses `gpt-5.6-terra` with `high` reasoning for read-only
+  correctness, security, regression, and test review.
+- A `default` subagent inherits the parent agent's model and reasoning effort
+  unless the spawning task explicitly overrides them.
+
+The active Codex runtime and task instructions are authoritative if this dated
+profile differs from the live configuration. A model or reasoning override does
+not change repository rules, task scope, permissions, or review requirements;
+record any deliberate override in the task handoff.
+
 ## Authority and source of truth
 
 PocketFinancer Android defines the product behavior. The current locked profile is
