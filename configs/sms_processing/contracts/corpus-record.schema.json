@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pocketfinancer.corpus-record/1",
+  "title": "Private Canonical Corpus Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "source_id", "source", "source_metadata", "analysis", "weak_facets",
+    "grouping", "pool", "review_state", "provenance"
+  ],
+  "properties": {
+    "contract": {"const": "pocketfinancer.corpus-record/1"},
+    "source_id": {"type": "string", "pattern": "^src_[0-9a-f]{32}$"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["body", "sender"],
+      "properties": {"body": {"type": "string"}, "sender": {"type": ["string", "null"]}}
+    },
+    "source_metadata": {"type": "object"},
+    "analysis": {"$ref": "pocketfinancer.sms-analysis/1"},
+    "weak_facets": {"type": "object"},
+    "grouping": {"type": "object"},
+    "pool": {"enum": ["regression_only", "legacy_review", "annotation_training", "annotation_development", "protected_test", "later_time_holdout"]},
+    "review_state": {"enum": ["unreviewed", "draft", "submitted", "adjudicated"]},
+    "provenance": {"type": "object"}
+  }
+}
