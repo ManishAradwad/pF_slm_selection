@@ -1,0 +1,19 @@
+{
+  "contract": "pocketfinancer.corpus-run/1",
+  "run_name": "private-archive-india-inr",
+  "source_path": "all_sms.json",
+  "expected_source_rows": 17830,
+  "output_root": "PRIVATE_DATA/sms_processing",
+  "primary_currency": "INR",
+  "profile_ids": ["core-en", "india"],
+  "later_time_cutoff": "2025-09-01T00:00:00Z",
+  "pool_percentages": {
+    "annotation_training": 80,
+    "annotation_development": 10,
+    "protected_test": 10
+  },
+  "source_id_key_path": "PRIVATE_DATA/sms_processing/.source-id-key",
+  "permissions": {"directory": "0700", "file": "0600"},
+  "offline_retention": "retain_every_source_row",
+  "build_sft_targets": false
+}

@@ -1,0 +1,9 @@
+{
+  "contract": "pocketfinancer.analyzer-profile/1",
+  "profile_id": "india",
+  "scope": "India-specific currency, grouping, rail, and sender conventions",
+  "currency_markers": {"INR": ["₹", "Rs", "Rs.", "INR"]},
+  "grouping": ["western", "lakh"],
+  "rails": ["upi", "imps", "neft", "rtgs", "nach"],
+  "account_forms": ["account", "a/c", "card", "vpa"]
+}
