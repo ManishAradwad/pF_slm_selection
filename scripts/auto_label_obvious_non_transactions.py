@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from pathlib import Path
@@ -13,10 +12,10 @@ SCRIPT_ROOT = Path(__file__).resolve().parents[1]
 if str(SCRIPT_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPT_ROOT))
 
-from lfm25.annotation_service import AnnotationService
-from lfm25.annotation_sources import load_blinded_workspace
-from lfm25.annotation_store import WorkbenchStore
-from lfm25.annotation_workbench import DEFAULT_BLINDED_DB, SOURCE_PREFILL_OFF
+from lfm25.annotation_service import AnnotationService  # noqa: E402
+from lfm25.annotation_sources import load_blinded_workspace  # noqa: E402
+from lfm25.annotation_store import WorkbenchStore  # noqa: E402
+from lfm25.annotation_workbench import DEFAULT_BLINDED_DB, SOURCE_PREFILL_OFF  # noqa: E402
 
 # Broad pattern for ANY financial, monetary, banking, or transactional indicator
 ANY_FINANCIAL_OR_TRANSACTION_PATTERN = re.compile(

@@ -18,12 +18,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from lfm25.prefilter_simulator import (
+from lfm25.prefilter_simulator import (  # noqa: E402
     run_android_prefilter,
     run_ios_prefilter,
     run_unified_prefilter,
 )
-from lfm25.taxonomy import CATEGORIES_METADATA, classify_sms_record
+from lfm25.taxonomy import CATEGORIES_METADATA, classify_sms_record  # noqa: E402
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -251,9 +251,9 @@ def generate_markdown_report(
         "# Indian SMS Taxonomy Segregation & Pre-SLM Filter Benchmark Report",
         "",
         "## Executive Summary",
-        f"- **Dataset Source**: iPhone SMS Archive (`all_sms.json`)",
+        "- **Dataset Source**: iPhone SMS Archive (`all_sms.json`)",
         f"- **Total SMS Records Analyzed**: **{total_records:,}**",
-        f"- **Taxonomy Coverage**: 3 Master Tiers, 32 Fine-Grained Subcategories",
+        "- **Taxonomy Coverage**: 3 Master Tiers, 32 Fine-Grained Subcategories",
         f"- **Unclassified Residuals**: **{benchmark_matrix['primary_breakdown'].get('UNCATEGORIZED', {}).get('count', 0)}** ({benchmark_matrix['primary_breakdown'].get('UNCATEGORIZED', {}).get('pct', 0.0)}%)",
         "",
         "---",

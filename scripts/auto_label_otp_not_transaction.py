@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from pathlib import Path
@@ -13,10 +12,10 @@ SCRIPT_ROOT = Path(__file__).resolve().parents[1]
 if str(SCRIPT_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPT_ROOT))
 
-from lfm25.annotation_service import AnnotationService
-from lfm25.annotation_sources import load_blinded_workspace
-from lfm25.annotation_store import WorkbenchStore
-from lfm25.annotation_workbench import DEFAULT_BLINDED_DB, SOURCE_PREFILL_OFF
+from lfm25.annotation_service import AnnotationService  # noqa: E402
+from lfm25.annotation_sources import load_blinded_workspace  # noqa: E402
+from lfm25.annotation_store import WorkbenchStore  # noqa: E402
+from lfm25.annotation_workbench import DEFAULT_BLINDED_DB, SOURCE_PREFILL_OFF  # noqa: E402
 
 OTP_REGEX = re.compile(
     r"\b("
@@ -116,7 +115,7 @@ def main() -> int:
 
     progress = service.progress()
     print(f"Successfully auto-labeled {labeled_count} OTP messages as not_transaction.")
-    print(f"Updated Progress:")
+    print("Updated Progress:")
     print(f"  Completed: {progress['completed_rows']} / {progress['total_rows']}")
     print(f"  Pending:   {progress['pending_rows']}")
 
