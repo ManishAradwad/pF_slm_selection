@@ -1,3 +1,6 @@
+> **Historical status ledger.** Its measured outcomes remain unchanged, including
+> Phase D's no-selection result. It is not an active handoff or execution plan.
+
 # PocketFinancer Extraction V2 status
 
 ## Completed and reviewed: Phase D — Android prompt/output-protocol laboratory

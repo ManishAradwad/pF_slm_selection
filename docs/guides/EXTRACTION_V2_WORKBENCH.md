@@ -1,3 +1,7 @@
+> **Historical workbench guide.** The active workbench is documented in
+> `docs/architecture/WORKBENCH_REQUIREMENTS_AND_DATA_FLOW.md` and uses the canonical
+> `PRIVATE_DATA/sms_processing` manifest.
+
 # PocketFinancer Extraction V2 local workbench
 
 ## Scope and boundary
@@ -39,7 +43,7 @@ protected split. Until then, use only the invented fixture.
 - Workbench contract:
   `configs/contracts/pocketfinancer-workbench-v2.json`
 - Frozen decision policy:
-  `configs/programs/pocketfinancer-extraction-v2-decision-policy.json`
+  `configs/history/pocketfinancer-extraction-v2-decision-policy.json`
 - Reference implementation:
   `lfm25/workbench_v2.py` and `lfm25/evaluation_v2.py`
 - Local CLI: `scripts/run_pocketfinancer_workbench_v2.py`

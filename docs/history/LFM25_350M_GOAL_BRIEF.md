@@ -1,3 +1,7 @@
+> **Historical goal brief.** Retained to interpret the model experiments it
+> initiated. It is superseded by the active SMS Processing Architecture and
+> Execution Plan and must not govern new data or product work.
+
 # LFM2.5-350M PocketFinancer Goal Brief
 
 ## Objective

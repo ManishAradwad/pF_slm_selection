@@ -1,3 +1,6 @@
+> **Historical program plan.** Preserved to interpret completed Phase C/D
+> evidence. It is superseded by `docs/plans/SMS_PROCESSING_EXECUTION_PLAN.md`.
+
 # PocketFinancer transaction-extraction program, V2
 
 ## Status and authority

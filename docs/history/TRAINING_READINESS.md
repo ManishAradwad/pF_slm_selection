@@ -1,3 +1,6 @@
+> **Historical training-readiness record.** This does not authorize new training
+> or describe the active canonical corpus. See the SMS Processing Execution Plan.
+
 # PocketFinancer SLM training readiness
 
 > Historical readiness snapshot. Training has since completed under the current
