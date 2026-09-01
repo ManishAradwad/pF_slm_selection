@@ -2,7 +2,8 @@
 
 This repository is a privacy-sensitive ML research and engineering workspace. A
 useful contribution must be reproducible, honest about evaluation boundaries, and
-compatible with PocketFinancer Android's actual inference path.
+compatible with the active shared SMS contracts. Legacy Android-profile work must
+still reproduce the pinned app path accurately.
 
 Start with [AGENTS.md](AGENTS.md), then read the
 [documentation map](docs/README.md) and [command map](scripts/README.md).
@@ -21,7 +22,7 @@ source /tmp/pf-slm-ci/bin/activate
 python -m pip install -r requirements-ci.txt
 python scripts/check_repo_safety.py
 python -m ruff check .
-python -m ruff check --select E4,E7,E9,F lfm25 scripts tests
+python -m ruff check --select E4,E7,E9,F lfm25 src scripts tests
 python -m pytest -q
 ```
 
@@ -103,9 +104,10 @@ logs. Aggregate reports may contain counts, hashes, and non-identifying run
 metadata. Per-row result files, adapters, checkpoints, GGUFs, private manifests,
 and candidate datasets stay outside Git.
 
-Annotation-workbench databases, lock files, rolling backups, reviewer projections,
+Canonical SMS manifests, annotation-workbench databases, lock files, backups, reviewer projections,
 training-curation exports, notes, spans, and row-level component inputs or outputs
-are private artifacts under ignored `PRIVATE_DATA/lfm25`. Run the UI only on its
+are private artifacts under ignored `PRIVATE_DATA/sms_processing` (or historical
+`PRIVATE_DATA/lfm25`). Run the UI only on its
 `127.0.0.1` URL; never tunnel it, screen-share a private review, or move state into
 a synced folder. Do not diagnose a row by printing its SMS, sender, annotation,
 notes, or proposals to the console. Use opaque local IDs and aggregate counts only.

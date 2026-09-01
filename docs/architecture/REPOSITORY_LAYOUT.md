@@ -1,8 +1,10 @@
-# Repository layout and migration plan
+# Repository layout
 
 ## Current safe boundaries
 
-The active checkout is native WSL2/ext4. Keep these local artifact roots in place:
+CUDA/model work uses the native WSL2/ext4 checkout. Pure analysis, corpus, and
+workbench work may run in the local macOS checkout containing the private archive.
+Keep these local artifact roots in place:
 
 ```text
 PRIVATE_DATA/       raw-derived private manifests and local datasets
@@ -16,51 +18,42 @@ UPSTREAM/           pinned external source trees such as llama.cpp
 They are ignored and protected by the repository safety checks. Moving private
 inputs requires a separate hash-verified, recoverable migration.
 
-The checked-in implementation currently has three tracks:
+The checked-in implementation has one active SMS foundation and historical model tracks:
 
 | Track | Main entry point | Status |
 |---|---|---|
-| General GGUF model slate | `scripts/evaluate.sh` | Useful historical benchmark |
-| Short-prompt LFM training | `scripts/run_lfm25_experiments.py` | Legacy only |
-| Prompt-aligned direct/candidate SFT | contract-specific builders, trainer, evaluators | Active research |
+| Shared SMS processing and review | `scripts/run_sms_processing.py` | **Active** |
+| General GGUF model slate | `scripts/evaluate.sh` | Historical benchmark |
+| Short-prompt LFM training | `scripts/run_lfm25_experiments.py` | Legacy |
+| Prompt-aligned direct/candidate SFT | contract-specific builders, trainer, evaluators | Historical research |
 
-## Why cleanup remains targeted
-
-Historical evaluators, reports, and reproducibility commands still have documented
-provenance tied to their current paths. Cleanup therefore removes only unreferenced
-one-off builders, redundant convenience wrappers, and generated legacy analysis
-artifacts. A package-wide move would mix behavior changes with mechanical movement
-and make named experiments harder to audit, so it remains a separate future change.
-
-## Target package
-
-The model-specific `lfm25` package should eventually become a model-agnostic
-`src/pf_slm` package. Model size then belongs in configuration, not duplicated code.
+## Active source package
 
 ```text
-src/pf_slm/
-  contracts/      schema, PocketFinancer runtime, candidate protocol, legacy prompt
-  data/           private manifests, labeling, SFT builders, synthetic curriculum
-  training/       datasets, completion loss, LoRA/QLoRA, merge
-  evaluation/     metrics, HF proxy, GGUF runtime, comparisons
-  runtime/        llama.cpp integration and conversion
+src/pocketfinancer_sms/
+  analyzer.py       source-preserving shared analysis
+  currency.py       exact money and explicit currency context
+  triage.py         invoke/discard/retain-review policy
+  selector.py       compact ID output and reconstruction
+  persistence.py    automatic-save safety gate
+  labels.py         weak taxonomy and canonical human truth
+  trace.py          immutable observable processing stages
+  feedback.py       append-only future native feedback
+  corpus/           manifest, grouping, pools, and reports
+  workbench/        SQLite service and local browser UI
   provenance.py
   cli.py
 
-configs/
-  models/         immutable model/revision records
-  contracts/      versioned app/runtime settings and hashes
-  experiments/    dataset + model + training + evaluation declarations
-
-tasks/financial_sms/
-  task.yaml
-  grammar.gbnf
-  regression.jsonl
+configs/sms_processing/
+  contracts/        executable JSON schemas
+  currency/         supported ISO-4217 subset
+  profiles/         core and locale extensions
+  archive-india-inr.json
 ```
 
-`lfm25` and current script paths should remain compatibility shims for at least one
-migration cycle. Historical artifacts stay readable; new runs receive new source
-hashes and semantic run IDs.
+`lfm25` remains in place so measured experiments and reports are reproducible. New
+SMS behavior must not be added there. Historical artifacts stay readable and carry
+supersession context through the evidence index.
 
 ## Run identity
 
@@ -75,12 +68,10 @@ Every run manifest should include model revision, contract hash, dataset hashes,
 split policy, label provenance, training/loss config, seed, selected checkpoint,
 decode settings, evaluator hash, and status.
 
-## Migration sequence
+## Cleanup boundary
 
-1. Verify and snapshot the current v2 implementation.
-2. Maintain the README, documentation map, command map, and experiment catalog.
-3. Introduce `src/pf_slm` and move reusable internals behind `lfm25` shims.
-4. Move CLI implementations behind compatibility wrappers.
-5. Split tests into unit, integration, runtime, and safety layers.
-6. Normalize only future artifact interiors and run IDs.
-7. Move private root inputs only with explicit approval and post-copy hashes.
+Remove obsolete active plans, invalid generated private datasets, overlapping
+splits, and superseded exploratory builders after canonical-copy and hash checks.
+Do not remove measured reports or the code/config needed to interpret them. Do not
+move the raw archive or reviewed annotations without an explicit, recoverable,
+hash-verified migration.

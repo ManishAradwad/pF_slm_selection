@@ -1,5 +1,6 @@
 .venv/
 __pycache__/
+.DS_Store
 # Local editor/agent/container state. Shared guidance lives in AGENTS.md.
 .claude/
 .codex/
@@ -15,6 +16,8 @@ RESULTS/
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
 pf_docker/
 MODELS/
 *.gguf
@@ -28,8 +31,22 @@ TRAINING_ARTIFACTS/
 *.pt
 *.pth
 PRIVATE_DATA/
+# Canonical local SMS corpus, workbench state, derived reports, and backups.
+# This is redundant with PRIVATE_DATA/ by design: the explicit path documents
+# the production-intended foundation's privacy boundary.
+PRIVATE_DATA/sms_processing/
 PUBLIC_CANDIDATE/
 UPSTREAM/
 *.orig
 *.rej
 *~
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Local raw exports and extracted private packages. Source schemas/configs remain
+# versioned under configs/ through the JSON exceptions above.
+all_sms.json
+pocketfinancer_v2_datasets/
+pocketfinancer_v2_datasets.zip

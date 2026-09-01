@@ -34,6 +34,20 @@ VERSIONED_PUBLIC_ARTIFACT_PATHS = frozenset(
         "DATA/annotation_component_v1_synthetic.jsonl",
         "configs/contracts/pocketfinancer-candidate-v1.json",
         "configs/pipelines/pocketfinancer-lfm2.5-350m-candidate-v1.json",
+        "configs/prompts/pocketfinancer-android-gemma-candidate-v2-v1.json",
+        "configs/prompts/pocketfinancer-android-qwen-candidate-v2-v1.json",
+        "configs/sms_processing/archive-india-inr.json",
+        "configs/sms_processing/contracts/canonical-label.schema.json",
+        "configs/sms_processing/contracts/corpus-record.schema.json",
+        "configs/sms_processing/contracts/grounded-candidate-selector-input.schema.json",
+        "configs/sms_processing/contracts/grounded-candidate-selector.schema.json",
+        "configs/sms_processing/contracts/processing-result.schema.json",
+        "configs/sms_processing/contracts/processing-trace.schema.json",
+        "configs/sms_processing/contracts/sms-analysis.schema.json",
+        "configs/sms_processing/contracts/user-feedback.schema.json",
+        "configs/sms_processing/currency/iso-4217.json",
+        "configs/sms_processing/profiles/core-en.json",
+        "configs/sms_processing/profiles/india.json",
     }
 )
 
@@ -86,6 +100,8 @@ _RAW_EXPORT_NAME = re.compile(
     r"(?:^|[._-])(?:backup|candidate|dump|export(?:ed|s)?|messages?|raw|sms)(?:[._-]|$)"
 )
 _PATCH_BACKUP_ENDINGS = (".orig", ".rej", "~")
+_ARCHIVE_ENDINGS = (".tar", ".tar.gz", ".tgz", ".zip")
+_OPERATING_SYSTEM_METADATA = frozenset({".ds_store", "thumbs.db"})
 
 _MODEL_WEIGHT_ENDINGS = (
     ".bin",
@@ -171,6 +187,12 @@ def classify_path(path: str) -> str | None:
 
     if name.endswith(_PATCH_BACKUP_ENDINGS):
         return "patch backup"
+
+    if name in _OPERATING_SYSTEM_METADATA:
+        return "operating-system metadata"
+
+    if name.endswith(_ARCHIVE_ENDINGS):
+        return "archive"
 
     if name.endswith(_DATABASE_ENDINGS):
         return "database"

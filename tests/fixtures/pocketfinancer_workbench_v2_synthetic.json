@@ -1,0 +1,483 @@
+{
+  "workbench_contract": {
+    "id": "pocketfinancer_workbench_v2",
+    "version": 2
+  },
+  "semantic_contract": {
+    "id": "pocketfinancer_semantic_v2",
+    "version": 2,
+    "schema_sha256": "6c65b29543a85ca314f45620ed6300300d802ecab58d11371cc85af314a27bf8",
+    "reference_sha256": "ae0da990999035b8e04999d81854ed7ce4a95914a9079ff08eb50da03874c018",
+    "conformance_sha256": "1bb7053d7b49066830eb0c08f546c8b3be5490e292f3497928c832f25b03f2fa"
+  },
+  "privacy": {
+    "classification": "invented_synthetic_only",
+    "contains_message_text": true,
+    "contains_private_data": false,
+    "intended_storage": "versioned_test_fixture_only",
+    "construction_attestation": "Every message, sender, account hint, merchant, timestamp, group, and identifier is invented; records reuse only the public Phase A synthetic vectors."
+  },
+  "provenance": {
+    "package_id": "synthetic_phase_b_smoke",
+    "created_at": "2026-08-19T00:00:00Z",
+    "annotation_policy_id": "synthetic_independent_review",
+    "annotation_policy_version": 1,
+    "source_revision": "phase_a_invented_conformance_sha256",
+    "source_digest_sha256": "1bb7053d7b49066830eb0c08f546c8b3be5490e292f3497928c832f25b03f2fa",
+    "parent_package_sha256": null
+  },
+  "split_policy": {
+    "policy_id": "pocketfinancer_sender_template_held_out_v1",
+    "allowed_splits": [
+      "train",
+      "development",
+      "protected_test"
+    ],
+    "group_keys": [
+      "sender_family",
+      "template_family"
+    ],
+    "group_isolation": "A non-null group identifier may occur in exactly one split.",
+    "protected_test_locked_before_scoring": true
+  },
+  "adjudication_policy": {
+    "policy_id": "pocketfinancer_independent_adjudication_v1",
+    "minimum_independent_annotations": 2,
+    "adjudicator_must_be_independent": true,
+    "allowed_statuses": [
+      "pending",
+      "resolved",
+      "excluded"
+    ],
+    "resolved_value": "A resolved row selects one submitted annotation or supplies a separately validated Semantic V2 record."
+  },
+  "rows": [
+    {
+      "row_id": "synth_eligible_debit",
+      "message": "Orbit Bank: ₹1,250.50 debited from Card XX1234 at MAPLE BOOKS.",
+      "split": "protected_test",
+      "groups": {
+        "sender_family": "invented_orbit_one",
+        "template_family": "invented_debit_one"
+      },
+      "safety_tags": [
+        "ordinary"
+      ],
+      "annotations": [
+        {
+          "annotation_id": "eligible_debit_a",
+          "annotator_id": "synthetic_reviewer_a",
+          "semantic_record": {
+            "semantic_contract_id": "pocketfinancer_semantic_v2",
+            "semantic_contract_version": 2,
+            "source_metadata": {
+              "received_at_epoch_ms": 1760000000001,
+              "received_at_provenance": "android_sms_message_date"
+            },
+            "scope": "bank_card",
+            "posting_status": "posted",
+            "event_cardinality": "single",
+            "events": [
+              {
+                "event_id": "event_1",
+                "amount": {
+                  "decimal_text": "1250.50",
+                  "currency": "INR",
+                  "minor_units": 125050,
+                  "evidence": {
+                    "start_utf8_byte": 12,
+                    "end_utf8_byte": 23
+                  }
+                },
+                "direction": {
+                  "value": "debit",
+                  "evidence": {
+                    "start_utf8_byte": 24,
+                    "end_utf8_byte": 31
+                  }
+                },
+                "account": {
+                  "value": "Card XX1234",
+                  "evidence": {
+                    "start_utf8_byte": 37,
+                    "end_utf8_byte": 48
+                  }
+                },
+                "counterparty": {
+                  "state": "present",
+                  "value": "MAPLE BOOKS",
+                  "evidence": {
+                    "start_utf8_byte": 52,
+                    "end_utf8_byte": 63
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "annotation_id": "eligible_debit_b",
+          "annotator_id": "synthetic_reviewer_b",
+          "semantic_record": {
+            "semantic_contract_id": "pocketfinancer_semantic_v2",
+            "semantic_contract_version": 2,
+            "source_metadata": {
+              "received_at_epoch_ms": 1760000000001,
+              "received_at_provenance": "android_sms_message_date"
+            },
+            "scope": "bank_card",
+            "posting_status": "posted",
+            "event_cardinality": "single",
+            "events": [
+              {
+                "event_id": "event_1",
+                "amount": {
+                  "decimal_text": "1250.50",
+                  "currency": "INR",
+                  "minor_units": 125050,
+                  "evidence": {
+                    "start_utf8_byte": 12,
+                    "end_utf8_byte": 23
+                  }
+                },
+                "direction": {
+                  "value": "debit",
+                  "evidence": {
+                    "start_utf8_byte": 24,
+                    "end_utf8_byte": 31
+                  }
+                },
+                "account": {
+                  "value": "Card XX1234",
+                  "evidence": {
+                    "start_utf8_byte": 37,
+                    "end_utf8_byte": 48
+                  }
+                },
+                "counterparty": {
+                  "state": "present",
+                  "value": "MAPLE BOOKS",
+                  "evidence": {
+                    "start_utf8_byte": 52,
+                    "end_utf8_byte": 63
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "adjudication": {
+        "status": "resolved",
+        "adjudicator_id": "synthetic_adjudicator",
+        "selected_annotation_id": "eligible_debit_a",
+        "semantic_record": null,
+        "reason_code": "independent_agreement"
+      }
+    },
+    {
+      "row_id": "synth_not_posted",
+      "message": "Orbit Bank reminder: update your contact details.",
+      "split": "protected_test",
+      "groups": {
+        "sender_family": "invented_orbit_two",
+        "template_family": "invented_notice_two"
+      },
+      "safety_tags": [
+        "ambiguous_currency",
+        "not_posted",
+        "none_or_multiple",
+        "inexact_money"
+      ],
+      "annotations": [
+        {
+          "annotation_id": "not_posted_a",
+          "annotator_id": "synthetic_reviewer_a",
+          "semantic_record": {
+            "semantic_contract_id": "pocketfinancer_semantic_v2",
+            "semantic_contract_version": 2,
+            "source_metadata": {
+              "received_at_epoch_ms": 1760000000003,
+              "received_at_provenance": "synthetic_system_timestamp_injected"
+            },
+            "scope": "other",
+            "posting_status": "not_posted",
+            "event_cardinality": "none",
+            "events": []
+          }
+        },
+        {
+          "annotation_id": "not_posted_b",
+          "annotator_id": "synthetic_reviewer_b",
+          "semantic_record": {
+            "semantic_contract_id": "pocketfinancer_semantic_v2",
+            "semantic_contract_version": 2,
+            "source_metadata": {
+              "received_at_epoch_ms": 1760000000003,
+              "received_at_provenance": "synthetic_system_timestamp_injected"
+            },
+            "scope": "other",
+            "posting_status": "not_posted",
+            "event_cardinality": "none",
+            "events": []
+          }
+        }
+      ],
+      "adjudication": {
+        "status": "resolved",
+        "adjudicator_id": "synthetic_adjudicator",
+        "selected_annotation_id": "not_posted_a",
+        "semantic_record": null,
+        "reason_code": "independent_agreement"
+      }
+    },
+    {
+      "row_id": "synth_fault_injection",
+      "message": "Orbit Bank: INR 75.00 credited to A/c XX4321 from AURORA LABS.",
+      "split": "protected_test",
+      "groups": {
+        "sender_family": "invented_orbit_three",
+        "template_family": "invented_credit_three"
+      },
+      "safety_tags": [
+        "ungrounded_evidence",
+        "missing_timestamp_provenance",
+        "invalid_output"
+      ],
+      "annotations": [
+        {
+          "annotation_id": "fault_injection_a",
+          "annotator_id": "synthetic_reviewer_a",
+          "semantic_record": {
+            "semantic_contract_id": "pocketfinancer_semantic_v2",
+            "semantic_contract_version": 2,
+            "source_metadata": {
+              "received_at_epoch_ms": 1760000000002,
+              "received_at_provenance": "ios_inbox_alert_received_at_supplied"
+            },
+            "scope": "bank_card",
+            "posting_status": "posted",
+            "event_cardinality": "single",
+            "events": [
+              {
+                "event_id": "event_1",
+                "amount": {
+                  "decimal_text": "75.00",
+                  "currency": "INR",
+                  "minor_units": 7500,
+                  "evidence": {
+                    "start_utf8_byte": 12,
+                    "end_utf8_byte": 21
+                  }
+                },
+                "direction": {
+                  "value": "credit",
+                  "evidence": {
+                    "start_utf8_byte": 22,
+                    "end_utf8_byte": 30
+                  }
+                },
+                "account": {
+                  "value": "A/c XX4321",
+                  "evidence": {
+                    "start_utf8_byte": 34,
+                    "end_utf8_byte": 44
+                  }
+                },
+                "counterparty": {
+                  "state": "present",
+                  "value": "AURORA LABS",
+                  "evidence": {
+                    "start_utf8_byte": 50,
+                    "end_utf8_byte": 61
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "annotation_id": "fault_injection_b",
+          "annotator_id": "synthetic_reviewer_b",
+          "semantic_record": {
+            "semantic_contract_id": "pocketfinancer_semantic_v2",
+            "semantic_contract_version": 2,
+            "source_metadata": {
+              "received_at_epoch_ms": 1760000000002,
+              "received_at_provenance": "ios_inbox_alert_received_at_supplied"
+            },
+            "scope": "bank_card",
+            "posting_status": "posted",
+            "event_cardinality": "single",
+            "events": [
+              {
+                "event_id": "event_1",
+                "amount": {
+                  "decimal_text": "75.00",
+                  "currency": "INR",
+                  "minor_units": 7500,
+                  "evidence": {
+                    "start_utf8_byte": 12,
+                    "end_utf8_byte": 21
+                  }
+                },
+                "direction": {
+                  "value": "credit",
+                  "evidence": {
+                    "start_utf8_byte": 22,
+                    "end_utf8_byte": 30
+                  }
+                },
+                "account": {
+                  "value": "A/c XX4321",
+                  "evidence": {
+                    "start_utf8_byte": 34,
+                    "end_utf8_byte": 44
+                  }
+                },
+                "counterparty": {
+                  "state": "present",
+                  "value": "AURORA LABS",
+                  "evidence": {
+                    "start_utf8_byte": 50,
+                    "end_utf8_byte": 61
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "adjudication": {
+        "status": "resolved",
+        "adjudicator_id": "synthetic_adjudicator",
+        "selected_annotation_id": "fault_injection_a",
+        "semantic_record": null,
+        "reason_code": "independent_agreement"
+      }
+    },
+    {
+      "row_id": "synth_non_inr",
+      "message": "Nova Card: USD 12.34 debited from Card XX9999 at SKY MARKET.",
+      "split": "protected_test",
+      "groups": {
+        "sender_family": "invented_nova_four",
+        "template_family": "invented_foreign_four"
+      },
+      "safety_tags": [
+        "non_inr"
+      ],
+      "annotations": [
+        {
+          "annotation_id": "non_inr_a",
+          "annotator_id": "synthetic_reviewer_a",
+          "semantic_record": {
+            "semantic_contract_id": "pocketfinancer_semantic_v2",
+            "semantic_contract_version": 2,
+            "source_metadata": {
+              "received_at_epoch_ms": 1760000000009,
+              "received_at_provenance": "synthetic_system_timestamp_injected"
+            },
+            "scope": "bank_card",
+            "posting_status": "posted",
+            "event_cardinality": "single",
+            "events": [
+              {
+                "event_id": "event_1",
+                "amount": {
+                  "decimal_text": "12.34",
+                  "currency": "USD",
+                  "minor_units": 1234,
+                  "evidence": {
+                    "start_utf8_byte": 11,
+                    "end_utf8_byte": 20
+                  }
+                },
+                "direction": {
+                  "value": "debit",
+                  "evidence": {
+                    "start_utf8_byte": 21,
+                    "end_utf8_byte": 28
+                  }
+                },
+                "account": {
+                  "value": "Card XX9999",
+                  "evidence": {
+                    "start_utf8_byte": 34,
+                    "end_utf8_byte": 45
+                  }
+                },
+                "counterparty": {
+                  "state": "present",
+                  "value": "SKY MARKET",
+                  "evidence": {
+                    "start_utf8_byte": 49,
+                    "end_utf8_byte": 59
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "annotation_id": "non_inr_b",
+          "annotator_id": "synthetic_reviewer_b",
+          "semantic_record": {
+            "semantic_contract_id": "pocketfinancer_semantic_v2",
+            "semantic_contract_version": 2,
+            "source_metadata": {
+              "received_at_epoch_ms": 1760000000009,
+              "received_at_provenance": "synthetic_system_timestamp_injected"
+            },
+            "scope": "bank_card",
+            "posting_status": "posted",
+            "event_cardinality": "single",
+            "events": [
+              {
+                "event_id": "event_1",
+                "amount": {
+                  "decimal_text": "12.34",
+                  "currency": "USD",
+                  "minor_units": 1234,
+                  "evidence": {
+                    "start_utf8_byte": 11,
+                    "end_utf8_byte": 20
+                  }
+                },
+                "direction": {
+                  "value": "debit",
+                  "evidence": {
+                    "start_utf8_byte": 21,
+                    "end_utf8_byte": 28
+                  }
+                },
+                "account": {
+                  "value": "Card XX9999",
+                  "evidence": {
+                    "start_utf8_byte": 34,
+                    "end_utf8_byte": 45
+                  }
+                },
+                "counterparty": {
+                  "state": "present",
+                  "value": "SKY MARKET",
+                  "evidence": {
+                    "start_utf8_byte": 49,
+                    "end_utf8_byte": 59
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "adjudication": {
+        "status": "resolved",
+        "adjudicator_id": "synthetic_adjudicator",
+        "selected_annotation_id": "non_inr_a",
+        "semantic_record": null,
+        "reason_code": "independent_agreement"
+      }
+    }
+  ]
+}

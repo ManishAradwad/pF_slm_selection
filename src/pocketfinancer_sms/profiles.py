@@ -1,0 +1,73 @@
+"""Locale/profile declarations used by the shared analyzer."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class AnalyzerProfile:
+    profile_id: str
+    revision: int
+    explicit_markers: dict[str, tuple[str, ...]]
+    ambiguous_markers: tuple[str, ...]
+    grouping_styles: tuple[str, ...]
+    transaction_terms: tuple[str, ...]
+    rails: dict[str, tuple[str, ...]]
+
+
+CORE_EN = AnalyzerProfile(
+    profile_id="core-en",
+    revision=1,
+    explicit_markers={
+        "EUR": ("€",),
+        "GBP": ("£",),
+    },
+    # These markers name more than one ISO currency globally. A locale extension
+    # may eventually resolve them, but core analysis must never guess.
+    ambiguous_markers=("$", "¥"),
+    grouping_styles=("western",),
+    transaction_terms=(
+        "transaction",
+        "payment",
+        "purchase",
+        "transfer",
+        "debit",
+        "credit",
+        "paid",
+        "spent",
+        "received",
+        "withdrawn",
+        "deposited",
+        "refunded",
+    ),
+    rails={},
+)
+
+
+INDIA = AnalyzerProfile(
+    profile_id="india",
+    revision=1,
+    explicit_markers={"INR": ("₹", "rs", "rs.", "inr")},
+    ambiguous_markers=(),
+    grouping_styles=("western", "lakh"),
+    transaction_terms=CORE_EN.transaction_terms
+    + ("a/c", "acct", "account", "card", "upi", "imps", "neft", "rtgs", "nach"),
+    rails={
+        "upi": ("upi", "vpa"),
+        "imps": ("imps",),
+        "neft": ("neft",),
+        "rtgs": ("rtgs",),
+        "nach": ("nach", "e-mandate", "emandate"),
+    },
+)
+
+
+PROFILES = {profile.profile_id: profile for profile in (CORE_EN, INDIA)}
+
+
+def resolve_profiles(profile_ids: tuple[str, ...]) -> tuple[AnalyzerProfile, ...]:
+    try:
+        return tuple(PROFILES[profile_id] for profile_id in profile_ids)
+    except KeyError as exc:
+        raise ValueError(f"unknown analyzer profile: {exc.args[0]}") from exc

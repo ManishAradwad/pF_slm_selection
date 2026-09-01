@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pocketfinancer.local/contracts/pocketfinancer-semantic-v2.schema.json",
+  "title": "PocketFinancer Semantic V2",
+  "description": "Platform-neutral host semantic truth. Source timestamps are host metadata and are never model output.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "semantic_contract_id",
+    "semantic_contract_version",
+    "source_metadata",
+    "scope",
+    "posting_status",
+    "event_cardinality",
+    "events"
+  ],
+  "properties": {
+    "semantic_contract_id": {
+      "const": "pocketfinancer_semantic_v2"
+    },
+    "semantic_contract_version": {
+      "const": 2
+    },
+    "source_metadata": {
+      "$ref": "#/$defs/sourceMetadata"
+    },
+    "scope": {
+      "enum": [
+        "bank_card",
+        "wallet_bnpl",
+        "other"
+      ]
+    },
+    "posting_status": {
+      "enum": [
+        "posted",
+        "not_posted"
+      ]
+    },
+    "event_cardinality": {
+      "enum": [
+        "none",
+        "single",
+        "multiple"
+      ]
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/event"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event_cardinality": {
+            "const": "none"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "posting_status": {
+            "const": "not_posted"
+          },
+          "events": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_cardinality": {
+            "const": "single"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "events": {
+            "minItems": 1,
+            "maxItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_cardinality": {
+            "const": "multiple"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "events": {
+            "minItems": 2
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sourceMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "received_at_epoch_ms",
+        "received_at_provenance"
+      ],
+      "properties": {
+        "received_at_epoch_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "received_at_provenance": {
+          "enum": [
+            "android_sms_message_date",
+            "ios_inbox_alert_received_at_supplied",
+            "ios_inbox_alert_received_at_assigned_during_ingestion",
+            "synthetic_system_timestamp_injected"
+          ]
+        }
+      }
+    },
+    "evidenceSpan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start_utf8_byte",
+        "end_utf8_byte"
+      ],
+      "properties": {
+        "start_utf8_byte": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "end_utf8_byte": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        }
+      }
+    },
+    "money": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decimal_text",
+        "currency",
+        "minor_units",
+        "evidence"
+      ],
+      "properties": {
+        "decimal_text": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "minor_units": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidenceSpan"
+        }
+      }
+    },
+    "textEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "evidence"
+      ],
+      "properties": {
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidenceSpan"
+        }
+      }
+    },
+    "directionEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "evidence"
+      ],
+      "properties": {
+        "value": {
+          "enum": [
+            "debit",
+            "credit"
+          ]
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidenceSpan"
+        }
+      }
+    },
+    "counterparty": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state",
+            "value",
+            "evidence"
+          ],
+          "properties": {
+            "state": {
+              "const": "present"
+            },
+            "value": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence": {
+              "$ref": "#/$defs/evidenceSpan"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state"
+          ],
+          "properties": {
+            "state": {
+              "const": "absent"
+            }
+          }
+        }
+      ]
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "amount",
+        "direction",
+        "account",
+        "counterparty"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "pattern": "^event_[1-9][0-9]*$"
+        },
+        "amount": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/money"
+            }
+          ]
+        },
+        "direction": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/directionEvidence"
+            }
+          ]
+        },
+        "account": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/textEvidence"
+            }
+          ]
+        },
+        "counterparty": {
+          "$ref": "#/$defs/counterparty"
+        }
+      }
+    }
+  },
+  "x-pf-evidence-offset-convention": "zero_based_half_open_utf8_bytes",
+  "x-pf-evidence-policy": "Every supplied evidence range is non-empty, lands on UTF-8 boundaries, and is inside the original message. Account and present counterparty values exactly equal their decoded evidence. Direction is derived from the complete trimmed evidence lexeme using direction lexicon version 1.",
+  "x-pf-direction-evidence-lexicon-version": 1,
+  "x-pf-currency-evidence-policy": "An uppercase three-letter ISO-style code or an unambiguous marker (INR/Rs/₹, EUR/€, GBP/£) grounds currency. A bare dollar sign is ambiguous; it requires an explicit USD code. Evidence identifying zero or multiple currencies is invalid.",
+  "x-pf-minor-unit-exponents": {
+    "version": 1,
+    "INR": 2,
+    "USD": 2,
+    "EUR": 2,
+    "GBP": 2
+  },
+  "x-pf-money-policy": "decimal_text is authoritative; minor_units is a signed-64-bit deterministic derivative and is null when the currency exponent is unknown or scaling would require rounding. Initial INR automatic posting requires non-null exact minor_units.",
+  "x-pf-date-policy": "source_metadata is supplied by the host after model output and is never a model field"
+}
