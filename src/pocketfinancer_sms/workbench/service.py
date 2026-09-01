@@ -1,0 +1,397 @@
+"""Workbench workflows, blind-review policy, validation, and target preview."""
+
+from __future__ import annotations
+
+import hashlib
+import time
+from dataclasses import asdict
+from typing import Any
+
+from ..analyzer import DeterministicSmsAnalyzer
+from ..currency import CurrencyContext
+from ..labels import (
+    CanonicalDecision,
+    CanonicalEvent,
+    CanonicalLabel,
+    EventState,
+    FINANCIAL_FAMILIES,
+    LabelValidationError,
+    OperationalClass,
+    PAYMENT_RAILS,
+    PresenceState,
+    ReviewStatus,
+    project_selector_target,
+    validate_canonical_label,
+)
+from ..types import CurrencyProvenance, Direction, EvidenceSpan
+from .store import WorkbenchConflict, WorkbenchStore
+
+
+PROTECTED_POOLS = frozenset({"protected_test", "later_time_holdout"})
+
+
+class WorkbenchValidationError(ValueError):
+    """Actionable aggregate-safe validation error."""
+
+
+class WorkbenchService:
+    def __init__(self, store: WorkbenchStore) -> None:
+        self.store = store
+
+    def list_rows(
+        self,
+        *,
+        reviewer_id: str,
+        filters: dict[str, str | None],
+        search: str | None = None,
+        sort: str = "timestamp",
+        descending: bool = False,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        if not reviewer_id:
+            raise WorkbenchValidationError("reviewer_id is required")
+        pool = filters.get("pool")
+        weak_filters = {
+            "operational_class",
+            "event_state",
+            "financial_family",
+            "payment_rail",
+            "disposition",
+            "selector_action",
+        }
+        if pool in PROTECTED_POOLS and any(filters.get(name) for name in weak_filters):
+            raise WorkbenchValidationError(
+                "weak-suggestion filters are unavailable during protected blind review"
+            )
+        result = self.store.list_rows(
+            filters=filters,
+            search=search,
+            sort=sort,
+            descending=descending,
+            limit=limit,
+            offset=offset,
+        )
+        for row in result["rows"]:
+            if row["pool"] in PROTECTED_POOLS and not self._may_reveal(
+                row["source_id"], reviewer_id
+            ):
+                for name in weak_filters:
+                    row[name] = None
+                row["blind_locked"] = True
+            else:
+                row["blind_locked"] = False
+        return result
+
+    def view_row(self, source_id: str, reviewer_id: str) -> dict[str, Any]:
+        record = self.store.get_record(source_id)
+        if record is None:
+            raise WorkbenchValidationError("source row does not exist")
+        latest = self.store.latest_annotation(source_id, reviewer_id)
+        may_reveal = record["pool"] not in PROTECTED_POOLS or self._may_reveal(
+            source_id, reviewer_id
+        )
+        result = {
+            "source_id": source_id,
+            "source": record["source"],
+            "source_metadata": record["source_metadata"],
+            "pool": record["pool"],
+            "review_state": record["review_state"],
+            "latest_annotation": latest,
+            "blind_locked": not may_reveal,
+            "can_reveal": (
+                record["pool"] in PROTECTED_POOLS
+                and self.store.has_initial_submission(source_id, reviewer_id)
+                and not self.store.is_revealed(source_id, reviewer_id)
+            ),
+        }
+        if may_reveal:
+            result.update(
+                {
+                    "analysis": record["analysis"],
+                    "weak_facets": record["weak_facets"],
+                    "grouping": record["grouping"],
+                    "processing_trace": record.get("processing_trace"),
+                }
+            )
+        return result
+
+    def save_draft(
+        self,
+        *,
+        source_id: str,
+        reviewer_id: str,
+        expected_revision: int,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        self._require_record_and_reviewer(source_id, reviewer_id)
+        if not isinstance(payload, dict):
+            raise WorkbenchValidationError("draft payload must be an object")
+        return self.store.append_annotation_revision(
+            source_id=source_id,
+            reviewer_id=reviewer_id,
+            expected_revision=expected_revision,
+            status="draft",
+            payload=payload,
+            canonical_label=None,
+            created_at_epoch_ms=_now_ms(),
+        )
+
+    def submit(
+        self,
+        *,
+        source_id: str,
+        reviewer_id: str,
+        expected_revision: int,
+        payload: dict[str, Any],
+        adjudicated: bool = False,
+    ) -> dict[str, Any]:
+        record = self._require_record_and_reviewer(source_id, reviewer_id)
+        revision = expected_revision + 1
+        status = ReviewStatus.ADJUDICATED if adjudicated else ReviewStatus.SUBMITTED
+        label = _build_label(
+            source_id=source_id,
+            reviewer_id=reviewer_id,
+            revision=revision,
+            status=status,
+            payload=payload,
+            source=record["source"]["body"],
+        )
+        canonical = _label_to_dict(label)
+        return self.store.append_annotation_revision(
+            source_id=source_id,
+            reviewer_id=reviewer_id,
+            expected_revision=expected_revision,
+            status=status.value,
+            payload=payload,
+            canonical_label=canonical,
+            created_at_epoch_ms=label.created_at_epoch_ms,
+        )
+
+    def reveal(self, source_id: str, reviewer_id: str) -> dict[str, Any]:
+        self._require_record_and_reviewer(source_id, reviewer_id)
+        self.store.reveal(source_id, reviewer_id, _now_ms())
+        return self.view_row(source_id, reviewer_id)
+
+    def correct_weak_facets(
+        self,
+        *,
+        source_id: str,
+        reviewer_id: str,
+        expected_revision: int,
+        facets: dict[str, Any],
+    ) -> dict[str, Any]:
+        self._require_record_and_reviewer(source_id, reviewer_id)
+        _validate_weak_correction(facets)
+        return self.store.append_weak_correction(
+            source_id=source_id,
+            reviewer_id=reviewer_id,
+            expected_revision=expected_revision,
+            facets=facets,
+            created_at_epoch_ms=_now_ms(),
+        )
+
+    def target_preview(self, source_id: str, reviewer_id: str) -> dict[str, Any]:
+        record = self._require_record_and_reviewer(source_id, reviewer_id)
+        latest = self.store.latest_annotation(source_id, reviewer_id)
+        if latest is None or latest["canonical_label"] is None:
+            return {
+                "convertible": False,
+                "reason_code": "projection_submitted_canonical_label_missing",
+            }
+        label = _label_from_dict(latest["canonical_label"], record["source"]["body"])
+        analysis = DeterministicSmsAnalyzer(
+            CurrencyContext(
+                record["analysis"]["primary_currency"],
+                tuple(record["analysis"]["profile_id"].split("+")),
+            )
+        ).analyze(
+            record["source"]["body"],
+            operation_id=source_id,
+            is_outgoing=record["source_metadata"].get("is_outgoing"),
+            input_valid=record["analysis"]["metadata"].get("input_valid", True),
+        )
+        try:
+            target = project_selector_target(label, analysis, record["source"]["body"])
+        except LabelValidationError as exc:
+            return {"convertible": False, "reason_code": exc.reason_code}
+        return {"convertible": True, "target": target}
+
+    def disagreements(self, source_id: str) -> dict[str, Any]:
+        annotations = self.store.submitted_annotations(source_id)
+        decisions = {
+            item["canonical_label"]["decision"]
+            for item in annotations
+            if item["canonical_label"] is not None
+        }
+        return {
+            "source_id": source_id,
+            "has_disagreement": len(decisions) > 1,
+            "review_count": len(annotations),
+            "annotations": annotations,
+        }
+
+    def _may_reveal(self, source_id: str, reviewer_id: str) -> bool:
+        return self.store.is_revealed(source_id, reviewer_id)
+
+    def _require_record_and_reviewer(
+        self, source_id: str, reviewer_id: str
+    ) -> dict[str, Any]:
+        if not reviewer_id:
+            raise WorkbenchValidationError("reviewer_id is required")
+        record = self.store.get_record(source_id)
+        if record is None:
+            raise WorkbenchValidationError("source row does not exist")
+        return record
+
+
+def _build_label(
+    *,
+    source_id: str,
+    reviewer_id: str,
+    revision: int,
+    status: ReviewStatus,
+    payload: dict[str, Any],
+    source: str,
+) -> CanonicalLabel:
+    try:
+        decision = CanonicalDecision(payload["decision"])
+        operational = OperationalClass(payload["operational_class"])
+        event_state = EventState(payload["event_state"])
+        events = tuple(_build_event(item, source) for item in payload.get("events", []))
+        uncertain = payload["uncertain"]
+        notes = payload.get("notes", "")
+    except (KeyError, TypeError, ValueError) as exc:
+        raise WorkbenchValidationError("annotation payload has invalid or missing fields") from exc
+    if not isinstance(uncertain, bool) or not isinstance(notes, str):
+        raise WorkbenchValidationError("annotation uncertainty or notes are invalid")
+    family = payload.get("financial_family")
+    rail = payload.get("payment_rail")
+    created = _now_ms()
+    label_basis = {
+        "source_id": source_id,
+        "reviewer_id": reviewer_id,
+        "revision": revision,
+        "payload": payload,
+    }
+    label = CanonicalLabel(
+        contract="pocketfinancer.canonical-label/1",
+        label_id="lbl_" + hashlib.sha256(repr(label_basis).encode()).hexdigest()[:24],
+        source_id=source_id,
+        revision=revision,
+        status=status,
+        decision=decision,
+        operational_class=operational,
+        event_state=event_state,
+        financial_family=family,
+        payment_rail=rail,
+        events=events,
+        uncertain=uncertain,
+        notes=notes,
+        reviewer_id=reviewer_id,
+        created_at_epoch_ms=created,
+        supersedes_revision=revision - 1 if revision > 1 else None,
+    )
+    try:
+        validate_canonical_label(label, source)
+    except LabelValidationError as exc:
+        raise WorkbenchValidationError(exc.reason_code) from exc
+    return label
+
+
+def _build_event(value: dict[str, Any], source: str) -> CanonicalEvent:
+    if not isinstance(value, dict):
+        raise WorkbenchValidationError("event must be an object")
+    try:
+        account_state = PresenceState(value["account_state"])
+        counterparty_state = PresenceState(value["counterparty_state"])
+        return CanonicalEvent(
+            amount_span=_span(value["amount_span"], source),
+            currency=str(value["currency"]),
+            currency_provenance=CurrencyProvenance(value["currency_provenance"]),
+            direction=Direction(value["direction"]),
+            direction_span=_span(value["direction_span"], source),
+            account_state=account_state,
+            account_span=(
+                _span(value["account_span"], source) if value.get("account_span") is not None else None
+            ),
+            counterparty_state=counterparty_state,
+            counterparty_span=(
+                _span(value["counterparty_span"], source)
+                if value.get("counterparty_span") is not None
+                else None
+            ),
+            financial_family=value.get("financial_family"),
+            payment_rail=value.get("payment_rail"),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise WorkbenchValidationError("event has invalid or missing fields") from exc
+
+
+def _span(value: dict[str, Any], source: str) -> EvidenceSpan:
+    if not isinstance(value, dict):
+        raise WorkbenchValidationError("evidence span must be an object")
+    try:
+        start = int(value["start_char"])
+        end = int(value["end_char"])
+        return EvidenceSpan.from_source(source, start, end)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise WorkbenchValidationError("evidence span is outside the source message") from exc
+
+
+def _label_to_dict(label: CanonicalLabel) -> dict[str, Any]:
+    value = asdict(label)
+    for event in value["events"]:
+        for field in ("amount_span", "direction_span", "account_span", "counterparty_span"):
+            if event[field] is not None:
+                event[field].pop("text", None)
+    return value
+
+
+def _label_from_dict(value: dict[str, Any], source: str) -> CanonicalLabel:
+    payload = {
+        "decision": value["decision"],
+        "operational_class": value["operational_class"],
+        "event_state": value["event_state"],
+        "financial_family": value.get("financial_family"),
+        "payment_rail": value.get("payment_rail"),
+        "events": value.get("events", []),
+        "uncertain": value["uncertain"],
+        "notes": value.get("notes", ""),
+    }
+    label = _build_label(
+        source_id=value["source_id"],
+        reviewer_id=value["reviewer_id"],
+        revision=int(value["revision"]),
+        status=ReviewStatus(value["status"]),
+        payload=payload,
+        source=source,
+    )
+    return CanonicalLabel(
+        **{
+            **{field: getattr(label, field) for field in label.__dataclass_fields__},
+            "label_id": value["label_id"],
+            "created_at_epoch_ms": int(value["created_at_epoch_ms"]),
+            "supersedes_revision": value.get("supersedes_revision"),
+        }
+    )
+
+
+def _validate_weak_correction(facets: dict[str, Any]) -> None:
+    try:
+        OperationalClass(facets["operational_class"])
+        EventState(facets["event_state"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise WorkbenchValidationError("weak correction taxonomy axes are invalid") from exc
+    family = facets.get("financial_family")
+    rail = facets.get("payment_rail")
+    if family is not None and family not in FINANCIAL_FAMILIES:
+        raise WorkbenchValidationError("weak correction financial family is invalid")
+    if rail is not None and rail not in PAYMENT_RAILS:
+        raise WorkbenchValidationError("weak correction payment rail is invalid")
+    if not isinstance(facets.get("reason"), str) or not facets["reason"].strip():
+        raise WorkbenchValidationError("weak correction requires a reason")
+
+
+def _now_ms() -> int:
+    return int(time.time() * 1000)
