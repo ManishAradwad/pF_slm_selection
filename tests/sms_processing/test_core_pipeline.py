@@ -76,6 +76,28 @@ def test_explicit_currency_overrides_primary_and_bare_amount_uses_primary() -> N
     assert bare_amount.value["currency_provenance"] == "user_primary_default"
 
 
+def test_lakh_grouping_requires_the_india_profile() -> None:
+    source = "INR 1,23,456 was debited from account **1234 at SYNTH STORE."
+    core_analysis = DeterministicSmsAnalyzer(CurrencyContext("INR", ("core-en",))).analyze(
+        source, operation_id="synthetic-core-grouping"
+    )
+    india_analysis = DeterministicSmsAnalyzer(CurrencyContext("INR", ("core-en", "india"))).analyze(
+        source, operation_id="synthetic-india-grouping"
+    )
+
+    assert not core_analysis.candidates_of(CandidateKind.AMOUNT)
+    amount = india_analysis.candidates_of(CandidateKind.AMOUNT)[0]
+    assert amount.value["minor_units"] == 12_345_600
+    assert amount.evidence is not None
+    assert amount.evidence.text == "INR 1,23,456"
+
+    large = DeterministicSmsAnalyzer(CurrencyContext("INR", ("core-en", "india"))).analyze(
+        "INR 123,45,678 was credited to account **1234.",
+        operation_id="synthetic-large-lakh-grouping",
+    )
+    assert large.candidates_of(CandidateKind.AMOUNT)[0].value["minor_units"] == 1_234_567_800
+
+
 def test_mixed_completed_and_failed_clauses_are_retained_and_may_run_assistively() -> None:
     analysis = _analysis(
         "INR 100 was debited from account **1234 at STORE. However INR 50 transfer failed."
@@ -91,9 +113,7 @@ def test_standalone_otp_discards_but_completed_event_with_otp_language_does_not(
     standalone = _analysis(
         "482910 is your OTP to authorize an online transaction of INR 500. Do not share it."
     )
-    posted = _analysis(
-        "INR 500 was debited from account **1234 at STORE; no OTP was required."
-    )
+    posted = _analysis("INR 500 was debited from account **1234 at STORE; no OTP was required.")
 
     assert evaluate_triage(standalone).disposition == Disposition.DISCARD
     assert "discard_standalone_credential_otp" in evaluate_triage(standalone).reason_codes

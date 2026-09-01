@@ -55,8 +55,19 @@ class CurrencyContext:
 
     @property
     def config_hash(self) -> str:
+        # Import locally to keep profile declarations independent from money
+        # parsing while binding each operation to executable profile revisions.
+        from .profiles import resolve_profiles
+
+        profiles = resolve_profiles(self.profile_ids)
         canonical = json.dumps(
-            {"primary_currency": self.primary_currency, "profile_ids": self.profile_ids},
+            {
+                "primary_currency": self.primary_currency,
+                "profiles": [
+                    {"profile_id": profile.profile_id, "revision": profile.revision}
+                    for profile in profiles
+                ],
+            },
             sort_keys=True,
             separators=(",", ":"),
         )

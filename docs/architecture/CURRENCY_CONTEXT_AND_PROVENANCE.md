@@ -10,7 +10,8 @@ Each processing operation receives an explicit `CurrencyContext` containing:
 
 - `primary_currency`: an uppercase ISO-4217 code selected by the user;
 - `profile_ids`: the deterministic structural profiles enabled for the operation;
-- a canonical configuration hash recorded with analysis and trace state.
+- versioned profile revisions and a canonical configuration hash recorded with
+  analysis and trace state.
 
 The Indian archive rebuild passes `INR` in
 `configs/sms_processing/archive-india-inr.json`. INR is neither inferred from the
@@ -53,8 +54,10 @@ the number, currency, scale, or provenance.
 ## Generalization boundary
 
 `core-en` owns country-neutral English movement language and globally
-unambiguous markers. `india` owns INR/Rs/₹, lakh-style grouping direction,
-UPI/IMPS/NEFT/RTGS/NACH cues, Indian account forms, and sender conventions.
+unambiguous markers. `india` owns INR/Rs/₹, lakh-style grouping,
+UPI/IMPS/NEFT/RTGS/NACH cues, and Indian account forms. Any India-specific sender
+conventions added later must live in that extension as well; sender shape is not
+a current invocation requirement.
 Additional country/locale behavior must enter through a reviewed profile plus
 synthetic tests, never through a hidden primary-currency conditional.
 

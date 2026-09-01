@@ -33,8 +33,8 @@ The complete private archive has been rebuilt into one ignored canonical manifes
 - the local SQLite workbench contains the complete manifest and has a verified
   hash-recorded backup.
 
-The current analyzer pass is deliberately conservative: 1,456 rows are normal
-selector invocations, 125 are assistive review invocations, and 16,249 skip the
+The current analyzer pass is deliberately conservative: 1,453 rows are normal
+selector invocations, 125 are assistive review invocations, and 16,252 skip the
 model. These are weak operational suggestions, not truth.
 
 Start with the [SMS Processing Architecture](docs/architecture/SMS_PROCESSING_ARCHITECTURE.md),

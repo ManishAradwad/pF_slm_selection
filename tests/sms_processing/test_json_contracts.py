@@ -63,9 +63,7 @@ def test_contract_schema_is_valid_draft_2020_12(name: str) -> None:
 
 
 def test_executable_analysis_conforms_to_schema() -> None:
-    analysis = DeterministicSmsAnalyzer(
-        CurrencyContext("INR", ("core-en", "india"))
-    ).analyze(
+    analysis = DeterministicSmsAnalyzer(CurrencyContext("INR", ("core-en", "india"))).analyze(
         "INR 12 was debited from account **1234 at SYNTH STORE.",
         operation_id="synthetic-contract",
         is_outgoing=False,
@@ -73,18 +71,20 @@ def test_executable_analysis_conforms_to_schema() -> None:
     assert analysis.contract == ANALYSIS_CONTRACT
     assert _schema("sms-analysis.schema.json")["$id"] == ANALYSIS_CONTRACT
     jsonschema.validate(analysis.to_dict(), _schema("sms-analysis.schema.json"))
-    assert Analysis.from_dict(analysis.to_dict(), source="INR 12 was debited from account **1234 at SYNTH STORE.") == analysis
+    assert (
+        Analysis.from_dict(
+            analysis.to_dict(), source="INR 12 was debited from account **1234 at SYNTH STORE."
+        )
+        == analysis
+    )
 
 
 def test_checked_in_currency_and_profile_declarations_match_runtime() -> None:
     currency_config = json.loads(
-        (ROOT / "configs/sms_processing/currency/iso-4217.json").read_text(
-            encoding="utf-8"
-        )
+        (ROOT / "configs/sms_processing/currency/iso-4217.json").read_text(encoding="utf-8")
     )
     assert {
-        code: value["minor_units"]
-        for code, value in currency_config["currencies"].items()
+        code: value["minor_units"] for code, value in currency_config["currencies"].items()
     } == ISO_MINOR_UNITS
     assert frozenset(currency_config["current_codes"]) == ISO_4217_CURRENT_CODES
     assert ISO_MINOR_UNITS.keys() <= ISO_4217_CURRENT_CODES
@@ -102,10 +102,13 @@ def test_checked_in_currency_and_profile_declarations_match_runtime() -> None:
             currency: tuple(marker.casefold() for marker in markers)
             for currency, markers in runtime.explicit_markers.items()
         }
+        assert declared["revision"] == runtime.revision
         assert declared_markers == runtime_markers
-        assert tuple(
-            marker.casefold() for marker in declared["ambiguous_currency_markers"]
-        ) == runtime.ambiguous_markers
+        assert (
+            tuple(marker.casefold() for marker in declared["ambiguous_currency_markers"])
+            == runtime.ambiguous_markers
+        )
+        assert tuple(declared["grouping"]) == runtime.grouping_styles
 
 
 def test_selector_schema_accepts_only_three_semantic_branches() -> None:
@@ -129,9 +132,9 @@ def test_selector_schema_accepts_only_three_semantic_branches() -> None:
 
 def test_selector_input_payload_conforms_without_host_canonical_values() -> None:
     source = "INR 12 was debited from account **1234 at SYNTH STORE."
-    analysis = DeterministicSmsAnalyzer(
-        CurrencyContext("INR", ("core-en", "india"))
-    ).analyze(source, operation_id="synthetic-selector-input")
+    analysis = DeterministicSmsAnalyzer(CurrencyContext("INR", ("core-en", "india"))).analyze(
+        source, operation_id="synthetic-selector-input"
+    )
     payload = model_candidate_payload(source, analysis)
     schema = _schema("grounded-candidate-selector-input.schema.json")
     assert schema["$id"] == SELECTOR_INPUT_CONTRACT
@@ -186,8 +189,6 @@ def test_processing_result_schema_keeps_recognition_and_persistence_separate() -
     )
     value = processing_result_payload(
         SelectorResult("posted", transaction),
-        PersistenceDecision(
-            False, ("persistence_account_not_uniquely_resolved",)
-        ),
+        PersistenceDecision(False, ("persistence_account_not_uniquely_resolved",)),
     )
     jsonschema.validate(value, _schema("processing-result.schema.json"))

@@ -35,12 +35,8 @@ from .types import (
 
 ANALYSIS_CONTRACT = "pocketfinancer.sms-analysis/1"
 
-_NUMBER = r"(?:\d{1,3}(?:,\d{2})*,\d{3}|\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,3})?"
-_EXPLICIT_CODE_AMOUNT = re.compile(
-    rf"(?<![A-Z])(?P<currency>[A-Z]{{3}})\s*[:.-]?\s*(?P<number>{_NUMBER})(?!\d)",
-    re.IGNORECASE,
-)
-_NUMBER_PATTERN = re.compile(rf"(?<![\w])(?P<number>{_NUMBER})(?![\w])")
+_WESTERN_INTEGER = r"(?:\d{1,3}(?:,\d{3})+|\d+)"
+_LAKH_INTEGER = r"(?:\d{1,3}(?:,\d{2})+,\d{3})"
 _BARE_AMOUNT_CONTEXT = re.compile(
     r"\b(?:amount|amt|payment|purchase|transfer|txn|transaction|paid|spent|received|"
     r"withdrawn|deposited|refunded|debited|credited|charged)\b",
@@ -96,7 +92,9 @@ _COUNTERPARTY_PATTERN = re.compile(
 _CUE_PATTERNS: dict[str, tuple[str, re.Pattern[str]]] = {
     "failure": (
         "non_posted_failure",
-        re.compile(r"\b(?:failed|declined|rejected|unsuccessful|could\s+not\s+be\s+processed)\b", re.I),
+        re.compile(
+            r"\b(?:failed|declined|rejected|unsuccessful|could\s+not\s+be\s+processed)\b", re.I
+        ),
     ),
     "negation": (
         "negated_movement",
@@ -115,10 +113,15 @@ _CUE_PATTERNS: dict[str, tuple[str, re.Pattern[str]]] = {
             re.I,
         ),
     ),
-    "due": ("amount_due", re.compile(r"\b(?:amount\s+due|payment\s+due|minimum\s+due|due\s+date)\b", re.I)),
+    "due": (
+        "amount_due",
+        re.compile(r"\b(?:amount\s+due|payment\s+due|minimum\s+due|due\s+date)\b", re.I),
+    ),
     "request": (
         "request_or_authorization",
-        re.compile(r"\b(?:collect\s+request|payment\s+request|approve|authorize|mandate\s+request)\b", re.I),
+        re.compile(
+            r"\b(?:collect\s+request|payment\s+request|approve|authorize|mandate\s+request)\b", re.I
+        ),
     ),
     "balance": (
         "balance_information",
@@ -126,15 +129,21 @@ _CUE_PATTERNS: dict[str, tuple[str, re.Pattern[str]]] = {
     ),
     "promotion": (
         "promotion",
-        re.compile(r"\b(?:offer|cashback\s+offer|discount|sale|apply\s+now|limited\s+time)\b", re.I),
+        re.compile(
+            r"\b(?:offer|cashback\s+offer|discount|sale|apply\s+now|limited\s+time)\b", re.I
+        ),
     ),
     "administrative": (
         "administrative",
-        re.compile(r"\b(?:statement\s+generated|kyc|profile\s+updated|nomination|registered)\b", re.I),
+        re.compile(
+            r"\b(?:statement\s+generated|kyc|profile\s+updated|nomination|registered)\b", re.I
+        ),
     ),
     "credential_otp": (
         "credential_otp",
-        re.compile(r"\b(?:otp|one[- ]time\s+password|verification\s+code|login\s+code|passcode)\b", re.I),
+        re.compile(
+            r"\b(?:otp|one[- ]time\s+password|verification\s+code|login\s+code|passcode)\b", re.I
+        ),
     ),
 }
 
@@ -147,6 +156,15 @@ class DeterministicSmsAnalyzer:
         self.profiles = resolve_profiles(currency_context.profile_ids)
         self.transaction_terms = tuple(
             dict.fromkeys(term for profile in self.profiles for term in profile.transaction_terms)
+        )
+        self.number_expression = self._number_expression()
+        self.explicit_code_amount_pattern = re.compile(
+            rf"(?<![A-Z])(?P<currency>[A-Z]{{3}})\s*[:.-]?\s*"
+            rf"(?P<number>{self.number_expression})(?![\d,])",
+            re.IGNORECASE,
+        )
+        self.bare_number_pattern = re.compile(
+            rf"(?<![\w,])(?P<number>{self.number_expression})(?![\w,])"
         )
 
     def analyze(
@@ -188,7 +206,7 @@ class DeterministicSmsAnalyzer:
                         match,
                     )
                 )
-        for match in structural_view.finditer(_EXPLICIT_CODE_AMOUNT):
+        for match in structural_view.finditer(self.explicit_code_amount_pattern):
             code = match.group("currency").upper()
             if code in ISO_4217_CURRENT_CODES and code not in ISO_MINOR_UNITS:
                 cues.append(
@@ -210,18 +228,16 @@ class DeterministicSmsAnalyzer:
                 )
                 for match in structural_view.finditer(rail_pattern):
                     cues.append(
-                        self._cue(source, clauses, analysis_id, "payment_rail", f"rail_{rail}", match)
+                        self._cue(
+                            source, clauses, analysis_id, "payment_rail", f"rail_{rail}", match
+                        )
                     )
 
-        candidates.extend(
-            self._amount_candidates(source, structural_view, clauses, analysis_id)
-        )
+        candidates.extend(self._amount_candidates(source, structural_view, clauses, analysis_id))
         candidates.extend(
             self._direction_candidates(source, structural_view, clauses, analysis_id, cues)
         )
-        candidates.extend(
-            self._account_candidates(source, structural_view, clauses, analysis_id)
-        )
+        candidates.extend(self._account_candidates(source, structural_view, clauses, analysis_id))
         candidates.extend(
             self._counterparty_candidates(source, structural_view, clauses, analysis_id)
         )
@@ -271,7 +287,7 @@ class DeterministicSmsAnalyzer:
         analysis_id: str,
     ) -> Iterable[Candidate]:
         covered: list[tuple[int, int]] = []
-        for match in structural_view.finditer(_EXPLICIT_CODE_AMOUNT):
+        for match in structural_view.finditer(self.explicit_code_amount_pattern):
             covered.append(match.span())
             code = match.group("currency").upper()
             try:
@@ -334,7 +350,7 @@ class DeterministicSmsAnalyzer:
 
         if not _BARE_AMOUNT_CONTEXT.search(structural_view.normalized):
             return
-        for match in structural_view.finditer(_NUMBER_PATTERN):
+        for match in structural_view.finditer(self.bare_number_pattern):
             if self._overlaps(match.span(), covered):
                 continue
             local_context = structural_view.normalized[
@@ -376,15 +392,12 @@ class DeterministicSmsAnalyzer:
         cues: list[Cue],
     ) -> Iterable[Candidate]:
         non_completed = [
-            cue.evidence
-            for cue in cues
-            if cue.kind in {"negation", "pending", "request"}
+            cue.evidence for cue in cues if cue.kind in {"negation", "pending", "request"}
         ]
         for direction, pattern in _DIRECTION_PATTERNS:
             for match in structural_view.finditer(pattern):
                 if any(
-                    evidence.start_char <= match.start()
-                    and evidence.end_char >= match.end()
+                    evidence.start_char <= match.start() and evidence.end_char >= match.end()
                     for evidence in non_completed
                 ):
                     continue
@@ -468,7 +481,8 @@ class DeterministicSmsAnalyzer:
                     seen.add(key)
                     escaped = re.escape(marker)
                     pattern = re.compile(
-                        rf"(?<!\w)(?:{escaped})\s*[:.-]?\s*(?P<number>{_NUMBER})(?!\d)",
+                        rf"(?<!\w)(?:{escaped})\s*[:.-]?\s*"
+                        rf"(?P<number>{self.number_expression})(?![\d,])",
                         re.IGNORECASE,
                     )
                     yield currency, marker, pattern
@@ -482,9 +496,21 @@ class DeterministicSmsAnalyzer:
                     continue
                 seen.add(key)
                 yield re.compile(
-                    rf"(?<!\w)(?:{re.escape(marker)})\s*[:.-]?\s*(?P<number>{_NUMBER})(?!\d)",
+                    rf"(?<!\w)(?:{re.escape(marker)})\s*[:.-]?\s*"
+                    rf"(?P<number>{self.number_expression})(?![\d,])",
                     re.IGNORECASE,
                 )
+
+    def _number_expression(self) -> str:
+        styles = {style for profile in self.profiles for style in profile.grouping_styles}
+        unsupported = styles - {"western", "lakh"}
+        if unsupported or "western" not in styles:
+            raise ValueError("analyzer profile has unsupported numeric grouping")
+        integer_patterns = []
+        if "lakh" in styles:
+            integer_patterns.append(_LAKH_INTEGER)
+        integer_patterns.append(_WESTERN_INTEGER)
+        return rf"(?:{'|'.join(integer_patterns)})(?:\.\d{{1,3}})?"
 
     def _candidate(
         self,
@@ -534,7 +560,9 @@ class DeterministicSmsAnalyzer:
     ) -> str:
         span = "absent" if evidence is None else f"{evidence.start_char}:{evidence.end_char}"
         payload = json.dumps(value, sort_keys=True, separators=(",", ":"))
-        digest = hashlib.sha256(f"{analysis_id}|{kind.value}|{span}|{payload}".encode()).hexdigest()[:12]
+        digest = hashlib.sha256(
+            f"{analysis_id}|{kind.value}|{span}|{payload}".encode()
+        ).hexdigest()[:12]
         prefix = {
             CandidateKind.AMOUNT: "amt",
             CandidateKind.DIRECTION: "dir",
@@ -545,7 +573,9 @@ class DeterministicSmsAnalyzer:
 
     @staticmethod
     def _overlaps(span: tuple[int, int], covered: list[tuple[int, int]]) -> bool:
-        return any(span[0] < other_end and span[1] > other_start for other_start, other_end in covered)
+        return any(
+            span[0] < other_end and span[1] > other_start for other_start, other_end in covered
+        )
 
     @staticmethod
     def _deduplicate_candidates(candidates: list[Candidate]) -> list[Candidate]:

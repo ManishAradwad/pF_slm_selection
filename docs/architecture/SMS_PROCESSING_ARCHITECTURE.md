@@ -118,8 +118,8 @@ truth and never silently persist.
 ## Current measured foundation state
 
 The current configured private rebuild represents all 17,830 archive rows exactly
-once. It is intentionally conservative: 1,456 rows currently receive normal
-selector invocation, 125 may receive assistive invocation, and 16,249 skip the
+once. It is intentionally conservative: 1,453 rows currently receive normal
+selector invocation, 125 may receive assistive invocation, and 16,252 skip the
 model. This is a starting diagnostic, not a claim that
 the deterministic analyzer is complete. Human segregation work will measure and
 improve those boundaries without using weak outputs as ground truth.
