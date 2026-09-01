@@ -55,9 +55,9 @@ the number, currency, scale, or provenance.
 
 `core-en` owns country-neutral English movement language and globally
 unambiguous markers. `india` owns INR/Rs/₹, lakh-style grouping,
-UPI/IMPS/NEFT/RTGS/NACH cues, and Indian account forms. Any India-specific sender
-conventions added later must live in that extension as well; sender shape is not
-a current invocation requirement.
+and UPI/IMPS/NEFT/RTGS/NACH cues. Any India-specific sender conventions added
+later must live in that extension as well; sender shape is not a current
+invocation requirement.
 Additional country/locale behavior must enter through a reviewed profile plus
 synthetic tests, never through a hidden primary-currency conditional.
 

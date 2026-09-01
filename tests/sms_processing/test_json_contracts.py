@@ -109,6 +109,8 @@ def test_checked_in_currency_and_profile_declarations_match_runtime() -> None:
             == runtime.ambiguous_markers
         )
         assert tuple(declared["grouping"]) == runtime.grouping_styles
+        assert tuple(declared["transaction_terms"]) == runtime.transaction_terms
+        assert {rail: tuple(terms) for rail, terms in declared["rails"].items()} == runtime.rails
 
 
 def test_selector_schema_accepts_only_three_semantic_branches() -> None:
