@@ -85,7 +85,15 @@ function queryString(extra = {}) {
 }
 
 async function loadProgress() {
-  const value = await api(`/api/progress?${queryString()}`);
+  const coverage = el("coverageTables");
+  coverage.textContent = "Loading coverage…";
+  let value;
+  try {
+    value = await api(`/api/progress?${queryString()}`);
+  } catch (error) {
+    coverage.textContent = error.message || "Coverage data could not be loaded.";
+    throw error;
+  }
   el("progress").textContent = "";
   const items = [
     ["Corpus", value.total],
@@ -100,7 +108,6 @@ async function loadProgress() {
     span.append(`${label} `, strong);
     el("progress").append(span);
   });
-  const coverage = el("coverageTables");
   coverage.textContent = "";
   coverage.append(coverageTable("Annotation pools", value.pool_coverage));
   coverage.append(coverageTable("Weak operational classes", value.class_coverage));
@@ -174,6 +181,7 @@ async function selectRow(sourceId) {
   state.correctionRevision = record.latest_weak_correction ? record.latest_weak_correction.revision : 0;
   el("emptyDetail").hidden = true;
   el("detailContent").hidden = false;
+  el("detailContent").closest(".detail").scrollTop = 0;
   el("detailMeta").textContent = `${record.pool} · ${record.source_metadata.timestamp || "unknown time"}`;
   el("reviewBadge").textContent = record.review_state;
   el("senderText").textContent = record.source.sender;
@@ -411,6 +419,9 @@ function updateDecisionUi() {
   el("eventEditor").hidden = !["posted", "multiple_event"].includes(decision);
 }
 el("decision").addEventListener("change", updateDecisionUi);
+el("coveragePanel").addEventListener("toggle", () => {
+  el("coverageToggleHint").textContent = el("coveragePanel").open ? "Hide breakdown" : "Show breakdown";
+});
 
 async function run(task) { try { await task(); } catch (error) { toast(error.message || "Operation failed.", true); } }
 run(async () => { await loadProgress(); await loadRows(); });
