@@ -27,7 +27,7 @@ Last updated: 2026-09-01
 3. [x] Verify canonical copies/member hashes and remove old derived datasets after
    explicit confirmation. Preserve the raw archive, 1,436 reviewed asset, 203
    regression fixture, and measured reports.
-4. [ ] Run the full repository gate and open a focused pull request.
+4. [x] Run the full repository gate and open a focused pull request.
 
 ## Implementation file map
 
@@ -158,10 +158,10 @@ Only after human truth is sufficient:
 - [x] Workbench blind-first, revision, validation, backup, recovery, export, and
   synthetic HTTP smoke tests pass.
 - [x] Obsolete derived private artifacts removed after approved verification.
-- [ ] Full Ruff, targeted lint, complete pytest, safety, schema, corpus, and diff
+- [x] Full Ruff, targeted lint, complete pytest, safety, schema, corpus, and diff
   checks pass on the final tree.
-- [ ] Active documentation and executable contracts pass a final agreement audit.
-- [ ] Focused branch pushed and pull request created.
+- [x] Active documentation and executable contracts pass a final agreement audit.
+- [x] Focused branch pushed and pull request created.
 
 ## Next-session planning prompt
 
