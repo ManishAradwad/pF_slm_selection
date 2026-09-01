@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from pocketfinancer_sms.analyzer import DeterministicSmsAnalyzer
@@ -20,7 +22,7 @@ from pocketfinancer_sms.labels import (
     validate_canonical_label,
 )
 from pocketfinancer_sms.trace import ProcessingTrace, TraceStage
-from pocketfinancer_sms.types import CandidateKind, CurrencyProvenance, Direction
+from pocketfinancer_sms.types import CandidateKind, CurrencyProvenance, Direction, EvidenceSpan
 
 
 def _posted_fixture():
@@ -124,6 +126,35 @@ def test_unknown_optional_state_blocks_posted_projection() -> None:
         project_selector_target(unknown, analysis, source)
 
 
+def test_amount_evidence_must_contain_one_exact_money_value() -> None:
+    source, _analysis_value, label = _posted_fixture()
+    start = source.index("credited")
+    invalid_event = replace(
+        label.events[0],
+        amount_span=EvidenceSpan.from_source(source, start, start + len("credited")),
+    )
+
+    with pytest.raises(LabelValidationError, match="label_amount_evidence_not_exact_money"):
+        validate_canonical_label(replace(label, events=(invalid_event,)), source)
+
+
+def test_invalid_or_outgoing_truth_is_valid_but_never_becomes_selector_negative() -> None:
+    source, analysis, label = _posted_fixture()
+    invalid_outgoing = replace(
+        label,
+        decision=CanonicalDecision.NON_FINANCIAL,
+        operational_class=OperationalClass.INVALID_OUTGOING,
+        event_state=EventState.NO_EVENT,
+        financial_family=None,
+        payment_rail=None,
+        events=(),
+    )
+
+    validate_canonical_label(invalid_outgoing, source)
+    with pytest.raises(LabelValidationError, match="projection_invalid_outgoing_excluded"):
+        project_selector_target(invalid_outgoing, analysis, source)
+
+
 def test_processing_trace_is_hash_bound_and_contains_truthful_stages() -> None:
     trace = ProcessingTrace.create(
         "synthetic-operation",
@@ -151,6 +182,7 @@ def test_feedback_is_append_only_provenance_and_correction_requires_label() -> N
         revision=1,
         action="correct",
         canonical_label_id="synthetic-label-1",
+        canonical_label_revision=1,
         created_at_epoch_ms=1_700_000_000_000,
         actor_id="synthetic-user",
     )
@@ -165,7 +197,9 @@ def test_feedback_is_append_only_provenance_and_correction_requires_label() -> N
             revision=2,
             action="correct",
             canonical_label_id=None,
+            canonical_label_revision=None,
             created_at_epoch_ms=1_700_000_000_001,
             actor_id="synthetic-user",
             previous_event_hash="c" * 64,
         )
+    assert len(event.event_hash) == 64

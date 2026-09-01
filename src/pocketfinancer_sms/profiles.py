@@ -9,6 +9,7 @@ from dataclasses import dataclass
 class AnalyzerProfile:
     profile_id: str
     explicit_markers: dict[str, tuple[str, ...]]
+    ambiguous_markers: tuple[str, ...]
     transaction_terms: tuple[str, ...]
     rails: dict[str, tuple[str, ...]]
 
@@ -16,11 +17,12 @@ class AnalyzerProfile:
 CORE_EN = AnalyzerProfile(
     profile_id="core-en",
     explicit_markers={
-        "USD": ("$",),
         "EUR": ("€",),
         "GBP": ("£",),
-        "JPY": ("¥",),
     },
+    # These markers name more than one ISO currency globally. A locale extension
+    # may eventually resolve them, but core analysis must never guess.
+    ambiguous_markers=("$", "¥"),
     transaction_terms=(
         "transaction",
         "payment",
@@ -42,6 +44,7 @@ CORE_EN = AnalyzerProfile(
 INDIA = AnalyzerProfile(
     profile_id="india",
     explicit_markers={"INR": ("₹", "rs", "rs.", "inr")},
+    ambiguous_markers=(),
     transaction_terms=CORE_EN.transaction_terms
     + ("a/c", "acct", "account", "card", "upi", "imps", "neft", "rtgs", "nach"),
     rails={

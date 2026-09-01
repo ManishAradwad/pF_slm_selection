@@ -16,6 +16,12 @@ const state = {
   spans: {},
   events: [],
   correctionRevision: 0,
+  hasDisagreement: false,
+  groupFilters: {
+    normalized_template_group: null,
+    sender_family_group: null,
+    sender_template_group: null,
+  },
 };
 
 const classes = ["posted_candidate", "financial_non_posted", "non_financial", "ambiguous", "invalid_outgoing"];
@@ -40,11 +46,15 @@ function optionList(target, values, firstLabel) {
   });
 }
 optionList(el("classFilter"), ["", ...classes], "All classes");
+optionList(el("eventStateFilter"), ["", ...eventStates], "All states");
+optionList(el("familyFilter"), families, "All families");
 optionList(el("railFilter"), rails, "All rails");
 optionList(el("operationalClass"), ["", ...classes], "Choose…");
 optionList(el("eventState"), ["", ...eventStates], "Choose…");
 optionList(el("financialFamily"), families, "None");
 optionList(el("paymentRail"), rails, "None");
+optionList(el("eventFinancialFamily"), families, "None");
+optionList(el("eventPaymentRail"), rails, "None");
 el("reviewerId").value = localStorage.getItem("workbenchReviewer") || "";
 
 async function api(path, options = {}) {
@@ -90,14 +100,39 @@ async function loadProgress() {
     span.append(`${label} `, strong);
     el("progress").append(span);
   });
+  const coverage = el("coverageTables");
+  coverage.textContent = "";
+  coverage.append(coverageTable("Annotation pools", value.pool_coverage));
+  coverage.append(coverageTable("Weak operational classes", value.class_coverage));
+}
+function coverageTable(title, values) {
+  const section = document.createElement("section");
+  const heading = document.createElement("h3"); heading.textContent = title; section.append(heading);
+  const table = document.createElement("table");
+  const head = document.createElement("tr");
+  ["Category", "Reviewed", "Total"].forEach((label) => { const cell = document.createElement("th"); cell.textContent = label; head.append(cell); });
+  table.append(head);
+  Object.entries(values || {}).sort().forEach(([name, counts]) => {
+    const row = document.createElement("tr");
+    [name.replaceAll("_", " "), Number(counts.reviewed).toLocaleString(), Number(counts.total).toLocaleString()].forEach((value) => { const cell = document.createElement("td"); cell.textContent = value; row.append(cell); });
+    table.append(row);
+  });
+  section.append(table); return section;
 }
 function filters() {
   return {
     pool: el("poolFilter").value,
     operational_class: el("classFilter").value,
+    event_state: el("eventStateFilter").value,
+    financial_family: el("familyFilter").value,
     payment_rail: el("railFilter").value,
     disposition: el("dispositionFilter").value,
+    selector_action: el("selectorActionFilter").value,
     review_state: el("reviewFilter").value,
+    time_group: el("timeGroupFilter").value,
+    time_from: el("timeFromFilter").value,
+    time_to: el("timeToFilter").value,
+    ...state.groupFilters,
     search: el("search").value,
     sort: el("sort").value,
     descending: String(el("descending").checked),
@@ -135,6 +170,8 @@ async function selectRow(sourceId) {
   state.selectedRecord = record;
   state.spans = {};
   state.events = [];
+  state.hasDisagreement = false;
+  state.correctionRevision = record.latest_weak_correction ? record.latest_weak_correction.revision : 0;
   el("emptyDetail").hidden = true;
   el("detailContent").hidden = false;
   el("detailMeta").textContent = `${record.pool} · ${record.source_metadata.timestamp || "unknown time"}`;
@@ -146,9 +183,12 @@ async function selectRow(sourceId) {
   el("analysisPanel").hidden = record.blind_locked;
   el("revisionLabel").textContent = record.latest_annotation ? `Revision ${record.latest_annotation.revision}` : "No revision";
   populateAnnotation(record.latest_annotation);
+  resetEventEditor(record);
   renderAnalysis(record);
+  renderGroupNavigation(record);
   renderSpans();
   renderEvents();
+  await loadDisagreements(record);
   await loadRows();
 }
 function populateAnnotation(latest) {
@@ -161,6 +201,7 @@ function populateAnnotation(latest) {
   el("uncertain").checked = Boolean(payload.uncertain);
   el("notes").value = payload.notes || "";
   state.events = Array.isArray(payload.events) ? structuredClone(payload.events) : [];
+  updateDecisionUi();
 }
 function renderAnalysis(record) {
   const root = el("analysisContent");
@@ -173,6 +214,13 @@ function renderAnalysis(record) {
     const node = document.createElement("span"); node.className = "reason"; node.textContent = reason; reasonList.append(node);
   });
   reasons.append(reasonList); root.append(reasons);
+  if (record.candidate_coverage) {
+    const coverage = section("Candidate-oracle coverage");
+    const counts = record.candidate_coverage.field_candidate_counts;
+    const summary = document.createElement("p");
+    summary.textContent = `Amount ${counts.amount} · direction ${counts.direction} · account ${counts.account} · counterparty ${counts.counterparty} · complete core clauses ${record.candidate_coverage.complete_core_clause_count}`;
+    coverage.append(summary); root.append(coverage);
+  }
   const candidates = section("Grounded candidates");
   record.analysis.candidates.forEach((candidate) => {
     const item = document.createElement("div"); item.className = "candidate-item";
@@ -200,6 +248,50 @@ function renderAnalysis(record) {
 }
 function section(title) { const node = document.createElement("div"); node.className = "analysis-section"; const h = document.createElement("h3"); h.textContent = title; node.append(h); return node; }
 
+function renderGroupNavigation(record) {
+  const root = el("groupNavigation"); root.textContent = "";
+  if (!record.grouping) return;
+  const groups = [
+    ["normalized_template_group", record.grouping.normalized_template_hash, "Show this template family"],
+    ["sender_family_group", record.grouping.sender_family_hash, "Show this sender family"],
+    ["sender_template_group", record.grouping.sender_template_group_hash, "Show this sender-template group"],
+  ];
+  groups.forEach(([key, value, label]) => {
+    const button = document.createElement("button"); button.className = "secondary"; button.textContent = label;
+    button.addEventListener("click", () => run(async () => { state.groupFilters = {normalized_template_group: null, sender_family_group: null, sender_template_group: null}; state.groupFilters[key] = value; state.offset = 0; await loadRows(); toast(`${label} filter applied.`); }));
+    root.append(button);
+  });
+  const clear = document.createElement("button"); clear.className = "secondary"; clear.textContent = "Clear group filter";
+  clear.addEventListener("click", () => run(async () => { state.groupFilters = {normalized_template_group: null, sender_family_group: null, sender_template_group: null}; state.offset = 0; await loadRows(); }));
+  root.append(clear);
+}
+
+async function loadDisagreements(record) {
+  const root = el("disagreementContent"); root.textContent = "";
+  el("adjudicateButton").disabled = true;
+  if (record.blind_locked) { root.textContent = "Agreement details remain hidden during blind review."; return; }
+  const value = await api(`/api/disagreements?${queryString({source_id: record.source_id})}`);
+  state.hasDisagreement = value.has_disagreement;
+  el("adjudicateButton").disabled = !value.has_disagreement;
+  if (value.review_count === 0) { root.textContent = "No submitted reviews yet."; return; }
+  value.annotations.forEach((annotation) => {
+    const item = document.createElement("p");
+    const decision = annotation.canonical_label ? annotation.canonical_label.decision : "unavailable";
+    item.textContent = `${annotation.reviewer_id} · ${decision} · revision ${annotation.revision} · ${annotation.revision_hash}`;
+    root.append(item);
+  });
+}
+
+function resetEventEditor(record) {
+  el("currency").value = record.analysis ? record.analysis.primary_currency : "";
+  el("currencyProvenance").value = "";
+  el("direction").value = "";
+  el("accountState").value = "";
+  el("counterpartyState").value = "";
+  el("eventFinancialFamily").value = "";
+  el("eventPaymentRail").value = "";
+}
+
 function selectedSpan() {
   const selection = window.getSelection();
   if (!selection || selection.rangeCount !== 1 || selection.isCollapsed) throw new Error("Select exact message text first.");
@@ -209,12 +301,12 @@ function selectedSpan() {
   const before = range.cloneRange();
   before.selectNodeContents(root);
   before.setEnd(range.startContainer, range.startOffset);
-  const start = before.toString().length;
-  const end = start + range.toString().length;
+  const start = Array.from(before.toString()).length;
+  const end = start + Array.from(range.toString()).length;
   return {start_char: start, end_char: end};
 }
 function setSpan(field, value) { state.spans[field] = value; renderSpans(); toast(`${field.replace("_span", "")} evidence selected.`); }
-function spanText(span) { return span ? state.selectedRecord.source.body.slice(span.start_char, span.end_char) : "not selected"; }
+function spanText(span) { return span ? Array.from(state.selectedRecord.source.body).slice(span.start_char, span.end_char).join("") : "not selected"; }
 function renderSpans() {
   const root = el("spanSummary"); root.textContent = "";
   ["amount_span", "direction_span", "account_span", "counterparty_span"].forEach((field) => {
@@ -232,15 +324,24 @@ function currentEvent() {
     account_span: el("accountState").value === "present" ? state.spans.account_span || null : null,
     counterparty_state: el("counterpartyState").value,
     counterparty_span: el("counterpartyState").value === "present" ? state.spans.counterparty_span || null : null,
-    financial_family: el("financialFamily").value || null,
-    payment_rail: el("paymentRail").value || null,
+    financial_family: el("eventFinancialFamily").value || el("financialFamily").value || null,
+    payment_rail: el("eventPaymentRail").value || el("paymentRail").value || null,
   };
+}
+function validateEventDraft(event) {
+  if (!event.amount_span) throw new Error("Select exact amount evidence.");
+  if (!event.direction_span) throw new Error("Select exact direction evidence.");
+  if (!/^[A-Z]{3}$/.test(event.currency)) throw new Error("Enter a three-letter ISO currency code.");
+  if (!event.currency_provenance) throw new Error("Choose how the currency was established.");
+  if (!event.direction) throw new Error("Choose debit or credit direction.");
+  if (!event.account_state) throw new Error("Mark the account present, absent, or unknown.");
+  if (!event.counterparty_state) throw new Error("Mark the counterparty present, absent, or unknown.");
+  if (event.account_state === "present" && !event.account_span) throw new Error("Select account evidence or mark it absent/unknown.");
+  if (event.counterparty_state === "present" && !event.counterparty_span) throw new Error("Select counterparty evidence or mark it absent/unknown.");
 }
 function addEvent() {
   const event = currentEvent();
-  if (!event.amount_span || !event.direction_span) throw new Error("Amount and direction evidence are required for an event.");
-  if (event.account_state === "present" && !event.account_span) throw new Error("Select account evidence or mark it absent/unknown.");
-  if (event.counterparty_state === "present" && !event.counterparty_span) throw new Error("Select counterparty evidence or mark it absent/unknown.");
+  validateEventDraft(event);
   state.events.push(event); state.spans = {}; renderSpans(); renderEvents();
 }
 function renderEvents() {
@@ -250,13 +351,23 @@ function renderEvents() {
     const text = document.createElement("span"); text.textContent = `Event ${index + 1}: ${event.currency} · ${event.direction} · ${spanText(event.amount_span)}`;
     const remove = document.createElement("button"); remove.className = "secondary"; remove.textContent = "Remove";
     remove.addEventListener("click", () => { state.events.splice(index, 1); renderEvents(); });
-    node.append(text, remove); root.append(node);
+    const load = document.createElement("button"); load.className = "secondary"; load.textContent = "Load to edit";
+    load.addEventListener("click", () => {
+      state.spans = {amount_span: event.amount_span, direction_span: event.direction_span, account_span: event.account_span, counterparty_span: event.counterparty_span};
+      el("currency").value = event.currency; el("currencyProvenance").value = event.currency_provenance; el("direction").value = event.direction;
+      el("accountState").value = event.account_state; el("counterpartyState").value = event.counterparty_state;
+      el("eventFinancialFamily").value = event.financial_family || ""; el("eventPaymentRail").value = event.payment_rail || ""; renderSpans();
+    });
+    node.append(text, load, remove); root.append(node);
   });
 }
 function buildPayload() {
   const decision = el("decision").value;
   let events = structuredClone(state.events);
-  if ((decision === "posted" || decision === "multiple_event") && events.length === 0) events = [currentEvent()];
+  if ((decision === "posted" || decision === "multiple_event") && events.length === 0) {
+    const event = currentEvent(); validateEventDraft(event); events = [event];
+  }
+  if (decision === "multiple_event" && events.length < 2) throw new Error("Multiple-event labels require at least two events.");
   return {
     decision,
     operational_class: el("operationalClass").value,
@@ -293,12 +404,13 @@ el("correctionButton").addEventListener("click", () => run(async () => {
 }));
 el("backupButton").addEventListener("click", () => run(async () => { const value = await post("/api/backup", {}); toast(`Backup created: ${value.backup}`); }));
 el("exportButton").addEventListener("click", () => run(async () => { const value = await post("/api/export", {}); toast(`Export ${value.export_id} created with ${value.label_count} labels.`); }));
-el("decision").addEventListener("change", () => {
+function updateDecisionUi() {
   const decision = el("decision").value;
   const defaults = {posted: ["posted_candidate", "posted"], not_posted: ["financial_non_posted", "not_posted"], non_financial: ["non_financial", "no_event"], ambiguous: ["ambiguous", "unknown"], multiple_event: ["posted_candidate", "posted"]};
   if (defaults[decision]) [el("operationalClass").value, el("eventState").value] = defaults[decision];
   el("eventEditor").hidden = !["posted", "multiple_event"].includes(decision);
-});
+}
+el("decision").addEventListener("change", updateDecisionUi);
 
 async function run(task) { try { await task(); } catch (error) { toast(error.message || "Operation failed.", true); } }
 run(async () => { await loadProgress(); await loadRows(); });

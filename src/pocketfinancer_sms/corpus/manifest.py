@@ -6,9 +6,11 @@ import hashlib
 import hmac
 import json
 import os
+import shutil
 import tempfile
 from collections import Counter, defaultdict
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +23,7 @@ from ..provenance import (
     atomic_write_jsonl,
     ensure_private_directory,
     file_sha256,
+    fsync_directory,
     load_or_create_secret,
     object_sha256,
     require_private_output,
@@ -49,7 +52,7 @@ def build_private_corpus(repo_root: Path, config_path: Path) -> dict[str, Any]:
 
     source_hash = file_sha256(source_path)
     config_hash = file_sha256(config_path)
-    implementation_hash = _implementation_hash()
+    implementation_hash = _implementation_hash(repo_root)
     run_id = hashlib.sha256(
         f"{source_hash}:{config_hash}:{implementation_hash}:{source_key_id}".encode()
     ).hexdigest()[:20]
@@ -137,6 +140,7 @@ def build_private_corpus(repo_root: Path, config_path: Path) -> dict[str, Any]:
         regression_template_hashes=regression_templates,
         legacy_template_hashes=legacy_templates,
         later_time_cutoff=config["later_time_cutoff"],
+        pool_percentages=config["pool_percentages"],
     )
     leakage = leakage_audit(pool_inputs, assignments)
     if not leakage["passed"]:
@@ -162,16 +166,22 @@ def build_private_corpus(repo_root: Path, config_path: Path) -> dict[str, Any]:
 
     staging = Path(tempfile.mkdtemp(prefix=f".{run_id}.staging-", dir=runs_root))
     os.chmod(staging, 0o700)
-    _write_run(
-        staging,
-        records,
-        leakage,
-        summary,
-        provenance,
-        legacy_asset,
-        legacy_report,
-    )
-    os.replace(staging, final_run)
+    try:
+        _write_run(
+            staging,
+            records,
+            leakage,
+            summary,
+            provenance,
+            legacy_asset,
+            legacy_report,
+        )
+        os.replace(staging, final_run)
+        fsync_directory(runs_root)
+    except Exception:
+        if staging.exists():
+            shutil.rmtree(staging)
+        raise
     atomic_write_json(output_root / "CURRENT.json", {"run_id": run_id})
     return summary
 
@@ -349,6 +359,18 @@ def _write_run(
     atomic_write_json(reports / "leakage_audit.json", leakage)
     atomic_write_json(reports / "legacy_review_migration.json", legacy_report)
     atomic_write_json(root / "provenance.json", provenance)
+    artifact_hashes = {
+        str(path.relative_to(root)): file_sha256(path)
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+    atomic_write_json(
+        reports / "artifact_hashes.json",
+        {
+            "contract": "pocketfinancer.private-artifact-hashes/1",
+            "files": artifact_hashes,
+        },
+    )
 
 
 def _legacy_review_asset(
@@ -440,6 +462,8 @@ def _validate_config(config: dict[str, Any]) -> None:
         "source_id_key_path",
         "regression_fixture_path",
         "legacy_review_path",
+        "pool_percentages",
+        "permissions",
     }
     if not required <= set(config):
         raise PrivateArtifactError("corpus configuration is missing required fields")
@@ -447,6 +471,52 @@ def _validate_config(config: dict[str, Any]) -> None:
         raise PrivateArtifactError("corpus configuration must retain every source row")
     if config.get("build_sft_targets") is not False:
         raise PrivateArtifactError("corpus rebuild must not create SFT targets")
+    if config.get("contract") != "pocketfinancer.corpus-run/1":
+        raise PrivateArtifactError("corpus configuration contract is unsupported")
+    percentages = config.get("pool_percentages")
+    expected_pools = {
+        "annotation_training",
+        "annotation_development",
+        "protected_test",
+    }
+    if (
+        not isinstance(percentages, dict)
+        or set(percentages) != expected_pools
+        or any(
+            isinstance(value, bool) or not isinstance(value, int) or value < 1
+            for value in percentages.values()
+        )
+        or sum(percentages.values()) != 100
+    ):
+        raise PrivateArtifactError("corpus annotation pool percentages are invalid")
+    if config.get("permissions") != {"directory": "0700", "file": "0600"}:
+        raise PrivateArtifactError("corpus private permission policy is invalid")
+    if (
+        isinstance(config.get("expected_source_rows"), bool)
+        or not isinstance(config.get("expected_source_rows"), int)
+        or config["expected_source_rows"] < 1
+    ):
+        raise PrivateArtifactError("corpus expected source row count is invalid")
+    if not isinstance(config.get("primary_currency"), str):
+        raise PrivateArtifactError("corpus primary currency is invalid")
+    profiles = config.get("profile_ids")
+    if not isinstance(profiles, list) or not profiles or not all(
+        isinstance(profile, str) and profile for profile in profiles
+    ):
+        raise PrivateArtifactError("corpus analyzer profiles are invalid")
+    for name in (
+        "source_path",
+        "output_root",
+        "source_id_key_path",
+        "regression_fixture_path",
+        "legacy_review_path",
+    ):
+        if not isinstance(config.get(name), str) or not config[name]:
+            raise PrivateArtifactError("corpus configuration contains an invalid path")
+    try:
+        datetime.fromisoformat(config["later_time_cutoff"].replace("Z", "+00:00"))
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise PrivateArtifactError("corpus later-time cutoff is invalid") from exc
 
 
 def _resolve_within(root: Path, path: Path) -> Path:
@@ -457,13 +527,28 @@ def _resolve_within(root: Path, path: Path) -> Path:
     return resolved
 
 
-def _implementation_hash() -> str:
+def _implementation_hash(repo_root: Path) -> str:
+    package_root = Path(__file__).parents[1]
     paths = [
-        Path(__file__),
-        Path(__file__).with_name("grouping.py"),
-        Path(__file__).with_name("pools.py"),
-        Path(__file__).with_name("reports.py"),
-        Path(__file__).parents[1] / "analyzer.py",
-        Path(__file__).parents[1] / "triage.py",
+        ("code/corpus/manifest.py", Path(__file__)),
+        ("code/corpus/grouping.py", Path(__file__).with_name("grouping.py")),
+        ("code/corpus/pools.py", Path(__file__).with_name("pools.py")),
+        ("code/corpus/reports.py", Path(__file__).with_name("reports.py")),
+        ("code/analyzer.py", package_root / "analyzer.py"),
+        ("code/currency.py", package_root / "currency.py"),
+        ("code/labels.py", package_root / "labels.py"),
+        ("code/profiles.py", package_root / "profiles.py"),
+        ("code/provenance.py", package_root / "provenance.py"),
+        ("code/selector.py", package_root / "selector.py"),
+        ("code/structural_text.py", package_root / "structural_text.py"),
+        ("code/triage.py", package_root / "triage.py"),
+        ("code/types.py", package_root / "types.py"),
     ]
-    return object_sha256({str(path.name): file_sha256(path) for path in paths})
+    config_root = repo_root / "configs" / "sms_processing"
+    if config_root.is_dir():
+        paths.extend(
+            (f"config/{path.relative_to(config_root)}", path)
+            for path in sorted(config_root.rglob("*.json"))
+            if path.name != "archive-india-inr.json"
+        )
+    return object_sha256({name: file_sha256(path) for name, path in paths})

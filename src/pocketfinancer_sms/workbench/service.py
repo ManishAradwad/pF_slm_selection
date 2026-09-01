@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
 import time
-from dataclasses import asdict
 from typing import Any
 
-from ..analyzer import DeterministicSmsAnalyzer
-from ..currency import CurrencyContext
 from ..labels import (
     CanonicalDecision,
     CanonicalEvent,
@@ -20,11 +16,13 @@ from ..labels import (
     PAYMENT_RAILS,
     PresenceState,
     ReviewStatus,
+    canonical_label_to_dict,
     project_selector_target,
     validate_canonical_label,
 )
-from ..types import CurrencyProvenance, Direction, EvidenceSpan
-from .store import WorkbenchConflict, WorkbenchStore
+from ..provenance import object_sha256
+from ..types import Analysis, CurrencyProvenance, Direction, EvidenceSpan
+from .store import WorkbenchStore
 
 
 PROTECTED_POOLS = frozenset({"protected_test", "later_time_holdout"})
@@ -52,18 +50,25 @@ class WorkbenchService:
         if not reviewer_id:
             raise WorkbenchValidationError("reviewer_id is required")
         pool = filters.get("pool")
-        weak_filters = {
+        hidden_filters = {
             "operational_class",
             "event_state",
             "financial_family",
             "payment_rail",
             "disposition",
             "selector_action",
+            "review_state",
+            "normalized_template_group",
+            "sender_family_group",
+            "sender_template_group",
         }
-        if pool in PROTECTED_POOLS and any(filters.get(name) for name in weak_filters):
+        has_hidden_filter = any(filters.get(name) for name in hidden_filters)
+        if pool in PROTECTED_POOLS and has_hidden_filter:
             raise WorkbenchValidationError(
-                "weak-suggestion filters are unavailable during protected blind review"
+                "suggestion, group, and prior-review filters are unavailable during protected blind review"
             )
+        if pool is None and has_hidden_filter:
+            filters = {**filters, "exclude_protected": "true"}
         result = self.store.list_rows(
             filters=filters,
             search=search,
@@ -76,7 +81,7 @@ class WorkbenchService:
             if row["pool"] in PROTECTED_POOLS and not self._may_reveal(
                 row["source_id"], reviewer_id
             ):
-                for name in weak_filters:
+                for name in hidden_filters:
                     row[name] = None
                 row["blind_locked"] = True
             else:
@@ -96,7 +101,11 @@ class WorkbenchService:
             "source": record["source"],
             "source_metadata": record["source_metadata"],
             "pool": record["pool"],
-            "review_state": record["review_state"],
+            "review_state": (
+                (latest["status"] if latest is not None else "unreviewed")
+                if not may_reveal
+                else record["review_state"]
+            ),
             "latest_annotation": latest,
             "blind_locked": not may_reveal,
             "can_reveal": (
@@ -112,6 +121,8 @@ class WorkbenchService:
                     "weak_facets": record["weak_facets"],
                     "grouping": record["grouping"],
                     "processing_trace": record.get("processing_trace"),
+                    "latest_weak_correction": self.store.latest_weak_correction(source_id),
+                    "candidate_coverage": _candidate_coverage(record["analysis"]),
                 }
             )
         return result
@@ -149,6 +160,19 @@ class WorkbenchService:
         record = self._require_record_and_reviewer(source_id, reviewer_id)
         revision = expected_revision + 1
         status = ReviewStatus.ADJUDICATED if adjudicated else ReviewStatus.SUBMITTED
+        stored_payload = payload
+        if adjudicated:
+            disagreement = self.disagreements(source_id, reviewer_id)
+            if not disagreement["has_disagreement"]:
+                raise WorkbenchValidationError(
+                    "adjudication requires at least two disagreeing submitted labels"
+                )
+            stored_payload = {
+                **payload,
+                "adjudication_of": [
+                    item["revision_hash"] for item in disagreement["annotations"]
+                ],
+            }
         label = _build_label(
             source_id=source_id,
             reviewer_id=reviewer_id,
@@ -157,13 +181,13 @@ class WorkbenchService:
             payload=payload,
             source=record["source"]["body"],
         )
-        canonical = _label_to_dict(label)
+        canonical = canonical_label_to_dict(label)
         return self.store.append_annotation_revision(
             source_id=source_id,
             reviewer_id=reviewer_id,
             expected_revision=expected_revision,
             status=status.value,
-            payload=payload,
+            payload=stored_payload,
             canonical_label=canonical,
             created_at_epoch_ms=label.created_at_epoch_ms,
         )
@@ -181,7 +205,13 @@ class WorkbenchService:
         expected_revision: int,
         facets: dict[str, Any],
     ) -> dict[str, Any]:
-        self._require_record_and_reviewer(source_id, reviewer_id)
+        record = self._require_record_and_reviewer(source_id, reviewer_id)
+        if record["pool"] in PROTECTED_POOLS and not self._may_reveal(
+            source_id, reviewer_id
+        ):
+            raise WorkbenchValidationError(
+                "weak segregation cannot be corrected before protected review is revealed"
+            )
         _validate_weak_correction(facets)
         return self.store.append_weak_correction(
             source_id=source_id,
@@ -193,6 +223,12 @@ class WorkbenchService:
 
     def target_preview(self, source_id: str, reviewer_id: str) -> dict[str, Any]:
         record = self._require_record_and_reviewer(source_id, reviewer_id)
+        if record["pool"] in PROTECTED_POOLS and not self._may_reveal(
+            source_id, reviewer_id
+        ):
+            raise WorkbenchValidationError(
+                "selector target preview remains hidden until protected review is revealed"
+            )
         latest = self.store.latest_annotation(source_id, reviewer_id)
         if latest is None or latest["canonical_label"] is None:
             return {
@@ -200,24 +236,26 @@ class WorkbenchService:
                 "reason_code": "projection_submitted_canonical_label_missing",
             }
         label = _label_from_dict(latest["canonical_label"], record["source"]["body"])
-        analysis = DeterministicSmsAnalyzer(
-            CurrencyContext(
-                record["analysis"]["primary_currency"],
-                tuple(record["analysis"]["profile_id"].split("+")),
+        try:
+            analysis = Analysis.from_dict(
+                record["analysis"], source=record["source"]["body"]
             )
-        ).analyze(
-            record["source"]["body"],
-            operation_id=source_id,
-            is_outgoing=record["source_metadata"].get("is_outgoing"),
-            input_valid=record["analysis"]["metadata"].get("input_valid", True),
-        )
+        except ValueError as exc:
+            raise WorkbenchValidationError("stored analysis cannot be validated") from exc
         try:
             target = project_selector_target(label, analysis, record["source"]["body"])
         except LabelValidationError as exc:
             return {"convertible": False, "reason_code": exc.reason_code}
         return {"convertible": True, "target": target}
 
-    def disagreements(self, source_id: str) -> dict[str, Any]:
+    def disagreements(self, source_id: str, reviewer_id: str) -> dict[str, Any]:
+        record = self._require_record_and_reviewer(source_id, reviewer_id)
+        if record["pool"] in PROTECTED_POOLS and not self._may_reveal(
+            source_id, reviewer_id
+        ):
+            raise WorkbenchValidationError(
+                "disagreement details remain hidden until protected review is revealed"
+            )
         annotations = self.store.submitted_annotations(source_id)
         decisions = {
             item["canonical_label"]["decision"]
@@ -261,6 +299,8 @@ def _build_label(
         events = tuple(_build_event(item, source) for item in payload.get("events", []))
         uncertain = payload["uncertain"]
         notes = payload.get("notes", "")
+    except WorkbenchValidationError:
+        raise
     except (KeyError, TypeError, ValueError) as exc:
         raise WorkbenchValidationError("annotation payload has invalid or missing fields") from exc
     if not isinstance(uncertain, bool) or not isinstance(notes, str):
@@ -276,7 +316,7 @@ def _build_label(
     }
     label = CanonicalLabel(
         contract="pocketfinancer.canonical-label/1",
-        label_id="lbl_" + hashlib.sha256(repr(label_basis).encode()).hexdigest()[:24],
+        label_id="lbl_" + object_sha256(label_basis)[:24],
         source_id=source_id,
         revision=revision,
         status=status,
@@ -302,6 +342,18 @@ def _build_label(
 def _build_event(value: dict[str, Any], source: str) -> CanonicalEvent:
     if not isinstance(value, dict):
         raise WorkbenchValidationError("event must be an object")
+    required = {
+        "amount_span",
+        "currency",
+        "currency_provenance",
+        "direction",
+        "direction_span",
+        "account_state",
+        "counterparty_state",
+    }
+    missing = sorted(required - set(value))
+    if missing:
+        raise WorkbenchValidationError(f"event is missing required field: {missing[0]}")
     try:
         account_state = PresenceState(value["account_state"])
         counterparty_state = PresenceState(value["counterparty_state"])
@@ -324,28 +376,30 @@ def _build_event(value: dict[str, Any], source: str) -> CanonicalEvent:
             financial_family=value.get("financial_family"),
             payment_rail=value.get("payment_rail"),
         )
+    except WorkbenchValidationError:
+        raise
     except (KeyError, TypeError, ValueError) as exc:
-        raise WorkbenchValidationError("event has invalid or missing fields") from exc
+        raise WorkbenchValidationError(
+            "event currency source, direction, or presence state is invalid"
+        ) from exc
 
 
 def _span(value: dict[str, Any], source: str) -> EvidenceSpan:
     if not isinstance(value, dict):
         raise WorkbenchValidationError("evidence span must be an object")
     try:
-        start = int(value["start_char"])
-        end = int(value["end_char"])
+        start = value["start_char"]
+        end = value["end_char"]
+        if (
+            isinstance(start, bool)
+            or isinstance(end, bool)
+            or not isinstance(start, int)
+            or not isinstance(end, int)
+        ):
+            raise TypeError
         return EvidenceSpan.from_source(source, start, end)
     except (KeyError, TypeError, ValueError) as exc:
         raise WorkbenchValidationError("evidence span is outside the source message") from exc
-
-
-def _label_to_dict(label: CanonicalLabel) -> dict[str, Any]:
-    value = asdict(label)
-    for event in value["events"]:
-        for field in ("amount_span", "direction_span", "account_span", "counterparty_span"):
-            if event[field] is not None:
-                event[field].pop("text", None)
-    return value
 
 
 def _label_from_dict(value: dict[str, Any], source: str) -> CanonicalLabel:
@@ -395,3 +449,22 @@ def _validate_weak_correction(facets: dict[str, Any]) -> None:
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
+
+
+def _candidate_coverage(analysis: dict[str, Any]) -> dict[str, Any]:
+    counts = {kind: 0 for kind in ("amount", "direction", "account", "counterparty")}
+    amount_clauses: set[str] = set()
+    direction_clauses: set[str] = set()
+    for candidate in analysis.get("candidates", []):
+        kind = candidate.get("kind")
+        if kind in counts and not candidate.get("explicit_absence"):
+            counts[kind] += 1
+        clause = candidate.get("clause_id")
+        if kind == "amount" and clause:
+            amount_clauses.add(clause)
+        elif kind == "direction" and clause:
+            direction_clauses.add(clause)
+    return {
+        "field_candidate_counts": counts,
+        "complete_core_clause_count": len(amount_clauses & direction_clauses),
+    }

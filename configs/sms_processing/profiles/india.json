@@ -3,6 +3,7 @@
   "profile_id": "india",
   "scope": "India-specific currency, grouping, rail, and sender conventions",
   "currency_markers": {"INR": ["₹", "Rs", "Rs.", "INR"]},
+  "ambiguous_currency_markers": [],
   "grouping": ["western", "lakh"],
   "rails": ["upi", "imps", "neft", "rtgs", "nach"],
   "account_forms": ["account", "a/c", "card", "vpa"]

@@ -20,6 +20,10 @@
     </header>
 
     <section id="progress" class="progress"></section>
+    <details class="coverage-panel">
+      <summary>Progress and coverage by pool and weak class</summary>
+      <div id="coverageTables" class="coverage-tables"></div>
+    </details>
 
     <div class="workspace">
       <aside class="filters">
@@ -36,6 +40,12 @@
         <label>Operational class
           <select id="classFilter"><option value="">All classes</option></select>
         </label>
+        <label>Event state
+          <select id="eventStateFilter"><option value="">All states</option></select>
+        </label>
+        <label>Financial family
+          <select id="familyFilter"><option value="">All families</option></select>
+        </label>
         <label>Payment rail
           <select id="railFilter"><option value="">All rails</option></select>
         </label>
@@ -45,6 +55,12 @@
         <label>Review state
           <select id="reviewFilter"><option value="">All states</option><option>unreviewed</option><option>draft</option><option>submitted</option><option>adjudicated</option></select>
         </label>
+        <label>Selector action
+          <select id="selectorActionFilter"><option value="">All actions</option><option>run_normal</option><option>run_assistive</option><option>skip</option></select>
+        </label>
+        <label>Month group <input id="timeGroupFilter" type="month"></label>
+        <label>From date <input id="timeFromFilter" type="date"></label>
+        <label>To date <input id="timeToFilter" type="date"></label>
         <label>Sort
           <select id="sort"><option value="timestamp">Time</option><option value="source_id">Source ID</option><option value="pool">Pool</option><option value="review_state">Review state</option></select>
         </label>
@@ -75,6 +91,7 @@
           </div>
 
           <details id="analysisPanel" class="panel"><summary>Analyzer, candidates, queue reasons, and processing trace</summary><div id="analysisContent"></div></details>
+          <div id="groupNavigation" class="group-navigation"></div>
 
           <section class="panel annotation-panel">
             <div class="section-heading"><h2>Canonical human outcome</h2><span id="revisionLabel"></span></div>
@@ -90,11 +107,13 @@
             <div id="eventEditor" class="event-editor">
               <h3>Event evidence</h3>
               <div class="form-grid">
-                <label>Currency <input id="currency" maxlength="3" value="INR"></label>
-                <label>Currency source <select id="currencyProvenance"><option value="explicit_code">Explicit code</option><option value="explicit_unambiguous_symbol_or_marker">Explicit symbol/marker</option><option value="user_primary_default">User primary default</option></select></label>
-                <label>Direction <select id="direction"><option value="debit">Debit</option><option value="credit">Credit</option></select></label>
-                <label>Account <select id="accountState"><option value="present">Present</option><option value="absent">Absent</option><option value="unknown">Unknown</option></select></label>
-                <label>Counterparty <select id="counterpartyState"><option value="present">Present</option><option value="absent">Absent</option><option value="unknown">Unknown</option></select></label>
+                <label>Currency <input id="currency" maxlength="3" placeholder="ISO code"></label>
+                <label>Currency source <select id="currencyProvenance"><option value="">Choose…</option><option value="explicit_code">Explicit code</option><option value="explicit_unambiguous_symbol_or_marker">Explicit symbol/marker</option><option value="user_primary_default">User primary default</option></select></label>
+                <label>Direction <select id="direction"><option value="">Choose…</option><option value="debit">Debit</option><option value="credit">Credit</option></select></label>
+                <label>Account <select id="accountState"><option value="">Choose…</option><option value="present">Present</option><option value="absent">Absent</option><option value="unknown">Unknown</option></select></label>
+                <label>Counterparty <select id="counterpartyState"><option value="">Choose…</option><option value="present">Present</option><option value="absent">Absent</option><option value="unknown">Unknown</option></select></label>
+                <label>Event family <select id="eventFinancialFamily"></select></label>
+                <label>Event rail <select id="eventPaymentRail"></select></label>
               </div>
               <div id="spanSummary" class="span-summary"></div>
               <button id="addEventButton" class="secondary">Add this event</button>
@@ -110,6 +129,8 @@
             </div>
             <div id="preview" class="preview"></div>
           </section>
+
+          <details class="panel" open><summary>Reviewer agreement and adjudication</summary><div id="disagreementContent"></div></details>
 
           <details class="panel"><summary>Correct weak segregation (separate from human truth)</summary><div class="correction"><label>Reason <input id="correctionReason" placeholder="Why the weak class is wrong"></label><button id="correctionButton" class="secondary">Save segregation correction</button></div></details>
         </div>

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import re
+from dataclasses import asdict, dataclass
 from enum import StrEnum
 
+from .currency import parse_money
 from .types import Analysis, Candidate, CandidateKind, CurrencyProvenance, Direction, EvidenceSpan
 
 
@@ -89,6 +91,10 @@ PAYMENT_RAILS = frozenset(
     }
 )
 
+_EXACT_MONEY_NUMBER = re.compile(
+    r"(?:\d{1,3}(?:,\d{2})*,\d{3}|\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+)
+
 
 @dataclass(frozen=True, slots=True)
 class CanonicalEvent:
@@ -135,9 +141,10 @@ class WeakFacets:
     reason_codes: tuple[str, ...]
 
 
-@dataclass(frozen=True, slots=True)
 class LabelValidationError(ValueError):
-    reason_code: str
+    def __init__(self, reason_code: str) -> None:
+        self.reason_code = reason_code
+        super().__init__(reason_code)
 
     def __str__(self) -> str:
         return self.reason_code
@@ -168,23 +175,35 @@ def validate_canonical_label(label: CanonicalLabel, source: str) -> None:
         raise LabelValidationError("label_event_count_inconsistent")
 
     expected_axes = {
-        CanonicalDecision.POSTED: (OperationalClass.POSTED_CANDIDATE, EventState.POSTED),
-        CanonicalDecision.NOT_POSTED: (
-            OperationalClass.FINANCIAL_NON_POSTED,
-            EventState.NOT_POSTED,
-        ),
-        CanonicalDecision.NON_FINANCIAL: (OperationalClass.NON_FINANCIAL, EventState.NO_EVENT),
-        CanonicalDecision.AMBIGUOUS: (OperationalClass.AMBIGUOUS, EventState.UNKNOWN),
-        CanonicalDecision.MULTIPLE_EVENT: (
-            OperationalClass.POSTED_CANDIDATE,
-            EventState.POSTED,
-        ),
+        CanonicalDecision.POSTED: {
+            (OperationalClass.POSTED_CANDIDATE, EventState.POSTED)
+        },
+        CanonicalDecision.NOT_POSTED: {
+            (OperationalClass.FINANCIAL_NON_POSTED, EventState.NOT_POSTED)
+        },
+        CanonicalDecision.NON_FINANCIAL: {
+            (OperationalClass.NON_FINANCIAL, EventState.NO_EVENT),
+            (OperationalClass.INVALID_OUTGOING, EventState.NO_EVENT),
+        },
+        CanonicalDecision.AMBIGUOUS: {
+            (OperationalClass.AMBIGUOUS, EventState.UNKNOWN)
+        },
+        CanonicalDecision.MULTIPLE_EVENT: {
+            (OperationalClass.POSTED_CANDIDATE, EventState.POSTED)
+        },
     }
-    if (label.operational_class, label.event_state) != expected_axes[label.decision]:
+    if (label.operational_class, label.event_state) not in expected_axes[label.decision]:
         raise LabelValidationError("label_taxonomy_axes_inconsistent")
     _validate_facets(label.financial_family, label.payment_rail)
     for event in label.events:
         _validate_event(event, source)
+    if label.decision == CanonicalDecision.POSTED:
+        event = label.events[0]
+        if (
+            label.financial_family != event.financial_family
+            or label.payment_rail != event.payment_rail
+        ):
+            raise LabelValidationError("label_event_facets_inconsistent")
 
 
 def project_selector_target(
@@ -195,6 +214,8 @@ def project_selector_target(
     validate_canonical_label(label, source)
     if label.status not in {ReviewStatus.SUBMITTED, ReviewStatus.ADJUDICATED}:
         raise LabelValidationError("projection_label_not_committed")
+    if label.operational_class == OperationalClass.INVALID_OUTGOING:
+        raise LabelValidationError("projection_invalid_outgoing_excluded")
     if label.decision in {CanonicalDecision.NOT_POSTED, CanonicalDecision.NON_FINANCIAL}:
         return {"decision": "none"}
     if label.decision in {CanonicalDecision.AMBIGUOUS, CanonicalDecision.MULTIPLE_EVENT}:
@@ -243,11 +264,38 @@ def project_selector_target(
     }
 
 
+def canonical_label_to_dict(label: CanonicalLabel) -> dict:
+    """Return the JSON contract form without duplicating private evidence text."""
+
+    value = asdict(label)
+    for event in value["events"]:
+        for field in (
+            "amount_span",
+            "direction_span",
+            "account_span",
+            "counterparty_span",
+        ):
+            if event[field] is not None:
+                event[field].pop("text", None)
+    return value
+
+
 def _validate_event(event: CanonicalEvent, source: str) -> None:
     _validate_span(event.amount_span, source, "label_amount_span_invalid")
-    _validate_span(event.direction_span, source, "label_direction_span_invalid")
     if len(event.currency) != 3 or event.currency != event.currency.upper():
         raise LabelValidationError("label_currency_invalid")
+    number_matches = _EXACT_MONEY_NUMBER.findall(event.amount_span.text)
+    if len(number_matches) != 1:
+        raise LabelValidationError("label_amount_evidence_not_exact_money")
+    try:
+        parse_money(
+            number_matches[0],
+            currency=event.currency,
+            provenance=event.currency_provenance,
+        )
+    except ValueError as exc:
+        raise LabelValidationError("label_amount_evidence_not_exact_money") from exc
+    _validate_span(event.direction_span, source, "label_direction_span_invalid")
     _validate_presence(event.account_state, event.account_span, source, "account")
     _validate_presence(event.counterparty_state, event.counterparty_span, source, "counterparty")
     _validate_facets(event.financial_family, event.payment_rail)

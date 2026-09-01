@@ -34,8 +34,11 @@ def assign_pools(
     regression_template_hashes: set[str],
     legacy_template_hashes: set[str],
     later_time_cutoff: str,
+    pool_percentages: dict[str, int],
 ) -> dict[str, str]:
     cutoff = _parse_datetime(later_time_cutoff)
+    training_limit = pool_percentages["annotation_training"]
+    development_limit = training_limit + pool_percentages["annotation_development"]
     components: dict[str, list[PoolInput]] = defaultdict(list)
     for row in rows:
         components[row.normalized_template_hash].append(row)
@@ -50,9 +53,9 @@ def assign_pools(
             pool = "later_time_holdout"
         else:
             bucket = int(hashlib.sha256(f"pool-v1:{template_hash}".encode()).hexdigest()[:8], 16) % 100
-            if bucket < 80:
+            if bucket < training_limit:
                 pool = "annotation_training"
-            elif bucket < 90:
+            elif bucket < development_limit:
                 pool = "annotation_development"
             else:
                 pool = "protected_test"

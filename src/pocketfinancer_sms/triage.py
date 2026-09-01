@@ -63,13 +63,13 @@ def evaluate_triage(analysis: Analysis) -> TriageDecision:
             "review_no_completed_event_candidate",
         )
 
-    if len(completed_clauses) > 1:
+    if len(directions) > 1:
         action = SelectorAction.RUN_ASSISTIVE if complete_supported_clauses else SelectorAction.SKIP
         return _decision(
             Disposition.RETAIN_REVIEW,
             action,
             reasons,
-            "review_multiple_completed_event_clauses",
+            "review_multiple_completed_event_candidates",
         )
 
     if not complete_supported_clauses:
@@ -89,7 +89,10 @@ def evaluate_triage(analysis: Analysis) -> TriageDecision:
     same_clause_conflict = bool(
         cues_by_clause[completed_clause] & {"failure", "negation", "pending", "request"}
     )
-    if "conflicting_currencies" in reasons or conflicting_non_posted or same_clause_conflict:
+    currency_conflict = bool(
+        reasons & {"conflicting_currencies", "ambiguous_currency_marker", "unsupported_currency_code"}
+    )
+    if currency_conflict or conflicting_non_posted or same_clause_conflict:
         return _decision(
             Disposition.RETAIN_REVIEW,
             SelectorAction.RUN_ASSISTIVE,

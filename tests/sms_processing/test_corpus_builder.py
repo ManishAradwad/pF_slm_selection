@@ -33,6 +33,11 @@ def test_template_components_never_cross_pool_boundaries() -> None:
         regression_template_hashes={"t3"},
         legacy_template_hashes=set(),
         later_time_cutoff="2025-09-01T00:00:00Z",
+        pool_percentages={
+            "annotation_training": 80,
+            "annotation_development": 10,
+            "protected_test": 10,
+        },
     )
 
     assert assignments["s1"] == assignments["s2"]
@@ -102,11 +107,17 @@ def test_synthetic_corpus_build_retains_every_row_and_writes_private_permissions
         "primary_currency": "INR",
         "profile_ids": ["core-en", "india"],
         "later_time_cutoff": "2025-09-01T00:00:00Z",
+        "pool_percentages": {
+            "annotation_training": 80,
+            "annotation_development": 10,
+            "protected_test": 10,
+        },
         "source_id_key_path": "PRIVATE_DATA/sms_processing/.source-id-key",
         "regression_fixture_path": "fixture.jsonl",
         "legacy_review_path": "PRIVATE_DATA/legacy.jsonl",
         "offline_retention": "retain_every_source_row",
         "build_sft_targets": False,
+        "permissions": {"directory": "0700", "file": "0600"},
     }
     _write_json(repo / "config.json", config)
 

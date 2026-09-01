@@ -126,15 +126,21 @@ def test_posted_requires_exact_field_set_and_available_grounded_candidates() -> 
 
 
 def test_model_payload_contains_ids_and_host_evidence_but_never_offsets_or_money_values() -> None:
-    analysis = _analysis("INR 10 was credited to account **1111 from FRIEND.")
-    payload = model_candidate_payload(analysis)
+    message = "INR 10 was credited to account **1111 from FRIEND."
+    analysis = _analysis(message)
+    payload = model_candidate_payload(message, analysis)
     rendered = json.dumps(payload)
 
+    assert payload["message"] == message
+    assert payload["analysis_id"] == analysis.analysis_id
     assert '"id"' in rendered
     assert '"evidence"' in rendered
     assert "start_utf8" not in rendered
     assert "minor_units" not in rendered
     assert "currency_provenance" not in rendered
+
+    with pytest.raises(ValueError, match="source does not match"):
+        model_candidate_payload("different synthetic message", analysis)
 
 
 def test_recognition_is_broader_than_automatic_persistence() -> None:
@@ -176,3 +182,66 @@ def test_invalid_and_reliable_outgoing_messages_are_terminal_discards() -> None:
 
     assert evaluate_triage(invalid).disposition == Disposition.DISCARD
     assert evaluate_triage(outgoing).disposition == Disposition.DISCARD
+
+
+def test_ambiguous_or_unsupported_currency_never_falls_back_to_primary() -> None:
+    ambiguous = _analysis("$ 10 was paid from account **1234 at STORE.", primary="USD")
+    unsupported = _analysis("CNY 10 was paid from account **1234 at STORE.", primary="INR")
+
+    assert not ambiguous.candidates_of(CandidateKind.AMOUNT)
+    assert "ambiguous_currency_marker" in ambiguous.reason_codes
+    assert evaluate_triage(ambiguous).disposition == Disposition.RETAIN_REVIEW
+    assert not unsupported.candidates_of(CandidateKind.AMOUNT)
+    assert "unsupported_currency_code" in unsupported.reason_codes
+    assert evaluate_triage(unsupported).disposition == Disposition.RETAIN_REVIEW
+
+
+def test_negated_direction_is_not_completed_evidence_and_discards_terminally() -> None:
+    analysis = _analysis("INR 10 has not been debited from account **1234.")
+
+    assert not analysis.candidates_of(CandidateKind.DIRECTION)
+    triage = evaluate_triage(analysis)
+    assert triage.disposition == Disposition.DISCARD
+    assert "discard_explicit_non_posted_movement" in triage.reason_codes
+
+
+def test_future_direction_is_not_completed_and_stays_available_for_review() -> None:
+    analysis = _analysis("INR 10 will be debited from account **1234 tomorrow.")
+
+    assert not analysis.candidates_of(CandidateKind.DIRECTION)
+    triage = evaluate_triage(analysis)
+    assert triage.disposition == Disposition.RETAIN_REVIEW
+    assert "pending_event" in triage.reason_codes
+
+
+def test_known_account_identifier_is_not_enumerated_as_bare_money() -> None:
+    analysis = _analysis("Account **1234 was debited at STORE.")
+
+    assert not analysis.candidates_of(CandidateKind.AMOUNT)
+    assert evaluate_triage(analysis).disposition == Disposition.RETAIN_REVIEW
+
+
+def test_multiple_completed_directions_in_one_clause_never_invoke_normally() -> None:
+    analysis = _analysis("INR 10 was debited and INR 20 was credited to account **1234.")
+    triage = evaluate_triage(analysis)
+
+    assert len(analysis.candidates_of(CandidateKind.DIRECTION)) == 2
+    assert triage.disposition == Disposition.RETAIN_REVIEW
+    assert triage.selector_action == SelectorAction.RUN_ASSISTIVE
+    assert "review_multiple_completed_event_candidates" in triage.reason_codes
+
+
+def test_structural_normalization_matches_fullwidth_text_but_preserves_evidence() -> None:
+    message = "ＩＮＲ １０ was credited to account **１２３４ from FRIEND."
+    analysis = _analysis(message)
+    amount = analysis.candidates_of(CandidateKind.AMOUNT)[0]
+    account = next(
+        candidate
+        for candidate in analysis.candidates_of(CandidateKind.ACCOUNT)
+        if not candidate.explicit_absence
+    )
+
+    assert amount.value["minor_units"] == 1000
+    assert amount.evidence is not None and amount.evidence.text == "ＩＮＲ １０"
+    assert account.evidence is not None and "１２３４" in account.evidence.text
+    assert len(analysis.metadata["normalized_structural_fingerprint"]) == 64

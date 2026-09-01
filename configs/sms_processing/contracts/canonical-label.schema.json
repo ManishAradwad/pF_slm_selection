@@ -18,8 +18,8 @@
     "decision": {"enum": ["posted", "not_posted", "non_financial", "ambiguous", "multiple_event"]},
     "operational_class": {"enum": ["posted_candidate", "financial_non_posted", "non_financial", "ambiguous", "invalid_outgoing"]},
     "event_state": {"enum": ["posted", "not_posted", "no_event", "unknown"]},
-    "financial_family": {"type": ["string", "null"]},
-    "payment_rail": {"type": ["string", "null"]},
+    "financial_family": {"enum": [null, "bank_transfer", "bill_payment", "card_purchase", "cash_deposit", "cash_withdrawal", "fee_charge", "insurance", "interest", "investment", "loan", "merchant_payment", "refund", "salary_income", "upi_transfer", "wallet", "other_financial", "unknown"]},
+    "payment_rail": {"enum": [null, "bank_internal", "card", "cash", "imps", "nach", "neft", "other", "rtgs", "upi", "wallet", "unknown"]},
     "events": {"type": "array", "items": {"$ref": "#/$defs/event"}},
     "uncertain": {"type": "boolean"},
     "notes": {"type": "string"},
@@ -57,8 +57,8 @@
         "account_span": {"oneOf": [{"$ref": "#/$defs/span"}, {"type": "null"}]},
         "counterparty_state": {"enum": ["present", "absent", "unknown"]},
         "counterparty_span": {"oneOf": [{"$ref": "#/$defs/span"}, {"type": "null"}]},
-        "financial_family": {"type": ["string", "null"]},
-        "payment_rail": {"type": ["string", "null"]}
+        "financial_family": {"enum": [null, "bank_transfer", "bill_payment", "card_purchase", "cash_deposit", "cash_withdrawal", "fee_charge", "insurance", "interest", "investment", "loan", "merchant_payment", "refund", "salary_income", "upi_transfer", "wallet", "other_financial", "unknown"]},
+        "payment_rail": {"enum": [null, "bank_internal", "card", "cash", "imps", "nach", "neft", "other", "rtgs", "upi", "wallet", "unknown"]}
       }
     }
   }

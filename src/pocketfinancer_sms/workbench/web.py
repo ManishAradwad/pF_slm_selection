@@ -58,7 +58,11 @@ class WorkbenchWebServer:
     def _handler_type(self):
         service = self.service
         token = self.token
-        expected_origin = lambda handler: f"http://{handler.server.server_address[0]}:{handler.server.server_address[1]}"
+
+        def expected_origin(handler: BaseHTTPRequestHandler) -> str:
+            address, port = handler.server.server_address
+            return f"http://{address}:{port}"
+
         backup_root = self.backup_root
         export_root = self.export_root
 
@@ -135,8 +139,12 @@ class WorkbenchWebServer:
                                 "event_state",
                                 "financial_family",
                                 "payment_rail",
+                                "normalized_template_group",
+                                "sender_family_group",
                                 "sender_template_group",
                                 "time_group",
+                                "time_from",
+                                "time_to",
                                 "disposition",
                                 "selector_action",
                                 "review_state",
@@ -161,7 +169,7 @@ class WorkbenchWebServer:
                         )
                     elif path == "/api/disagreements":
                         result = service.disagreements(
-                            _one(query, "source_id", required=True)
+                            _one(query, "source_id", required=True), reviewer
                         )
                     else:
                         self._json(HTTPStatus.NOT_FOUND, {"error": "endpoint not found"})

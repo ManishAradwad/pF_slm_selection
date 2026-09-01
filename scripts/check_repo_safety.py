@@ -39,6 +39,7 @@ VERSIONED_PUBLIC_ARTIFACT_PATHS = frozenset(
         "configs/sms_processing/archive-india-inr.json",
         "configs/sms_processing/contracts/canonical-label.schema.json",
         "configs/sms_processing/contracts/corpus-record.schema.json",
+        "configs/sms_processing/contracts/grounded-candidate-selector-input.schema.json",
         "configs/sms_processing/contracts/grounded-candidate-selector.schema.json",
         "configs/sms_processing/contracts/processing-result.schema.json",
         "configs/sms_processing/contracts/processing-trace.schema.json",

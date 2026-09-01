@@ -2,6 +2,7 @@
   "contract": "pocketfinancer.analyzer-profile/1",
   "profile_id": "core-en",
   "scope": "country-neutral English structural cues",
-  "currency_markers": {"USD": ["$"], "EUR": ["€"], "GBP": ["£"], "JPY": ["¥"]},
+  "currency_markers": {"EUR": ["€"], "GBP": ["£"]},
+  "ambiguous_currency_markers": ["$", "¥"],
   "rails": {}
 }

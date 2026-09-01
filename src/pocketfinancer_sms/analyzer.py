@@ -8,9 +8,20 @@ import re
 from collections.abc import Iterable
 from typing import Any
 
-from .currency import CurrencyContext, parse_money
-from .profiles import AnalyzerProfile, resolve_profiles
-from .structural_text import clause_for_span, split_clauses
+from .currency import (
+    ISO_4217_CURRENT_CODES,
+    ISO_MINOR_UNITS,
+    CurrencyContext,
+    parse_money,
+)
+from .profiles import resolve_profiles
+from .structural_text import (
+    StructuralMatch,
+    StructuralView,
+    build_structural_view,
+    clause_for_span,
+    split_clauses,
+)
 from .types import (
     Analysis,
     Candidate,
@@ -30,6 +41,11 @@ _EXPLICIT_CODE_AMOUNT = re.compile(
     re.IGNORECASE,
 )
 _NUMBER_PATTERN = re.compile(rf"(?<![\w])(?P<number>{_NUMBER})(?![\w])")
+_BARE_AMOUNT_CONTEXT = re.compile(
+    r"\b(?:amount|amt|payment|purchase|transfer|txn|transaction|paid|spent|received|"
+    r"withdrawn|deposited|refunded|debited|credited|charged)\b",
+    re.IGNORECASE,
+)
 
 _DIRECTION_PATTERNS: tuple[tuple[Direction, re.Pattern[str]], ...] = (
     (
@@ -71,8 +87,9 @@ _ACCOUNT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
 )
 
+_COUNTERPARTY_TOKEN = r"[A-Z0-9](?:[A-Z0-9&._@/-]*[A-Z0-9&_@/-])?"
 _COUNTERPARTY_PATTERN = re.compile(
-    r"\b(?:at|to|from|by)\s+(?P<name>[A-Z0-9][A-Z0-9&._@/-]*(?:\s+[A-Z0-9][A-Z0-9&._@/-]*){0,4})",
+    rf"\b(?:at|to|from|by)\s+(?P<name>{_COUNTERPARTY_TOKEN}(?:\s+{_COUNTERPARTY_TOKEN}){{0,4}})",
     re.IGNORECASE,
 )
 
@@ -83,9 +100,21 @@ _CUE_PATTERNS: dict[str, tuple[str, re.Pattern[str]]] = {
     ),
     "negation": (
         "negated_movement",
-        re.compile(r"\b(?:not\s+(?:debited|credited|charged|processed)|no\s+money\s+(?:was\s+)?(?:debited|credited))\b", re.I),
+        re.compile(
+            r"\b(?:not\s+(?:(?:been|be)\s+)?(?:debited|credited|charged|processed)|"
+            r"no\s+money\s+(?:was\s+)?(?:debited|credited))\b",
+            re.I,
+        ),
     ),
-    "pending": ("pending_event", re.compile(r"\b(?:pending|processing|in\s+progress)\b", re.I)),
+    "pending": (
+        "pending_event",
+        re.compile(
+            r"\b(?:pending|processing|in\s+progress|"
+            r"(?:will|may|scheduled\s+to|set\s+to)\s+(?:be\s+)?"
+            r"(?:debited|credited|charged|paid))\b",
+            re.I,
+        ),
+    ),
     "due": ("amount_due", re.compile(r"\b(?:amount\s+due|payment\s+due|minimum\s+due|due\s+date)\b", re.I)),
     "request": (
         "request_or_authorization",
@@ -138,13 +167,40 @@ class DeterministicSmsAnalyzer:
         analysis_id = hashlib.sha256(
             f"{operation_id}\0{source_fingerprint}\0{self.currency_context.config_hash}".encode()
         ).hexdigest()[:24]
+        structural_view = build_structural_view(source)
         clauses = split_clauses(source)
         candidates: list[Candidate] = []
         cues: list[Cue] = []
 
         for kind, (reason_code, pattern) in _CUE_PATTERNS.items():
-            for match in pattern.finditer(source):
+            for match in structural_view.finditer(pattern):
                 cues.append(self._cue(source, clauses, analysis_id, kind, reason_code, match))
+
+        for pattern in self._ambiguous_marker_patterns():
+            for match in structural_view.finditer(pattern):
+                cues.append(
+                    self._cue(
+                        source,
+                        clauses,
+                        analysis_id,
+                        "currency_ambiguous",
+                        "ambiguous_currency_marker",
+                        match,
+                    )
+                )
+        for match in structural_view.finditer(_EXPLICIT_CODE_AMOUNT):
+            code = match.group("currency").upper()
+            if code in ISO_4217_CURRENT_CODES and code not in ISO_MINOR_UNITS:
+                cues.append(
+                    self._cue(
+                        source,
+                        clauses,
+                        analysis_id,
+                        "currency_unsupported",
+                        "unsupported_currency_code",
+                        match,
+                    )
+                )
 
         for profile in self.profiles:
             for rail, terms in profile.rails.items():
@@ -152,15 +208,23 @@ class DeterministicSmsAnalyzer:
                     r"\b(?:" + "|".join(re.escape(term) for term in terms) + r")\b",
                     re.IGNORECASE,
                 )
-                for match in rail_pattern.finditer(source):
+                for match in structural_view.finditer(rail_pattern):
                     cues.append(
                         self._cue(source, clauses, analysis_id, "payment_rail", f"rail_{rail}", match)
                     )
 
-        candidates.extend(self._amount_candidates(source, clauses, analysis_id))
-        candidates.extend(self._direction_candidates(source, clauses, analysis_id))
-        candidates.extend(self._account_candidates(source, clauses, analysis_id))
-        candidates.extend(self._counterparty_candidates(source, clauses, analysis_id))
+        candidates.extend(
+            self._amount_candidates(source, structural_view, clauses, analysis_id)
+        )
+        candidates.extend(
+            self._direction_candidates(source, structural_view, clauses, analysis_id, cues)
+        )
+        candidates.extend(
+            self._account_candidates(source, structural_view, clauses, analysis_id)
+        )
+        candidates.extend(
+            self._counterparty_candidates(source, structural_view, clauses, analysis_id)
+        )
         candidates.extend(self._absence_candidates(analysis_id))
 
         candidates = self._deduplicate_candidates(candidates)
@@ -169,6 +233,12 @@ class DeterministicSmsAnalyzer:
         metadata: dict[str, Any] = {
             "input_valid": bool(input_valid and source.strip()),
             "is_outgoing": is_outgoing,
+            "normalized_structural_fingerprint": hashlib.sha256(
+                structural_view.normalized.encode("utf-8")
+            ).hexdigest(),
+            "completed_event_candidate_count": sum(
+                candidate.kind == CandidateKind.DIRECTION for candidate in candidates
+            ),
             "completed_event_clause_count": len(
                 {
                     candidate.clause_id
@@ -194,10 +264,15 @@ class DeterministicSmsAnalyzer:
         )
 
     def _amount_candidates(
-        self, source: str, clauses: tuple, analysis_id: str
+        self,
+        source: str,
+        structural_view: StructuralView,
+        clauses: tuple,
+        analysis_id: str,
     ) -> Iterable[Candidate]:
         covered: list[tuple[int, int]] = []
-        for match in _EXPLICIT_CODE_AMOUNT.finditer(source):
+        for match in structural_view.finditer(_EXPLICIT_CODE_AMOUNT):
+            covered.append(match.span())
             code = match.group("currency").upper()
             try:
                 money = parse_money(
@@ -207,7 +282,6 @@ class DeterministicSmsAnalyzer:
                 )
             except ValueError:
                 continue
-            covered.append(match.span())
             yield self._candidate(
                 source,
                 clauses,
@@ -224,7 +298,7 @@ class DeterministicSmsAnalyzer:
 
         marker_patterns = self._marker_patterns()
         for currency, marker, pattern in marker_patterns:
-            for match in pattern.finditer(source):
+            for match in structural_view.finditer(pattern):
                 if self._overlaps(match.span(), covered):
                     continue
                 try:
@@ -251,15 +325,24 @@ class DeterministicSmsAnalyzer:
                     },
                 )
 
-        lowered = source.casefold()
-        has_transaction_context = any(term.casefold() in lowered for term in self.transaction_terms)
-        if not has_transaction_context:
+        for pattern in self._ambiguous_marker_patterns():
+            covered.extend(match.span() for match in structural_view.finditer(pattern))
+
+        # Known account identifiers are never valid bare-money evidence.
+        for _account_type, pattern in _ACCOUNT_PATTERNS:
+            covered.extend(match.span() for match in structural_view.finditer(pattern))
+
+        if not _BARE_AMOUNT_CONTEXT.search(structural_view.normalized):
             return
-        for match in _NUMBER_PATTERN.finditer(source):
+        for match in structural_view.finditer(_NUMBER_PATTERN):
             if self._overlaps(match.span(), covered):
                 continue
-            local_context = source[max(0, match.start() - 40) : min(len(source), match.end() + 40)]
-            if not any(term.casefold() in local_context.casefold() for term in self.transaction_terms):
+            local_context = structural_view.normalized[
+                max(0, match.normalized_start - 40) : min(
+                    len(structural_view.normalized), match.normalized_end + 40
+                )
+            ]
+            if not _BARE_AMOUNT_CONTEXT.search(local_context):
                 continue
             try:
                 money = parse_money(
@@ -285,10 +368,26 @@ class DeterministicSmsAnalyzer:
             )
 
     def _direction_candidates(
-        self, source: str, clauses: tuple, analysis_id: str
+        self,
+        source: str,
+        structural_view: StructuralView,
+        clauses: tuple,
+        analysis_id: str,
+        cues: list[Cue],
     ) -> Iterable[Candidate]:
+        non_completed = [
+            cue.evidence
+            for cue in cues
+            if cue.kind in {"negation", "pending", "request"}
+        ]
         for direction, pattern in _DIRECTION_PATTERNS:
-            for match in pattern.finditer(source):
+            for match in structural_view.finditer(pattern):
+                if any(
+                    evidence.start_char <= match.start()
+                    and evidence.end_char >= match.end()
+                    for evidence in non_completed
+                ):
+                    continue
                 yield self._candidate(
                     source,
                     clauses,
@@ -300,11 +399,15 @@ class DeterministicSmsAnalyzer:
                 )
 
     def _account_candidates(
-        self, source: str, clauses: tuple, analysis_id: str
+        self,
+        source: str,
+        structural_view: StructuralView,
+        clauses: tuple,
+        analysis_id: str,
     ) -> Iterable[Candidate]:
         for account_type, pattern in _ACCOUNT_PATTERNS:
-            for match in pattern.finditer(source):
-                identifier = match.group("identifier")
+            for match in structural_view.finditer(pattern):
+                identifier = source[match.start("identifier") : match.end("identifier")]
                 yield self._candidate(
                     source,
                     clauses,
@@ -316,16 +419,21 @@ class DeterministicSmsAnalyzer:
                 )
 
     def _counterparty_candidates(
-        self, source: str, clauses: tuple, analysis_id: str
+        self,
+        source: str,
+        structural_view: StructuralView,
+        clauses: tuple,
+        analysis_id: str,
     ) -> Iterable[Candidate]:
         stop_words = {"your", "the", "a", "an", "account", "card", "bank"}
-        for match in _COUNTERPARTY_PATTERN.finditer(source):
-            name = match.group("name").strip(" .,:;-")
-            words = name.casefold().split()
+        for match in structural_view.finditer(_COUNTERPARTY_PATTERN):
+            normalized_name = match.group("name")
+            words = normalized_name.split()
+            name = source[match.start("name") : match.end("name")]
             if not name or all(word in stop_words for word in words):
                 continue
             start = match.start("name")
-            end = start + len(name)
+            end = match.end("name")
             yield self._candidate(
                 source,
                 clauses,
@@ -365,6 +473,19 @@ class DeterministicSmsAnalyzer:
                     )
                     yield currency, marker, pattern
 
+    def _ambiguous_marker_patterns(self) -> Iterable[re.Pattern[str]]:
+        seen: set[str] = set()
+        for profile in self.profiles:
+            for marker in profile.ambiguous_markers:
+                key = marker.casefold()
+                if key in seen:
+                    continue
+                seen.add(key)
+                yield re.compile(
+                    rf"(?<!\w)(?:{re.escape(marker)})\s*[:.-]?\s*(?P<number>{_NUMBER})(?!\d)",
+                    re.IGNORECASE,
+                )
+
     def _candidate(
         self,
         source: str,
@@ -395,7 +516,7 @@ class DeterministicSmsAnalyzer:
         analysis_id: str,
         kind: str,
         reason_code: str,
-        match: re.Match[str],
+        match: StructuralMatch,
     ) -> Cue:
         evidence = EvidenceSpan.from_source(source, match.start(), match.end())
         clause_id = clause_for_span(clauses, match.start(), match.end()) or "cl_unknown"

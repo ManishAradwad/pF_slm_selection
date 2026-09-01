@@ -11,6 +11,7 @@ import pytest
 from pocketfinancer_sms.analyzer import DeterministicSmsAnalyzer
 from pocketfinancer_sms.corpus.grouping import build_grouping
 from pocketfinancer_sms.currency import CurrencyContext
+from pocketfinancer_sms.provenance import PrivateArtifactError
 from pocketfinancer_sms.triage import evaluate_triage
 from pocketfinancer_sms.types import CandidateKind
 from pocketfinancer_sms.workbench.service import WorkbenchService, WorkbenchValidationError
@@ -20,9 +21,9 @@ from pocketfinancer_sms.workbench.store import WorkbenchConflict, WorkbenchStore
 def _manifest_record(*, pool: str = "protected_test") -> dict:
     source_id = "src_" + "a" * 32
     source = "INR 42.50 was credited to account **7788 from FRIEND."
-    analysis = DeterministicSmsAnalyzer(
-        CurrencyContext("INR", ("core-en", "india"))
-    ).analyze(source, operation_id=source_id, is_outgoing=False)
+    analysis = DeterministicSmsAnalyzer(CurrencyContext("INR", ("core-en", "india"))).analyze(
+        source, operation_id=source_id, is_outgoing=False
+    )
     triage = evaluate_triage(analysis)
     grouping = build_grouping(b"synthetic-key" * 3, source, "SYNTH-BANK", "2024-01-01T00:00:00Z")
     return {
@@ -68,9 +69,7 @@ def _posted_payload(record: dict) -> dict:
 
     def present(kind: str) -> dict:
         return next(
-            item
-            for item in candidates
-            if item["kind"] == kind and not item["explicit_absence"]
+            item for item in candidates if item["kind"] == kind and not item["explicit_absence"]
         )
 
     amount = present(CandidateKind.AMOUNT.value)
@@ -123,6 +122,8 @@ def test_protected_review_is_blind_until_submission_and_explicit_reveal(tmp_path
 
     with pytest.raises(WorkbenchConflict, match="blind review must be submitted"):
         service.reveal(source_id, "reviewer-one")
+    with pytest.raises(WorkbenchValidationError, match="disagreement details remain hidden"):
+        service.disagreements(source_id, "reviewer-one")
 
     draft = service.save_draft(
         source_id=source_id,
@@ -139,10 +140,26 @@ def test_protected_review_is_blind_until_submission_and_explicit_reveal(tmp_path
     )
     assert submitted["revision"] == 2
     assert service.view_row(source_id, "reviewer-one")["blind_locked"] is True
+    with pytest.raises(WorkbenchValidationError, match="preview remains hidden"):
+        service.target_preview(source_id, "reviewer-one")
+    with pytest.raises(WorkbenchValidationError, match="cannot be corrected"):
+        service.correct_weak_facets(
+            source_id=source_id,
+            reviewer_id="reviewer-one",
+            expected_revision=0,
+            facets={
+                "operational_class": "ambiguous",
+                "event_state": "unknown",
+                "financial_family": "unknown",
+                "payment_rail": "unknown",
+                "reason": "synthetic blind correction",
+            },
+        )
 
     revealed = service.reveal(source_id, "reviewer-one")
     assert revealed["blind_locked"] is False
     assert revealed["analysis"]["analysis_id"] == record["analysis"]["analysis_id"]
+    assert service.target_preview(source_id, "reviewer-one")["convertible"] is True
 
 
 def test_revision_conflicts_and_invalid_submissions_never_downgrade_to_negative(
@@ -228,6 +245,53 @@ def test_weak_corrections_are_separate_from_raw_source_and_human_truth(tmp_path:
     assert store.latest_annotation(record["source_id"], "reviewer-one") is None
 
 
+def test_global_review_progress_never_downgrades_when_another_reviewer_drafts(
+    tmp_path: Path,
+) -> None:
+    store, record = _store(tmp_path, pool="annotation_training")
+    service = WorkbenchService(store)
+    source_id = record["source_id"]
+    service.submit(
+        source_id=source_id,
+        reviewer_id="reviewer-one",
+        expected_revision=0,
+        payload=_posted_payload(record),
+    )
+    service.save_draft(
+        source_id=source_id,
+        reviewer_id="reviewer-two",
+        expected_revision=0,
+        payload={"decision": "ambiguous"},
+    )
+
+    assert store.get_record(source_id)["review_state"] == "submitted"
+    assert store.progress()["review_states"] == {"submitted": 1}
+
+
+def test_group_time_and_category_navigation_filters_are_available_off_protected_pools(
+    tmp_path: Path,
+) -> None:
+    store, record = _store(tmp_path, pool="annotation_training")
+    service = WorkbenchService(store)
+    grouping = record["grouping"]
+    result = service.list_rows(
+        reviewer_id="reviewer-one",
+        filters={
+            "normalized_template_group": grouping["normalized_template_hash"],
+            "sender_family_group": grouping["sender_family_hash"],
+            "sender_template_group": grouping["sender_template_group_hash"],
+            "time_group": grouping["time_group"],
+            "time_from": "2024-01-01",
+            "time_to": "2024-01-31",
+            "financial_family": "bank_transfer",
+            "selector_action": "run_normal",
+        },
+    )
+
+    assert result["total"] == 1
+    assert result["rows"][0]["normalized_template_group"] == grouping["normalized_template_hash"]
+
+
 def test_backup_recovery_integrity_and_reproducible_hash_bound_export(tmp_path: Path) -> None:
     store, record = _store(tmp_path, pool="annotation_training")
     service = WorkbenchService(store)
@@ -240,12 +304,31 @@ def test_backup_recovery_integrity_and_reproducible_hash_bound_export(tmp_path: 
     assert store.integrity_check() is True
 
     backup = store.create_backup(tmp_path / "backups")
+    assert backup["corpus_run_id"] == "synthetic-run"
     backup_path = tmp_path / "backups" / backup["backup"]
+    assert not list((tmp_path / "backups").glob(".*.tmp*"))
+    assert not list((tmp_path / "backups").glob("*-wal"))
+    assert not list((tmp_path / "backups").glob("*-shm"))
     restored_path = tmp_path / "restored" / "workbench.sqlite3"
-    WorkbenchStore.restore_backup(backup_path, restored_path, backup["sha256"])
+    WorkbenchStore.restore_backup(
+        backup_path,
+        restored_path,
+        backup["sha256"],
+        backup["corpus_run_id"],
+    )
+    assert not Path(f"{restored_path}-wal").exists()
+    assert not Path(f"{restored_path}-shm").exists()
     restored = WorkbenchStore(restored_path)
     assert restored.integrity_check() is True
     assert restored.get_record(record["source_id"])["source_id"] == record["source_id"]
+
+    with pytest.raises(PrivateArtifactError, match="different corpus run"):
+        WorkbenchStore.restore_backup(
+            backup_path,
+            tmp_path / "wrong-run" / "workbench.sqlite3",
+            backup["sha256"],
+            "different-synthetic-run",
+        )
 
     first = store.export_labels(tmp_path / "exports")
     second = store.export_labels(tmp_path / "exports")
@@ -254,3 +337,71 @@ def test_backup_recovery_integrity_and_reproducible_hash_bound_export(tmp_path: 
     export_dir = tmp_path / "exports" / first["export_id"]
     assert (export_dir / "canonical_labels.jsonl").is_file()
     assert (export_dir / "manifest.json").is_file()
+
+
+def test_export_and_backup_fail_closed_if_revision_history_is_tampered(
+    tmp_path: Path,
+) -> None:
+    store, record = _store(tmp_path, pool="annotation_training")
+    WorkbenchService(store).submit(
+        source_id=record["source_id"],
+        reviewer_id="reviewer-one",
+        expected_revision=0,
+        payload=_posted_payload(record),
+    )
+    with store.connect() as connection:
+        connection.execute(
+            "UPDATE annotation_revisions SET payload_json = ?",
+            ('{"decision":"tampered"}',),
+        )
+        connection.commit()
+
+    with pytest.raises(PrivateArtifactError, match="revision chain is invalid"):
+        store.export_labels(tmp_path / "exports")
+    with pytest.raises(PrivateArtifactError, match="revision chain is invalid"):
+        store.create_backup(tmp_path / "backups")
+
+
+def test_adjudication_requires_disagreement_and_binds_resolved_revision_hashes(
+    tmp_path: Path,
+) -> None:
+    store, record = _store(tmp_path, pool="annotation_development")
+    service = WorkbenchService(store)
+    source_id = record["source_id"]
+    service.submit(
+        source_id=source_id,
+        reviewer_id="reviewer-one",
+        expected_revision=0,
+        payload=_posted_payload(record),
+    )
+    service.submit(
+        source_id=source_id,
+        reviewer_id="reviewer-two",
+        expected_revision=0,
+        payload={
+            "decision": "non_financial",
+            "operational_class": "non_financial",
+            "event_state": "no_event",
+            "financial_family": None,
+            "payment_rail": None,
+            "events": [],
+            "uncertain": False,
+            "notes": "synthetic disagreement",
+        },
+    )
+    disagreement = service.disagreements(source_id, "adjudicator")
+    assert disagreement["has_disagreement"] is True
+    result = service.submit(
+        source_id=source_id,
+        reviewer_id="adjudicator",
+        expected_revision=0,
+        payload=_posted_payload(record),
+        adjudicated=True,
+    )
+
+    assert result["status"] == "adjudicated"
+    latest = store.latest_annotation(source_id, "adjudicator")
+    assert len(latest["payload"]["adjudication_of"]) == 2
+    assert set(latest["payload"]["adjudication_of"]) == {
+        item["revision_hash"] for item in disagreement["annotations"]
+    }

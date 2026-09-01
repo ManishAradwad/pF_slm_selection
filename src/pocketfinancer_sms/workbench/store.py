@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import shutil
@@ -19,8 +18,10 @@ from ..provenance import (
     atomic_write_jsonl,
     ensure_private_directory,
     file_sha256,
+    fsync_directory,
     object_sha256,
 )
+from ..types import Analysis
 
 
 SCHEMA_VERSION = 1
@@ -34,6 +35,17 @@ class WorkbenchStore:
     def __init__(self, database_path: Path) -> None:
         self.database_path = database_path.resolve()
         ensure_private_directory(self.database_path.parent)
+        if not self.database_path.exists():
+            try:
+                descriptor = os.open(
+                    self.database_path,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                    0o600,
+                )
+                os.close(descriptor)
+            except FileExistsError:
+                pass
+        os.chmod(self.database_path, 0o600)
         self._initialize()
 
     def connect(self) -> sqlite3.Connection:
@@ -71,7 +83,7 @@ class WorkbenchStore:
                 (corpus_run_id,),
             )
             for record in rows:
-                _validate_manifest_record(record)
+                _validate_manifest_record(record, corpus_run_id)
                 grouping = record["grouping"]
                 weak = record["weak_facets"]
                 metadata = record["source_metadata"]
@@ -138,32 +150,52 @@ class WorkbenchStore:
         limit: int,
         offset: int,
     ) -> dict[str, Any]:
-        allowed_filters = {
-            "pool",
-            "operational_class",
-            "event_state",
-            "financial_family",
-            "payment_rail",
-            "sender_template_group",
-            "time_group",
-            "disposition",
-            "selector_action",
-            "review_state",
+        filter_expressions = {
+            "pool": "pool",
+            "operational_class": "operational_class",
+            "event_state": "event_state",
+            "financial_family": "financial_family",
+            "payment_rail": "payment_rail",
+            "sender_template_group": "sender_template_group",
+            "sender_family_group": "json_extract(record_json, '$.grouping.sender_family_hash')",
+            "normalized_template_group": (
+                "json_extract(record_json, '$.grouping.normalized_template_hash')"
+            ),
+            "time_group": "time_group",
+            "disposition": "disposition",
+            "selector_action": "selector_action",
+            "review_state": "review_state",
         }
         clauses: list[str] = []
         values: list[Any] = []
         for name, value in filters.items():
-            if name not in allowed_filters:
+            if name == "exclude_protected":
+                if value == "true":
+                    clauses.append("pool NOT IN ('protected_test', 'later_time_holdout')")
+                continue
+            if name == "time_from":
+                if value:
+                    clauses.append("date(timestamp) >= date(?)")
+                    values.append(value)
+                continue
+            if name == "time_to":
+                if value:
+                    clauses.append("date(timestamp) <= date(?)")
+                    values.append(value)
+                continue
+            if name not in filter_expressions:
                 raise ValueError("workbench filter is unsupported")
             if value:
-                clauses.append(f"{name} = ?")
+                clauses.append(f"{filter_expressions[name]} = ?")
                 values.append(value)
         if search:
             clauses.append(
                 "(json_extract(record_json, '$.source.body') LIKE ? ESCAPE '\\' "
                 "OR json_extract(record_json, '$.source.sender') LIKE ? ESCAPE '\\')"
             )
-            escaped = "%" + search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+            escaped = (
+                "%" + search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+            )
             values.extend((escaped, escaped))
         where = " WHERE " + " AND ".join(clauses) if clauses else ""
         sort_columns = {
@@ -171,6 +203,10 @@ class WorkbenchStore:
             "source_id": "source_id",
             "pool": "pool",
             "review_state": "review_state",
+            "operational_class": "operational_class",
+            "payment_rail": "payment_rail",
+            "time_group": "time_group",
+            "sender_template_group": "sender_template_group",
         }
         if sort not in sort_columns:
             raise ValueError("workbench sort is unsupported")
@@ -179,11 +215,17 @@ class WorkbenchStore:
         offset = max(0, offset)
         with self.connect() as connection:
             total = connection.execute(
-                f"SELECT COUNT(*) FROM corpus_rows{where}", values  # noqa: S608
+                f"SELECT COUNT(*) FROM corpus_rows{where}",
+                values,  # noqa: S608
             ).fetchone()[0]
             rows = connection.execute(
                 f"""SELECT source_id, pool, operational_class, event_state,
-                           financial_family, payment_rail, time_group, disposition,
+                           financial_family, payment_rail, sender_template_group,
+                           json_extract(record_json, '$.grouping.sender_family_hash')
+                               AS sender_family_group,
+                           json_extract(record_json, '$.grouping.normalized_template_hash')
+                               AS normalized_template_group,
+                           time_group, disposition,
                            selector_action, timestamp, review_state,
                            json_extract(record_json, '$.source.body') AS body,
                            json_extract(record_json, '$.source.sender') AS sender
@@ -215,6 +257,12 @@ class WorkbenchStore:
         canonical_label: dict[str, Any] | None,
         created_at_epoch_ms: int,
     ) -> dict[str, Any]:
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 0
+        ):
+            raise ValueError("expected annotation revision must be a non-negative integer")
         with self.transaction() as connection:
             current = int(
                 connection.execute(
@@ -264,8 +312,19 @@ class WorkbenchStore:
             )
             next_state = "draft" if status == "draft" else status
             connection.execute(
-                "UPDATE corpus_rows SET review_state = ? WHERE source_id = ?",
-                (next_state, source_id),
+                """
+                UPDATE corpus_rows
+                SET review_state = CASE
+                    WHEN CASE ?
+                        WHEN 'adjudicated' THEN 3 WHEN 'submitted' THEN 2
+                        WHEN 'draft' THEN 1 ELSE 0 END
+                      > CASE review_state
+                        WHEN 'adjudicated' THEN 3 WHEN 'submitted' THEN 2
+                        WHEN 'draft' THEN 1 ELSE 0 END
+                    THEN ? ELSE review_state END
+                WHERE source_id = ?
+                """,
+                (next_state, next_state, source_id),
             )
         return {"revision": revision, "revision_hash": revision_hash, "status": status}
 
@@ -334,6 +393,12 @@ class WorkbenchStore:
         facets: dict[str, Any],
         created_at_epoch_ms: int,
     ) -> dict[str, Any]:
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 0
+        ):
+            raise ValueError("expected segregation revision must be a non-negative integer")
         with self.transaction() as connection:
             current = int(
                 connection.execute(
@@ -374,6 +439,25 @@ class WorkbenchStore:
             )
         return {"revision": revision, "correction_hash": correction_hash}
 
+    def latest_weak_correction(self, source_id: str) -> dict[str, Any] | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM segregation_corrections WHERE source_id = ? "
+                "ORDER BY revision DESC LIMIT 1",
+                (source_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "source_id": row["source_id"],
+            "revision": row["revision"],
+            "reviewer_id": row["reviewer_id"],
+            "facets": json.loads(row["facets_json"]),
+            "created_at_epoch_ms": row["created_at_epoch_ms"],
+            "previous_hash": row["previous_hash"],
+            "correction_hash": row["correction_hash"],
+        }
+
     def progress(self) -> dict[str, Any]:
         with self.connect() as connection:
             total = connection.execute("SELECT COUNT(*) FROM corpus_rows").fetchone()[0]
@@ -383,26 +467,92 @@ class WorkbenchStore:
                 ).fetchall()
             )
             pools = dict(
-                connection.execute("SELECT pool, COUNT(*) FROM corpus_rows GROUP BY pool").fetchall()
+                connection.execute(
+                    "SELECT pool, COUNT(*) FROM corpus_rows GROUP BY pool"
+                ).fetchall()
             )
             classes = dict(
                 connection.execute(
                     "SELECT operational_class, COUNT(*) FROM corpus_rows GROUP BY operational_class"
                 ).fetchall()
             )
-        return {"total": total, "review_states": states, "pools": pools, "classes": classes}
+            pool_coverage = _coverage_rows(
+                connection.execute(
+                    "SELECT pool, review_state, COUNT(*) FROM corpus_rows "
+                    "GROUP BY pool, review_state"
+                ).fetchall()
+            )
+            class_coverage = _coverage_rows(
+                connection.execute(
+                    "SELECT operational_class, review_state, COUNT(*) FROM corpus_rows "
+                    "GROUP BY operational_class, review_state"
+                ).fetchall()
+            )
+            families = dict(
+                connection.execute(
+                    "SELECT COALESCE(financial_family, 'none'), COUNT(*) FROM corpus_rows "
+                    "GROUP BY COALESCE(financial_family, 'none')"
+                ).fetchall()
+            )
+            rails = dict(
+                connection.execute(
+                    "SELECT COALESCE(payment_rail, 'none'), COUNT(*) FROM corpus_rows "
+                    "GROUP BY COALESCE(payment_rail, 'none')"
+                ).fetchall()
+            )
+        return {
+            "total": total,
+            "review_states": states,
+            "pools": pools,
+            "classes": classes,
+            "families": families,
+            "rails": rails,
+            "pool_coverage": pool_coverage,
+            "class_coverage": class_coverage,
+        }
+
+    def verify_revision_chains(self) -> None:
+        with self.connect() as connection:
+            annotations = connection.execute(
+                "SELECT * FROM annotation_revisions ORDER BY source_id, reviewer_id, revision"
+            ).fetchall()
+            corrections = connection.execute(
+                "SELECT * FROM segregation_corrections ORDER BY source_id, revision"
+            ).fetchall()
+        _verify_revision_rows(annotations, corrections)
 
     def create_backup(self, backup_root: Path) -> dict[str, Any]:
+        self.verify_revision_chains()
         ensure_private_directory(backup_root)
-        stamp = int(time.time() * 1000)
+        stamp = time.time_ns()
         temporary = backup_root / f".workbench-{stamp}.sqlite3.tmp"
         destination = backup_root / f"workbench-{stamp}.sqlite3"
-        with self.connect() as source, sqlite3.connect(temporary) as target:
-            source.backup(target)
-        os.chmod(temporary, 0o600)
-        os.replace(temporary, destination)
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        os.close(descriptor)
+        try:
+            with self.connect() as source, sqlite3.connect(temporary) as target:
+                run_row = source.execute(
+                    "SELECT value FROM meta WHERE key = 'corpus_run_id'"
+                ).fetchone()
+                if run_row is None:
+                    raise PrivateArtifactError("workbench backup requires an imported corpus run")
+                corpus_run_id = run_row[0]
+                source.backup(target)
+            os.chmod(temporary, 0o600)
+            _verify_database_snapshot(temporary, expected_corpus_run_id=corpus_run_id)
+            os.replace(temporary, destination)
+            fsync_directory(destination.parent)
+        finally:
+            temporary.unlink(missing_ok=True)
+            Path(f"{temporary}-wal").unlink(missing_ok=True)
+            Path(f"{temporary}-shm").unlink(missing_ok=True)
         digest = file_sha256(destination)
-        manifest = {"backup": destination.name, "sha256": digest, "schema_version": SCHEMA_VERSION}
+        manifest = {
+            "backup": destination.name,
+            "sha256": digest,
+            "schema_version": SCHEMA_VERSION,
+            "corpus_run_id": corpus_run_id,
+        }
         atomic_write_json(destination.with_suffix(".manifest.json"), manifest)
         return manifest
 
@@ -411,7 +561,14 @@ class WorkbenchStore:
             return connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
 
     @staticmethod
-    def restore_backup(backup: Path, destination: Path, expected_sha256: str) -> None:
+    def restore_backup(
+        backup: Path,
+        destination: Path,
+        expected_sha256: str,
+        expected_corpus_run_id: str,
+    ) -> None:
+        if not backup.is_file():
+            raise PrivateArtifactError("workbench backup does not exist")
         if file_sha256(backup) != expected_sha256:
             raise PrivateArtifactError("workbench backup hash does not match its manifest")
         ensure_private_directory(destination.parent)
@@ -421,20 +578,29 @@ class WorkbenchStore:
         try:
             shutil.copyfile(backup, temporary)
             os.chmod(temporary, 0o600)
-            with sqlite3.connect(temporary) as connection:
-                if connection.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-                    raise PrivateArtifactError("workbench backup failed integrity validation")
+            _verify_database_snapshot(
+                temporary,
+                expected_corpus_run_id=expected_corpus_run_id,
+            )
             os.replace(temporary, destination)
+            Path(f"{destination}-wal").unlink(missing_ok=True)
+            Path(f"{destination}-shm").unlink(missing_ok=True)
+            fsync_directory(destination.parent)
         finally:
-            if temporary.exists():
-                temporary.unlink()
+            temporary.unlink(missing_ok=True)
+            Path(f"{temporary}-wal").unlink(missing_ok=True)
+            Path(f"{temporary}-shm").unlink(missing_ok=True)
 
     def export_labels(self, output_root: Path) -> dict[str, Any]:
+        self.verify_revision_chains()
         ensure_private_directory(output_root)
         with self.connect() as connection:
-            run_id = connection.execute(
+            run_row = connection.execute(
                 "SELECT value FROM meta WHERE key = 'corpus_run_id'"
-            ).fetchone()[0]
+            ).fetchone()
+            if run_row is None:
+                raise PrivateArtifactError("workbench export requires an imported corpus run")
+            run_id = run_row[0]
             rows = connection.execute(
                 """
                 SELECT source_id, reviewer_id, revision, status, canonical_label_json,
@@ -455,7 +621,12 @@ class WorkbenchStore:
             }
             for row in rows
         ]
-        binding = {"corpus_run_id": run_id, "labels": values, "export_contract": "pocketfinancer.workbench-export/1"}
+        binding = {
+            "corpus_run_id": run_id,
+            "labels": values,
+            "export_contract": "pocketfinancer.workbench-export/1",
+            "workbench_schema_version": SCHEMA_VERSION,
+        }
         export_id = object_sha256(binding)[:20]
         export_dir = output_root / export_id
         ensure_private_directory(export_dir)
@@ -465,6 +636,7 @@ class WorkbenchStore:
             "contract": "pocketfinancer.workbench-export/1",
             "export_id": export_id,
             "corpus_run_id": run_id,
+            "workbench_schema_version": SCHEMA_VERSION,
             "label_count": len(values),
             "labels_sha256": file_sha256(labels_path),
         }
@@ -473,12 +645,18 @@ class WorkbenchStore:
 
     def _initialize(self) -> None:
         with self.connect() as connection:
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+            )
+            version_row = connection.execute(
+                "SELECT value FROM meta WHERE key = 'schema_version'"
+            ).fetchone()
+            if version_row is not None and version_row[0] != str(SCHEMA_VERSION):
+                raise PrivateArtifactError(
+                    "workbench schema version requires an explicit migration"
+                )
             connection.executescript(
                 """
-                CREATE TABLE IF NOT EXISTS meta(
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                );
                 CREATE TABLE IF NOT EXISTS corpus_rows(
                     source_id TEXT PRIMARY KEY,
                     record_json TEXT NOT NULL,
@@ -528,31 +706,159 @@ class WorkbenchStore:
                 );
                 """
             )
-            connection.execute(
-                "INSERT OR REPLACE INTO meta(key, value) VALUES('schema_version', ?)",
-                (str(SCHEMA_VERSION),),
-            )
+            if version_row is None:
+                connection.execute(
+                    "INSERT INTO meta(key, value) VALUES('schema_version', ?)",
+                    (str(SCHEMA_VERSION),),
+                )
         os.chmod(self.database_path, 0o600)
+
+
+def _verify_revision_rows(annotations: list[sqlite3.Row], corrections: list[sqlite3.Row]) -> None:
+    annotation_heads: dict[tuple[str, str], str] = {}
+    annotation_revisions: dict[tuple[str, str], int] = {}
+    for row in annotations:
+        key = (row["source_id"], row["reviewer_id"])
+        expected_revision = annotation_revisions.get(key, 0) + 1
+        previous_hash = annotation_heads.get(key)
+        body = {
+            "source_id": row["source_id"],
+            "reviewer_id": row["reviewer_id"],
+            "revision": row["revision"],
+            "status": row["status"],
+            "payload": _stored_json(row["payload_json"]),
+            "canonical_label": (
+                _stored_json(row["canonical_label_json"])
+                if row["canonical_label_json"] is not None
+                else None
+            ),
+            "created_at_epoch_ms": row["created_at_epoch_ms"],
+            "previous_hash": row["previous_hash"],
+        }
+        if (
+            row["revision"] != expected_revision
+            or row["previous_hash"] != previous_hash
+            or row["revision_hash"] != object_sha256(body)
+        ):
+            raise PrivateArtifactError("workbench annotation revision chain is invalid")
+        annotation_revisions[key] = row["revision"]
+        annotation_heads[key] = row["revision_hash"]
+
+    correction_heads: dict[str, str] = {}
+    correction_revisions: dict[str, int] = {}
+    for row in corrections:
+        source_id = row["source_id"]
+        expected_revision = correction_revisions.get(source_id, 0) + 1
+        previous_hash = correction_heads.get(source_id)
+        body = {
+            "source_id": source_id,
+            "revision": row["revision"],
+            "reviewer_id": row["reviewer_id"],
+            "facets": _stored_json(row["facets_json"]),
+            "created_at_epoch_ms": row["created_at_epoch_ms"],
+            "previous_hash": row["previous_hash"],
+        }
+        if (
+            row["revision"] != expected_revision
+            or row["previous_hash"] != previous_hash
+            or row["correction_hash"] != object_sha256(body)
+        ):
+            raise PrivateArtifactError("workbench segregation revision chain is invalid")
+        correction_revisions[source_id] = row["revision"]
+        correction_heads[source_id] = row["correction_hash"]
+
+
+def _verify_database_snapshot(path: Path, *, expected_corpus_run_id: str) -> None:
+    uri = f"{path.resolve().as_uri()}?mode=ro&immutable=1"
+    try:
+        with sqlite3.connect(uri, uri=True) as connection:
+            connection.row_factory = sqlite3.Row
+            if connection.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                raise PrivateArtifactError("workbench backup failed integrity validation")
+            metadata = dict(connection.execute("SELECT key, value FROM meta").fetchall())
+            if metadata.get("schema_version") != str(SCHEMA_VERSION):
+                raise PrivateArtifactError("workbench backup schema version is unsupported")
+            if metadata.get("corpus_run_id") != expected_corpus_run_id:
+                raise PrivateArtifactError("workbench backup belongs to a different corpus run")
+            annotations = connection.execute(
+                "SELECT * FROM annotation_revisions ORDER BY source_id, reviewer_id, revision"
+            ).fetchall()
+            corrections = connection.execute(
+                "SELECT * FROM segregation_corrections ORDER BY source_id, revision"
+            ).fetchall()
+    except sqlite3.DatabaseError as exc:
+        raise PrivateArtifactError("workbench backup database is invalid") from exc
+    _verify_revision_rows(annotations, corrections)
 
 
 def _json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+def _stored_json(value: str) -> Any:
+    try:
+        return json.loads(value)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise PrivateArtifactError("workbench stored JSON is invalid") from exc
+
+
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     try:
         rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise PrivateArtifactError("canonical manifest could not be read for workbench import") from exc
+        raise PrivateArtifactError(
+            "canonical manifest could not be read for workbench import"
+        ) from exc
     if not all(isinstance(row, dict) for row in rows):
         raise PrivateArtifactError("canonical manifest contains a non-object row")
     return rows
 
 
-def _validate_manifest_record(record: dict[str, Any]) -> None:
-    required = {"source_id", "source", "source_metadata", "analysis", "weak_facets", "grouping", "pool"}
+def _validate_manifest_record(record: dict[str, Any], corpus_run_id: str) -> None:
+    required = {
+        "source_id",
+        "source",
+        "source_metadata",
+        "analysis",
+        "weak_facets",
+        "grouping",
+        "pool",
+        "provenance",
+    }
     if not required <= set(record):
         raise PrivateArtifactError("canonical manifest record is incomplete")
+    if record.get("contract") != "pocketfinancer.corpus-record/1":
+        raise PrivateArtifactError("canonical manifest record contract is unsupported")
+    if (
+        not isinstance(record["provenance"], dict)
+        or record["provenance"].get("corpus_run_id") != corpus_run_id
+    ):
+        raise PrivateArtifactError("canonical manifest record has the wrong corpus run")
+    source = record.get("source")
+    if not isinstance(source, dict) or not isinstance(source.get("body"), str):
+        raise PrivateArtifactError("canonical manifest source is invalid")
+    grouping = record.get("grouping")
+    if not isinstance(grouping, dict) or not {
+        "sender_template_group_hash",
+        "sender_family_hash",
+        "normalized_template_hash",
+        "time_group",
+    } <= set(grouping):
+        raise PrivateArtifactError("canonical manifest grouping is invalid")
+    weak = record.get("weak_facets")
+    if not isinstance(weak, dict) or not {
+        "operational_class",
+        "event_state",
+        "disposition",
+        "selector_action",
+    } <= set(weak):
+        raise PrivateArtifactError("canonical manifest weak facets are invalid")
+    if not isinstance(record.get("source_metadata"), dict):
+        raise PrivateArtifactError("canonical manifest source metadata is invalid")
+    try:
+        Analysis.from_dict(record["analysis"], source=source["body"])
+    except (TypeError, ValueError) as exc:
+        raise PrivateArtifactError("canonical manifest analysis is invalid") from exc
 
 
 def _annotation_row(row: sqlite3.Row) -> dict[str, Any]:
@@ -569,3 +875,13 @@ def _annotation_row(row: sqlite3.Row) -> dict[str, Any]:
         "previous_hash": row["previous_hash"],
         "revision_hash": row["revision_hash"],
     }
+
+
+def _coverage_rows(rows: list[sqlite3.Row]) -> dict[str, dict[str, int]]:
+    result: dict[str, dict[str, int]] = {}
+    for category, state, count in rows:
+        item = result.setdefault(category, {"total": 0, "reviewed": 0})
+        item["total"] += count
+        if state in {"submitted", "adjudicated"}:
+            item["reviewed"] += count
+    return result

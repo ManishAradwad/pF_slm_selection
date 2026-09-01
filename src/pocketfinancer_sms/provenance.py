@@ -54,6 +54,14 @@ def ensure_private_directory(path: Path) -> None:
     os.chmod(path, 0o700)
 
 
+def fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 def atomic_write_bytes(path: Path, payload: bytes) -> None:
     ensure_private_directory(path.parent)
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -66,11 +74,7 @@ def atomic_write_bytes(path: Path, payload: bytes) -> None:
             os.fsync(handle.fileno())
         os.replace(temporary, path)
         os.chmod(path, 0o600)
-        directory_descriptor = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory_descriptor)
-        finally:
-            os.close(directory_descriptor)
+        fsync_directory(path.parent)
     finally:
         if temporary.exists():
             temporary.unlink()
