@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 from collections.abc import Iterable
 from typing import Any
 
@@ -30,10 +31,15 @@ from .types import (
     CurrencyProvenance,
     Direction,
     EvidenceSpan,
+    TimestampProvenance,
 )
 
 
-ANALYSIS_CONTRACT = "pocketfinancer.sms-analysis/1"
+ANALYSIS_CONTRACT_V1 = "pocketfinancer.sms-analysis/1"
+ANALYSIS_CONTRACT_V2 = "pocketfinancer.sms-analysis/2"
+# Backward-compatible name used by historical corpus code and tests.
+ANALYSIS_CONTRACT = ANALYSIS_CONTRACT_V1
+ANALYZER_BEHAVIOR_V2 = "pocketfinancer.structural-sms-analyzer/2"
 
 _WESTERN_INTEGER = r"(?:\d{1,3}(?:,\d{3})+|\d+)"
 _LAKH_INTEGER = r"(?:\d{1,3}(?:,\d{2})+,\d{3})"
@@ -147,12 +153,67 @@ _CUE_PATTERNS: dict[str, tuple[str, re.Pattern[str]]] = {
     ),
 }
 
+_V2_CUE_PATTERNS: dict[str, tuple[str, re.Pattern[str]]] = {
+    "expectation": (
+        "expected_refund_not_posted",
+        re.compile(
+            r"\b(?:(?:refund|reversal)(?:\s+of\s+(?:[a-z]{3}\s+)?[\d,.]+)?\s+"
+            r"(?:is\s+|was\s+)?(?:expected|anticipated|promised)|"
+            r"(?:expect|expected|anticipate|anticipated)\s+(?:a\s+)?(?:refund|reversal)|"
+            r"(?:will|may|scheduled\s+to|set\s+to)\s+(?:be\s+)?(?:refunded|reversed))\b",
+            re.I,
+        ),
+    ),
+    "authorization_hold": (
+        "authorization_or_hold_not_posted",
+        re.compile(
+            r"\b(?:authorization\s+hold|pre[- ]?authori[sz](?:ation|ed)?|"
+            r"(?:payment|charge|transaction|amount)\s+(?:is\s+|was\s+|has\s+been\s+)?"
+            r"authori[sz]ed|(?:temporary\s+)?hold\s+(?:of|for|on)|"
+            r"(?:payment|charge|transaction|amount)\s+(?:is\s+|was\s+|has\s+been\s+)?held)\b",
+            re.I,
+        ),
+    ),
+}
+
+_FAMILY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("refund", re.compile(r"\b(?:refund|refunded|reversal|reversed)\b", re.I)),
+    ("wallet", re.compile(r"\bwallet\b", re.I)),
+    ("cash_withdrawal", re.compile(r"\b(?:cash\s+withdrawal|withdrawn|atm)\b", re.I)),
+    ("cash_deposit", re.compile(r"\b(?:cash\s+deposit|deposited)\b", re.I)),
+    ("fee_charge", re.compile(r"\b(?:fee|fees|service\s+charge)\b", re.I)),
+    ("salary_income", re.compile(r"\bsalary\b", re.I)),
+    ("upi_transfer", re.compile(r"\b(?:upi|vpa)\b", re.I)),
+    ("bank_transfer", re.compile(r"\b(?:transfer|imps|neft|rtgs|nach)\b", re.I)),
+    ("card_purchase", re.compile(r"\b(?:card\s+purchase|purchase\s+on\s+(?:your\s+)?card)\b", re.I)),
+    ("merchant_payment", re.compile(r"\b(?:merchant\s+payment|purchase|spent|paid)\b", re.I)),
+)
+
+_CLAUSE_STATE_BY_CUE = {
+    "failure": "failed",
+    "negation": "failed",
+    "pending": "pending",
+    "due": "due",
+    "request": "request",
+    "expectation": "expectation",
+    "authorization_hold": "authorization",
+    "credential_otp": "security",
+}
+
 
 class DeterministicSmsAnalyzer:
     """Enumerate source-backed cues and candidates without assigning human truth."""
 
-    def __init__(self, currency_context: CurrencyContext) -> None:
+    def __init__(
+        self,
+        currency_context: CurrencyContext,
+        *,
+        analysis_contract: str = ANALYSIS_CONTRACT_V1,
+    ) -> None:
+        if analysis_contract not in {ANALYSIS_CONTRACT_V1, ANALYSIS_CONTRACT_V2}:
+            raise ValueError("analysis contract is unsupported")
         self.currency_context = currency_context
+        self.analysis_contract = analysis_contract
         self.profiles = resolve_profiles(currency_context.profile_ids)
         self.transaction_terms = tuple(
             dict.fromkeys(term for profile in self.profiles for term in profile.transaction_terms)
@@ -174,23 +235,54 @@ class DeterministicSmsAnalyzer:
         operation_id: str,
         is_outgoing: bool | None = None,
         input_valid: bool = True,
+        operation_config_hash: str | None = None,
+        source_timestamp_epoch_ms: int | None = None,
+        source_timestamp_provenance: TimestampProvenance = TimestampProvenance.UNKNOWN,
     ) -> Analysis:
         if not isinstance(source, str):
             source = ""
             input_valid = False
         if not operation_id:
             raise ValueError("operation_id is required to scope candidate IDs")
+        if self.analysis_contract == ANALYSIS_CONTRACT_V2:
+            if not _is_sha256(operation_config_hash):
+                raise ValueError("analysis /2 requires an operation configuration hash")
+            if not isinstance(source_timestamp_provenance, TimestampProvenance):
+                raise ValueError("analysis timestamp provenance is unsupported")
+            if source_timestamp_epoch_ms is not None and (
+                isinstance(source_timestamp_epoch_ms, bool)
+                or not isinstance(source_timestamp_epoch_ms, int)
+                or source_timestamp_epoch_ms < 0
+            ):
+                raise ValueError("analysis source timestamp is invalid")
+            if (
+                source_timestamp_epoch_ms is None
+                and source_timestamp_provenance != TimestampProvenance.UNKNOWN
+            ):
+                raise ValueError("analysis timestamp provenance requires a timestamp")
 
         source_fingerprint = hashlib.sha256(source.encode("utf-8")).hexdigest()
-        analysis_id = hashlib.sha256(
-            f"{operation_id}\0{source_fingerprint}\0{self.currency_context.config_hash}".encode()
-        ).hexdigest()[:24]
+        if self.analysis_contract == ANALYSIS_CONTRACT_V1:
+            analysis_identity = (
+                f"{operation_id}\0{source_fingerprint}\0{self.currency_context.config_hash}"
+            )
+            config_hash = self.currency_context.config_hash
+        else:
+            analysis_identity = (
+                f"{operation_id}\0{source_fingerprint}\0{operation_config_hash}\0"
+                f"{ANALYZER_BEHAVIOR_V2}"
+            )
+            config_hash = operation_config_hash
+        analysis_id = hashlib.sha256(analysis_identity.encode()).hexdigest()[:24]
         structural_view = build_structural_view(source)
         clauses = split_clauses(source)
         candidates: list[Candidate] = []
         cues: list[Cue] = []
 
-        for kind, (reason_code, pattern) in _CUE_PATTERNS.items():
+        cue_patterns = dict(_CUE_PATTERNS)
+        if self.analysis_contract == ANALYSIS_CONTRACT_V2:
+            cue_patterns.update(_V2_CUE_PATTERNS)
+        for kind, (reason_code, pattern) in cue_patterns.items():
             for match in structural_view.finditer(pattern):
                 cues.append(self._cue(source, clauses, analysis_id, kind, reason_code, match))
 
@@ -243,7 +335,10 @@ class DeterministicSmsAnalyzer:
         )
         candidates.extend(self._absence_candidates(analysis_id))
 
-        candidates = self._deduplicate_candidates(candidates)
+        candidates = self._deduplicate_candidates(
+            candidates,
+            reject_duplicates=self.analysis_contract == ANALYSIS_CONTRACT_V2,
+        )
         cues = self._deduplicate_cues(cues)
         reason_codes = self._aggregate_reason_codes(candidates, cues, input_valid, is_outgoing)
         metadata: dict[str, Any] = {
@@ -263,12 +358,35 @@ class DeterministicSmsAnalyzer:
                 }
             ),
         }
+        if self.analysis_contract == ANALYSIS_CONTRACT_V2:
+            metadata.update(
+                {
+                    "analyzer_behavior_version": ANALYZER_BEHAVIOR_V2,
+                    "currency_context_hash": self.currency_context.config_hash,
+                    "unicode_behavior": {
+                        "normalization": "per_code_point_nfkc_casefold",
+                        "whitespace": "collapse_unicode_whitespace",
+                        "unicode_database_version": unicodedata.unidata_version,
+                    },
+                    "source_timestamp": {
+                        "epoch_ms": source_timestamp_epoch_ms,
+                        "provenance": source_timestamp_provenance.value,
+                    },
+                    "clause_annotations": self._clause_annotations(
+                        source,
+                        structural_view,
+                        clauses,
+                        candidates,
+                        cues,
+                    ),
+                }
+            )
         return Analysis(
-            contract=ANALYSIS_CONTRACT,
+            contract=self.analysis_contract,
             analysis_id=analysis_id,
             source_fingerprint=source_fingerprint,
             profile_id="+".join(profile.profile_id for profile in self.profiles),
-            config_hash=self.currency_context.config_hash,
+            config_hash=config_hash,
             primary_currency=self.currency_context.primary_currency,
             source_length_chars=len(source),
             source_length_utf8=len(source.encode("utf-8")),
@@ -391,15 +509,24 @@ class DeterministicSmsAnalyzer:
         analysis_id: str,
         cues: list[Cue],
     ) -> Iterable[Candidate]:
-        non_completed = [
-            cue.evidence for cue in cues if cue.kind in {"negation", "pending", "request"}
-        ]
+        blocking_kinds = {"negation", "pending", "request", "expectation", "authorization_hold"}
+        non_completed = [cue.evidence for cue in cues if cue.kind in blocking_kinds]
+        blocked_clauses = {
+            cue.clause_id
+            for cue in cues
+            if cue.kind in blocking_kinds and cue.clause_id != "cl_unknown"
+        }
         for direction, pattern in _DIRECTION_PATTERNS:
             for match in structural_view.finditer(pattern):
-                if any(
-                    evidence.start_char <= match.start() and evidence.end_char >= match.end()
-                    for evidence in non_completed
-                ):
+                if self.analysis_contract == ANALYSIS_CONTRACT_V2:
+                    clause_id = clause_for_span(clauses, match.start(), match.end())
+                    blocked = clause_id in blocked_clauses
+                else:
+                    blocked = any(
+                        evidence.start_char <= match.start() and evidence.end_char >= match.end()
+                        for evidence in non_completed
+                    )
+                if blocked:
                     continue
                 yield self._candidate(
                     source,
@@ -578,8 +705,17 @@ class DeterministicSmsAnalyzer:
         )
 
     @staticmethod
-    def _deduplicate_candidates(candidates: list[Candidate]) -> list[Candidate]:
-        return list({candidate.candidate_id: candidate for candidate in candidates}.values())
+    def _deduplicate_candidates(
+        candidates: list[Candidate], *, reject_duplicates: bool
+    ) -> list[Candidate]:
+        by_id: dict[str, Candidate] = {}
+        for candidate in candidates:
+            if candidate.candidate_id in by_id:
+                if reject_duplicates:
+                    raise ValueError("analysis candidate ID collision")
+                continue
+            by_id[candidate.candidate_id] = candidate
+        return list(by_id.values())
 
     @staticmethod
     def _deduplicate_cues(cues: list[Cue]) -> list[Cue]:
@@ -606,3 +742,59 @@ class DeterministicSmsAnalyzer:
         if any(candidate.kind == CandidateKind.DIRECTION for candidate in candidates):
             reasons.add("completed_direction_candidate_present")
         return reasons
+
+    @staticmethod
+    def _clause_annotations(
+        source: str,
+        structural_view: StructuralView,
+        clauses: tuple,
+        candidates: list[Candidate],
+        cues: list[Cue],
+    ) -> list[dict[str, Any]]:
+        states_by_clause: dict[str, set[str]] = {
+            clause.clause_id: set() for clause in clauses
+        }
+        families_by_clause: dict[str, list[dict[str, Any]]] = {
+            clause.clause_id: [] for clause in clauses
+        }
+        for cue in cues:
+            state = _CLAUSE_STATE_BY_CUE.get(cue.kind)
+            if state is not None and cue.clause_id in states_by_clause:
+                states_by_clause[cue.clause_id].add(state)
+        for candidate in candidates:
+            if candidate.kind == CandidateKind.DIRECTION and candidate.clause_id in states_by_clause:
+                states_by_clause[candidate.clause_id].add("completed")
+        for family, pattern in _FAMILY_PATTERNS:
+            for match in structural_view.finditer(pattern):
+                clause_id = clause_for_span(clauses, match.start(), match.end())
+                if clause_id is None:
+                    continue
+                evidence = EvidenceSpan.from_source(source, match.start(), match.end())
+                families_by_clause[clause_id].append(
+                    {
+                        "family": family,
+                        "evidence": {
+                            "start_char": evidence.start_char,
+                            "end_char": evidence.end_char,
+                            "start_utf8": evidence.start_utf8,
+                            "end_utf8": evidence.end_utf8,
+                            "text": evidence.text,
+                        },
+                    }
+                )
+        return [
+            {
+                "clause_id": clause.clause_id,
+                "states": sorted(states_by_clause[clause.clause_id]) or ["unknown"],
+                "financial_families": families_by_clause[clause.clause_id],
+            }
+            for clause in clauses
+        ]
+
+
+def _is_sha256(value: str | None) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(char in "0123456789abcdef" for char in value)
+    )

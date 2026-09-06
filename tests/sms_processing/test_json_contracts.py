@@ -9,11 +9,23 @@ from pathlib import Path
 import jsonschema
 import pytest
 
-from pocketfinancer_sms.analyzer import ANALYSIS_CONTRACT, DeterministicSmsAnalyzer
+from pocketfinancer_sms.analyzer import (
+    ANALYZER_BEHAVIOR_V2,
+    ANALYSIS_CONTRACT,
+    ANALYSIS_CONTRACT_V2,
+    DeterministicSmsAnalyzer,
+)
 from pocketfinancer_sms.currency import (
     ISO_4217_CURRENT_CODES,
     ISO_MINOR_UNITS,
     CurrencyContext,
+)
+from pocketfinancer_sms.configuration import (
+    AssetBinding,
+    ProcessingConfigSnapshot,
+    ProcessingTrigger,
+    RolloutMode,
+    SelectorRuntimeConfig,
 )
 from pocketfinancer_sms.feedback import UserFeedbackEvent
 from pocketfinancer_sms.persistence import processing_result_payload
@@ -35,6 +47,7 @@ from pocketfinancer_sms.types import (
     PersistenceDecision,
     ReconstructedTransaction,
     SelectorResult,
+    TimestampProvenance,
 )
 
 
@@ -54,10 +67,12 @@ def _schema(name: str) -> dict:
         "grounded-candidate-selector.schema.json",
         "grounded-candidate-selector-input.schema.json",
         "processing-result.schema.json",
+        "processing-config.schema.json",
         "processing-trace.schema.json",
         "sms-analysis.schema.json",
         "user-feedback.schema.json",
         "v2/selector-validation-profile.schema.json",
+        "v2/sms-analysis.schema.json",
     ],
 )
 def test_contract_schema_is_valid_draft_2020_12(name: str) -> None:
@@ -65,20 +80,36 @@ def test_contract_schema_is_valid_draft_2020_12(name: str) -> None:
 
 
 def test_executable_analysis_conforms_to_schema() -> None:
+    source = "INR 12 was debited from account **1234 at SYNTH STORE."
     analysis = DeterministicSmsAnalyzer(CurrencyContext("INR", ("core-en", "india"))).analyze(
-        "INR 12 was debited from account **1234 at SYNTH STORE.",
+        source,
         operation_id="synthetic-contract",
         is_outgoing=False,
     )
     assert analysis.contract == ANALYSIS_CONTRACT
     assert _schema("sms-analysis.schema.json")["$id"] == ANALYSIS_CONTRACT
     jsonschema.validate(analysis.to_dict(), _schema("sms-analysis.schema.json"))
-    assert (
-        Analysis.from_dict(
-            analysis.to_dict(), source="INR 12 was debited from account **1234 at SYNTH STORE."
-        )
-        == analysis
+    assert Analysis.from_dict(analysis.to_dict(), source=source) == analysis
+
+
+def test_executable_v2_analysis_conforms_to_versioned_schema() -> None:
+    source = "INR 12 will be refunded to account **1234 by SYNTH STORE."
+    analysis = DeterministicSmsAnalyzer(
+        CurrencyContext("INR", ("core-en", "india")),
+        analysis_contract=ANALYSIS_CONTRACT_V2,
+    ).analyze(
+        source,
+        operation_id="synthetic-v2-contract",
+        operation_config_hash="a" * 64,
+        source_timestamp_epoch_ms=1_700_000_000_000,
+        source_timestamp_provenance=(
+            TimestampProvenance.ACQUISITION_SUPPLIED_MESSAGE_TIME
+        ),
     )
+
+    jsonschema.validate(analysis.to_dict(), _schema("v2/sms-analysis.schema.json"))
+    assert analysis.contract == ANALYSIS_CONTRACT_V2
+    assert Analysis.from_dict(analysis.to_dict(), source=source) == analysis
 
 
 def test_checked_in_currency_and_profile_declarations_match_runtime() -> None:
@@ -113,6 +144,59 @@ def test_checked_in_currency_and_profile_declarations_match_runtime() -> None:
         assert tuple(declared["grouping"]) == runtime.grouping_styles
         assert tuple(declared["transaction_terms"]) == runtime.transaction_terms
         assert {rail: tuple(terms) for rail, terms in declared["rails"].items()} == runtime.rails
+
+
+def _processing_config(*, primary_currency: str = "INR") -> ProcessingConfigSnapshot:
+    return ProcessingConfigSnapshot(
+        operation_id="11111111-1111-4111-8111-111111111111",
+        parent_operation_id=None,
+        source_ref_hash="1" * 64,
+        trigger=ProcessingTrigger.APP_INTENT,
+        created_at_epoch_ms=1_700_000_000_100,
+        admission_epoch_ms=1_700_000_000_000,
+        release_id="native-integration-v1",
+        release_manifest_sha256="2" * 64,
+        analyzer_behavior_version=ANALYZER_BEHAVIOR_V2,
+        unicode_behavior_version="unicode-15.0-per-code-point-nfkc-casefold",
+        currency_asset_sha256="3" * 64,
+        profile_assets=(
+            AssetBinding("core-en", "4" * 64),
+            AssetBinding("india", "5" * 64),
+        ),
+        primary_currency=primary_currency,
+        enabled_profile_ids=("core-en", "india"),
+        source_timestamp_epoch_ms=1_699_999_999_000,
+        source_timestamp_provenance=(
+            TimestampProvenance.ACQUISITION_SUPPLIED_MESSAGE_TIME
+        ),
+        timezone_id="Asia/Kolkata",
+        timestamp_policy_version="pocketfinancer.timestamp-policy/1",
+        selector=SelectorRuntimeConfig(
+            eligible=True,
+            ineligibility_reason=None,
+            model_identifier="synthetic-local-model",
+            model_file_sha256=None,
+            runtime_version="synthetic-runtime-1",
+            os_version="synthetic-os-1",
+            device_cohort="synthetic-device",
+            prompt_version="pocketfinancer.selector-prompt/1",
+            prompt_sha256="6" * 64,
+        ),
+        persistence_policy_version="pocketfinancer.persistence-policy/1",
+        rollout_mode=RolloutMode.SHADOW,
+    )
+
+
+def test_processing_configuration_is_immutable_schema_bound_and_canonically_hashed() -> None:
+    config = _processing_config()
+    value = config.to_dict()
+
+    jsonschema.validate(value, _schema("processing-config.schema.json"))
+    assert value["config_hash"] == config.config_hash
+    assert config.config_hash == _processing_config().config_hash
+    assert config.config_hash != _processing_config(primary_currency="USD").config_hash
+    assert value["selector"]["generation_mode"] == "DIRECT_NON_THINKING"
+    assert value["persistence_policy"]["rollout_mode"] == "shadow"
 
 
 def test_selector_schema_accepts_only_three_semantic_branches() -> None:

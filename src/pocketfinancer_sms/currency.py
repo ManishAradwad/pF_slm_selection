@@ -10,6 +10,8 @@ from decimal import Decimal, InvalidOperation
 from .types import CurrencyProvenance
 
 
+MAX_SIGNED_64 = (1 << 63) - 1
+
 ISO_MINOR_UNITS: dict[str, int] = {
     "AED": 2,
     "AUD": 2,
@@ -102,4 +104,6 @@ def parse_money(
     if value.quantize(quantum) != value:
         raise ValueError("amount has more precision than its currency permits")
     minor_units = int(value * (10**scale))
+    if minor_units > MAX_SIGNED_64:
+        raise ValueError("amount exceeds signed 64-bit minor units")
     return ParsedMoney(minor_units, currency, provenance)

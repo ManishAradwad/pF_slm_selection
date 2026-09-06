@@ -25,6 +25,16 @@ def evaluate_triage(analysis: Analysis) -> TriageDecision:
         return _decision(Disposition.DISCARD, SelectorAction.SKIP, reasons, "discard_reliable_outgoing")
 
     if not completed_clauses:
+        if analysis.contract == "pocketfinancer.sms-analysis/2" and any(
+            cue.kind in {"pending", "due", "expectation", "authorization_hold"}
+            for cue in analysis.cues
+        ):
+            return _decision(
+                Disposition.RETAIN_REVIEW,
+                SelectorAction.SKIP,
+                reasons,
+                "review_uncertain_financial_state",
+            )
         if "credential_otp" in {cue.kind for cue in analysis.cues}:
             return _decision(
                 Disposition.DISCARD,

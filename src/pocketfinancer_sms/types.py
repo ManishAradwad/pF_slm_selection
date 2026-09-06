@@ -58,6 +58,11 @@ class CounterpartyState(StrEnum):
 class TimestampProvenance(StrEnum):
     PLATFORM_RECEIVED = "platform_received"
     MESSAGE_EXPLICIT = "message_explicit"
+    SOURCE_SUPPLIED_TRANSACTION_TIME = "source_supplied_transaction_time"
+    ACQUISITION_SUPPLIED_MESSAGE_TIME = "acquisition_supplied_message_time"
+    USER_SUPPLIED_TIME = "user_supplied_time"
+    ADMISSION_TIME = "admission_time"
+    USER_CORRECTED_TIME = "user_corrected_time"
     UNKNOWN = "unknown"
 
 
@@ -139,7 +144,10 @@ class Analysis:
         """
 
         try:
-            if value["contract"] != "pocketfinancer.sms-analysis/1":
+            if value["contract"] not in {
+                "pocketfinancer.sms-analysis/1",
+                "pocketfinancer.sms-analysis/2",
+            }:
                 raise ValueError("stored analysis contract is unsupported")
             if hashlib.sha256(source.encode("utf-8")).hexdigest() != value["source_fingerprint"]:
                 raise ValueError("stored analysis source fingerprint does not match")

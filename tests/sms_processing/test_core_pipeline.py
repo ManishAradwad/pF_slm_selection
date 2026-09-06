@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from pocketfinancer_sms.analyzer import DeterministicSmsAnalyzer
-from pocketfinancer_sms.currency import CurrencyContext
+from pocketfinancer_sms.analyzer import ANALYSIS_CONTRACT_V2, DeterministicSmsAnalyzer
+from pocketfinancer_sms.currency import MAX_SIGNED_64, CurrencyContext, parse_money
 from pocketfinancer_sms.persistence import evaluate_persistence
 from pocketfinancer_sms.selector import (
     SelectorValidationError,
@@ -17,6 +17,7 @@ from pocketfinancer_sms.selector import (
 )
 from pocketfinancer_sms.triage import evaluate_triage
 from pocketfinancer_sms.types import (
+    Analysis,
     CandidateKind,
     CurrencyProvenance,
     Disposition,
@@ -56,6 +57,11 @@ def _selector_validation_vectors() -> list[dict[str, object]]:
         / "native-v1"
         / "selector-validation.json"
     )
+    return json.loads(path.read_text(encoding="utf-8"))["vectors"]
+
+
+def _financial_state_vectors() -> list[dict[str, object]]:
+    path = Path(__file__).parent / "golden" / "native-v1" / "financial-state.json"
     return json.loads(path.read_text(encoding="utf-8"))["vectors"]
 
 
@@ -294,3 +300,71 @@ def test_structural_normalization_matches_fullwidth_text_but_preserves_evidence(
     assert amount.evidence is not None and amount.evidence.text == "ＩＮＲ １０"
     assert account.evidence is not None and "１２３４" in account.evidence.text
     assert len(analysis.metadata["normalized_structural_fingerprint"]) == 64
+
+
+@pytest.mark.parametrize(
+    "vector",
+    _financial_state_vectors(),
+    ids=lambda vector: str(vector["id"]),
+)
+def test_v2_financial_state_vectors_are_clause_aware(vector: dict[str, object]) -> None:
+    source = str(vector["message"])
+    analysis = DeterministicSmsAnalyzer(
+        CurrencyContext("INR", ("core-en", "india")),
+        analysis_contract=ANALYSIS_CONTRACT_V2,
+    ).analyze(
+        source,
+        operation_id=f"synthetic-{vector['id']}",
+        operation_config_hash="a" * 64,
+        source_timestamp_epoch_ms=1_700_000_000_000,
+        source_timestamp_provenance=TimestampProvenance.ACQUISITION_SUPPLIED_MESSAGE_TIME,
+    )
+    triage = evaluate_triage(analysis)
+    annotations = analysis.metadata["clause_annotations"]
+    states = {
+        state
+        for annotation in annotations
+        for state in annotation["states"]
+        if state != "unknown"
+    }
+    families = {
+        item["family"]
+        for annotation in annotations
+        for item in annotation["financial_families"]
+    }
+
+    assert analysis.contract == ANALYSIS_CONTRACT_V2
+    assert analysis.config_hash == "a" * 64
+    assert len(analysis.candidates_of(CandidateKind.DIRECTION)) == vector["direction_count"]
+    assert triage.disposition.value == vector["disposition"]
+    assert triage.selector_action.value == vector["selector_action"]
+    assert vector["reason_code"] in triage.reason_codes
+    assert set(vector["states"]) <= states
+    assert set(vector["families"]) <= families
+    assert Analysis.from_dict(analysis.to_dict(), source=source) == analysis
+
+
+def test_v2_analysis_requires_full_operation_configuration_hash() -> None:
+    analyzer = DeterministicSmsAnalyzer(
+        CurrencyContext("INR", ("core-en", "india")),
+        analysis_contract=ANALYSIS_CONTRACT_V2,
+    )
+
+    with pytest.raises(ValueError, match="operation configuration hash"):
+        analyzer.analyze("INR 10 was paid.", operation_id="synthetic-v2-no-config")
+
+
+def test_exact_money_accepts_int64_boundary_and_rejects_overflow() -> None:
+    maximum = parse_money(
+        "92233720368547758.07",
+        currency="INR",
+        provenance=CurrencyProvenance.EXPLICIT_CODE,
+    )
+    assert maximum.minor_units == MAX_SIGNED_64
+
+    with pytest.raises(ValueError, match="signed 64-bit"):
+        parse_money(
+            "92233720368547758.08",
+            currency="INR",
+            provenance=CurrencyProvenance.EXPLICIT_CODE,
+        )
