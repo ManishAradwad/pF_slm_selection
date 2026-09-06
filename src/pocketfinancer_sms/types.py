@@ -66,6 +66,22 @@ class TimestampProvenance(StrEnum):
     UNKNOWN = "unknown"
 
 
+class AccountResolutionStatus(StrEnum):
+    MISSING = "missing"
+    UNRESOLVED = "unresolved"
+    AMBIGUOUS = "ambiguous"
+    UNIQUELY_RESOLVED = "uniquely_resolved"
+
+
+class GateResult(StrEnum):
+    ELIGIBLE = "eligible"
+    REVIEW_REQUIRED = "review_required"
+    NOT_POSTED = "not_posted"
+    MULTIPLE_EVENTS = "multiple_events"
+    BLOCKED_BY_MODE = "blocked_by_mode"
+    INVALID_OPERATION = "invalid_operation"
+
+
 @dataclass(frozen=True, slots=True)
 class EvidenceSpan:
     start_char: int
@@ -264,6 +280,71 @@ class PersistenceDecision:
     reason_codes: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class AccountResolution:
+    status: AccountResolutionStatus
+    match_count: int
+    account_id_hash: str | None = None
+    matched_alias_hash: str | None = None
+    provenance: str | None = None
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.match_count, bool)
+            or not isinstance(self.match_count, int)
+            or self.match_count < 0
+        ):
+            raise ValueError("account resolution match count is invalid")
+        if self.status in {AccountResolutionStatus.MISSING, AccountResolutionStatus.UNRESOLVED}:
+            if self.match_count != 0 or any(
+                (self.account_id_hash, self.matched_alias_hash, self.provenance)
+            ):
+                raise ValueError("empty account resolution contains resolved metadata")
+        elif self.status == AccountResolutionStatus.AMBIGUOUS:
+            if self.match_count < 2 or self.account_id_hash is not None:
+                raise ValueError("ambiguous account resolution is inconsistent")
+        elif (
+            self.match_count != 1
+            or not _is_sha256(self.account_id_hash)
+            or not _is_sha256(self.matched_alias_hash)
+            or not self.provenance
+        ):
+            raise ValueError("unique account resolution is incomplete")
+
+
+@dataclass(frozen=True, slots=True)
+class PersistenceContextV2:
+    timestamp_epoch_ms: int | None
+    timestamp_provenance: TimestampProvenance
+    approved_timestamp_provenance: frozenset[TimestampProvenance]
+    account_resolution: AccountResolution
+    approved_currency_provenance: frozenset[CurrencyProvenance]
+    financial_family: str | None
+    supported_automatic_families: frozenset[str]
+    rollout_mode: str
+    selector_mode_valid: bool
+    claim_ownership_current: bool
+    configuration_hash_matches: bool
+
+
+@dataclass(frozen=True, slots=True)
+class GateCheck:
+    check: str
+    passed: bool
+    reason_code: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class PersistenceDecisionV2:
+    result: GateResult
+    primary_reason: str
+    checks: tuple[GateCheck, ...]
+
+    @property
+    def safe_to_persist(self) -> bool:
+        return self.result == GateResult.ELIGIBLE
+
+
 def _evidence_from_dict(value: dict[str, Any], source: str) -> EvidenceSpan:
     if not isinstance(value, dict):
         raise ValueError("stored analysis evidence is malformed")
@@ -306,4 +387,12 @@ def _candidate_from_dict(value: dict[str, Any], source: str) -> Candidate:
         value=dict(candidate_value),
         context=tuple(context),
         explicit_absence=value["explicit_absence"],
+    )
+
+
+def _is_sha256(value: str | None) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(char in "0123456789abcdef" for char in value)
     )

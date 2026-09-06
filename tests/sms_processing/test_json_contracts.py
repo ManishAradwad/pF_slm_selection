@@ -8,6 +8,8 @@ from pathlib import Path
 
 import jsonschema
 import pytest
+from scripts.build_native_contract_release import build_manifest
+from scripts.build_native_sms_golden import build_fixture
 
 from pocketfinancer_sms.analyzer import (
     ANALYZER_BEHAVIOR_V2,
@@ -27,24 +29,44 @@ from pocketfinancer_sms.configuration import (
     RolloutMode,
     SelectorRuntimeConfig,
 )
-from pocketfinancer_sms.feedback import UserFeedbackEvent
-from pocketfinancer_sms.persistence import processing_result_payload
+from pocketfinancer_sms.feedback import (
+    FieldCorrectionV2,
+    FieldGroundingClassification,
+    UserFeedbackEvent,
+    UserFeedbackEventV2,
+)
+from pocketfinancer_sms.persistence import (
+    evaluate_persistence_v2,
+    processing_result_payload,
+    processing_result_payload_v2,
+)
 from pocketfinancer_sms.profiles import PROFILES
 from pocketfinancer_sms.selector import (
     SELECTOR_CONTRACT,
     SELECTOR_INPUT_CONTRACT,
     SELECTOR_VALIDATION_PROFILE,
     model_candidate_payload,
+    parse_and_reconstruct,
 )
-from pocketfinancer_sms.trace import ProcessingTrace, TraceStage
+from pocketfinancer_sms.trace import (
+    ProcessingTrace,
+    ProcessingTraceV2,
+    TraceEventV2,
+    TraceStage,
+)
+from pocketfinancer_sms.triage import evaluate_triage
 from pocketfinancer_sms.types import (
+    AccountResolution,
+    AccountResolutionStatus,
     AccountState,
     Analysis,
+    CandidateKind,
     CounterpartyState,
     CurrencyProvenance,
     Direction,
     EvidenceSpan,
     PersistenceDecision,
+    PersistenceContextV2,
     ReconstructedTransaction,
     SelectorResult,
     TimestampProvenance,
@@ -64,6 +86,7 @@ def _schema(name: str) -> dict:
     [
         "canonical-label.schema.json",
         "corpus-record.schema.json",
+        "native-trace-bundle.schema.json",
         "grounded-candidate-selector.schema.json",
         "grounded-candidate-selector-input.schema.json",
         "processing-result.schema.json",
@@ -73,6 +96,11 @@ def _schema(name: str) -> dict:
         "user-feedback.schema.json",
         "v2/selector-validation-profile.schema.json",
         "v2/sms-analysis.schema.json",
+        "v2/processing-result.schema.json",
+        "v2/processing-trace.schema.json",
+        "v2/user-feedback.schema.json",
+        "v2/reason-code-registry.schema.json",
+        "releases/release-manifest.schema.json",
     ],
 )
 def test_contract_schema_is_valid_draft_2020_12(name: str) -> None:
@@ -236,6 +264,104 @@ def test_selector_validation_profile_v2_is_frozen_and_schema_valid() -> None:
     assert profile["json_policy"]["reject_non_string_discriminator"] is True
 
 
+def test_reason_registry_is_unique_complete_for_frozen_profiles_and_fails_closed() -> None:
+    schema = _schema("v2/reason-code-registry.schema.json")
+    registry = _schema("v2/reason-code-registry.json")
+    jsonschema.validate(registry, schema)
+    entries = [entry for namespace in registry["namespaces"] for entry in namespace["codes"]]
+    codes = [entry["code"] for entry in entries]
+
+    assert len(codes) == len(set(codes))
+    assert registry["unknown_safety_code_policy"] == "retain_review"
+    selector_profile = _schema("v2/selector-validation-profile.json")
+    assert set(selector_profile["reason_codes"]) <= set(codes)
+    financial_vectors = json.loads(
+        (ROOT / "tests/sms_processing/golden/native-v1/financial-state.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert {vector["reason_code"] for vector in financial_vectors["vectors"]} <= set(codes)
+    assert {
+        "expected_refund_not_posted",
+        "authorization_or_hold_not_posted",
+        "runtime_mode_violation",
+        "candidate_coverage_missing",
+        "account_resolution_ambiguous",
+        "persistence_timestamp_provenance_invalid",
+        "persistence_blocked_by_rollout_mode",
+    } <= set(codes)
+
+
+def test_native_parity_bundle_matches_canonical_byte_level_outputs() -> None:
+    stored = json.loads(
+        (ROOT / "tests/sms_processing/golden/native-v1/parity-bundle.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert stored == build_fixture()
+
+    repeated = {
+        vector["id"]: json.loads(vector["expected_analysis_json"])
+        for vector in stored["vectors"]
+        if vector["id"].startswith("repeated-amounts")
+    }
+    first_ids = [
+        item["candidate_id"] for item in repeated["repeated-amounts-first-operation"]["candidates"]
+    ]
+    second_ids = [
+        item["candidate_id"]
+        for item in repeated["repeated-amounts-second-operation"]["candidates"]
+    ]
+    assert first_ids != second_ids
+
+
+def test_native_trace_bundle_requires_encryption_integrity_and_explicit_consent() -> None:
+    schema = _schema("native-trace-bundle.schema.json")
+    bundle = {
+        "contract": "pocketfinancer.native-trace-bundle/1",
+        "transfer_id": "11111111-1111-4111-8111-111111111111",
+        "created_at_epoch_ms": 1_700_000_000_000,
+        "source_platform": "ios",
+        "release_id": "native-integration-v1",
+        "release_manifest_sha256": "a" * 64,
+        "explicit_consent": True,
+        "purpose": "local_workbench_inspection",
+        "encryption": {
+            "algorithm": "AES-256-GCM",
+            "key_protection": "os_protected",
+            "nonce_base64": "MTIzNDU2Nzg5MDEy",
+        },
+        "source_ref_hashes": ["b" * 64],
+        "record_count": 1,
+        "payload_ciphertext_base64": "c3ludGhldGljLWNpcGhlcnRleHQ=",
+        "payload_ciphertext_sha256": "c" * 64,
+    }
+
+    jsonschema.validate(bundle, schema)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({**bundle, "explicit_consent": False}, schema)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({**bundle, "payload_ciphertext_base64": "raw plaintext"}, schema)
+
+
+def test_native_release_manifest_hashes_every_frozen_artifact() -> None:
+    stored = _schema("releases/native-integration-v1.json")
+    schema = _schema("releases/release-manifest.schema.json")
+
+    jsonschema.validate(stored, schema)
+    assert stored == build_manifest()
+    paths = [artifact["path"] for artifact in stored["artifacts"]]
+    assert len(paths) == len(set(paths))
+    assert stored["automatic_persistence_enabled"] is False
+    assert {
+        "configs/sms_processing/contracts/v2/sms-analysis.schema.json",
+        "configs/sms_processing/contracts/v2/processing-result.schema.json",
+        "configs/sms_processing/contracts/v2/processing-trace.schema.json",
+        "configs/sms_processing/contracts/v2/user-feedback.schema.json",
+        "tests/sms_processing/golden/native-v1/parity-bundle.json",
+    } <= set(paths)
+
+
 def test_selector_input_payload_conforms_without_host_canonical_values() -> None:
     source = "INR 12 was debited from account **1234 at SYNTH STORE."
     analysis = DeterministicSmsAnalyzer(CurrencyContext("INR", ("core-en", "india"))).analyze(
@@ -273,6 +399,78 @@ def test_trace_and_feedback_objects_conform_to_schemas() -> None:
     jsonschema.validate(feedback_value, _schema("user-feedback.schema.json"))
 
 
+def test_v2_trace_and_feedback_are_append_only_and_schema_bound() -> None:
+    first = TraceEventV2(
+        sequence=0,
+        event_id="11111111-1111-4111-8111-111111111111",
+        occurred_at_epoch_ms=1_700_000_000_000,
+        stage="admission",
+        status="completed",
+        reason_codes=("source_admitted",),
+    )
+    second = TraceEventV2(
+        sequence=1,
+        event_id="22222222-2222-4222-8222-222222222222",
+        occurred_at_epoch_ms=1_700_000_000_100,
+        stage="analysis",
+        status="completed",
+        reason_codes=("completed_direction_candidate_present",),
+        previous_event_hash=first.event_hash,
+    )
+    trace = ProcessingTraceV2.create(
+        "33333333-3333-4333-8333-333333333333",
+        "a" * 64,
+        1,
+        (first, second),
+    )
+    correction = FieldCorrectionV2(
+        field="amount",
+        classification=(
+            FieldGroundingClassification.SUPPLIED_SOURCE_SUPPORTED_CANDIDATE_MISS
+        ),
+        previous_revision_id="synthetic-revision-1",
+        candidate_id=None,
+        evidence=EvidenceSpan.from_source("INR 12", 0, 6),
+        new_value={"minor_units": "1200", "currency": "INR"},
+    )
+    feedback = UserFeedbackEventV2.create(
+        action_id="44444444-4444-4444-8444-444444444444",
+        operation_id="33333333-3333-4333-8333-333333333333",
+        review_case_id="synthetic-review-case",
+        transaction_revision_id="synthetic-revision-2",
+        expected_review_revision=0,
+        resulting_review_revision=1,
+        action="correct",
+        actor_class="user",
+        actor_id="synthetic-user",
+        field_corrections=(correction,),
+        created_at_epoch_ms=1_700_000_000_200,
+    )
+
+    trace_value = json.loads(json.dumps(asdict(trace)))
+    feedback_value = feedback.to_dict()
+    jsonschema.validate(trace_value, _schema("v2/processing-trace.schema.json"))
+    jsonschema.validate(feedback_value, _schema("v2/user-feedback.schema.json"))
+    assert len(trace.trace_hash) == 64
+    assert len(feedback.event_hash) == 64
+
+    broken_second = TraceEventV2(
+        sequence=1,
+        event_id="55555555-5555-4555-8555-555555555555",
+        occurred_at_epoch_ms=1_700_000_000_300,
+        stage="triage",
+        status="completed",
+        previous_event_hash="b" * 64,
+    )
+    with pytest.raises(ValueError, match="hash chain"):
+        ProcessingTraceV2.create(
+            "33333333-3333-4333-8333-333333333333",
+            "a" * 64,
+            1,
+            (first, broken_second),
+        )
+
+
 def test_processing_result_schema_keeps_recognition_and_persistence_separate() -> None:
     evidence = EvidenceSpan.from_source("INR debit", 0, 3)
     direction_evidence = EvidenceSpan.from_source("INR debit", 4, 9)
@@ -298,3 +496,110 @@ def test_processing_result_schema_keeps_recognition_and_persistence_separate() -
         PersistenceDecision(False, ("persistence_account_not_uniquely_resolved",)),
     )
     jsonschema.validate(value, _schema("processing-result.schema.json"))
+
+
+def test_processing_result_v2_exposes_typed_gate_and_provenance() -> None:
+    source = "INR 12 was paid from account **1234 at SYNTH STORE."
+    analysis = DeterministicSmsAnalyzer(
+        CurrencyContext("INR", ("core-en", "india")),
+        analysis_contract=ANALYSIS_CONTRACT_V2,
+    ).analyze(
+        source,
+        operation_id="synthetic-v2-result",
+        operation_config_hash="a" * 64,
+        source_timestamp_epoch_ms=1_700_000_000_000,
+        source_timestamp_provenance=(
+            TimestampProvenance.ACQUISITION_SUPPLIED_MESSAGE_TIME
+        ),
+    )
+    candidates = {
+        kind: analysis.candidates_of(kind)[0]
+        for kind in (CandidateKind.AMOUNT, CandidateKind.DIRECTION)
+    }
+    account = next(
+        item
+        for item in analysis.candidates_of(CandidateKind.ACCOUNT)
+        if not item.explicit_absence
+    )
+    counterparty = next(
+        item
+        for item in analysis.candidates_of(CandidateKind.COUNTERPARTY)
+        if not item.explicit_absence
+    )
+    raw = json.dumps(
+        {
+            "decision": "posted",
+            "amount": candidates[CandidateKind.AMOUNT].candidate_id,
+            "direction": candidates[CandidateKind.DIRECTION].candidate_id,
+            "account": account.candidate_id,
+            "counterparty": counterparty.candidate_id,
+        }
+    )
+    selector_result = parse_and_reconstruct(raw, analysis)
+    context = PersistenceContextV2(
+        timestamp_epoch_ms=1_700_000_000_000,
+        timestamp_provenance=TimestampProvenance.ACQUISITION_SUPPLIED_MESSAGE_TIME,
+        approved_timestamp_provenance=frozenset(
+            {TimestampProvenance.ACQUISITION_SUPPLIED_MESSAGE_TIME}
+        ),
+        account_resolution=AccountResolution(
+            AccountResolutionStatus.UNIQUELY_RESOLVED,
+            1,
+            "b" * 64,
+            "c" * 64,
+            "confirmed_owned_alias",
+        ),
+        approved_currency_provenance=frozenset(CurrencyProvenance),
+        financial_family="merchant_payment",
+        supported_automatic_families=frozenset({"merchant_payment"}),
+        rollout_mode="shadow",
+        selector_mode_valid=True,
+        claim_ownership_current=True,
+        configuration_hash_matches=True,
+    )
+    decision = evaluate_persistence_v2(
+        selector_result,
+        analysis,
+        evaluate_triage(analysis),
+        context,
+    )
+    value = processing_result_payload_v2(selector_result, decision, context)
+
+    jsonschema.validate(value, _schema("v2/processing-result.schema.json"))
+    assert decision.result.value == "blocked_by_mode"
+    assert decision.safe_to_persist is False
+    assert value["semantic_result"]["money"] == {
+        "minor_units": 1200,
+        "currency": "INR",
+        "scale": 2,
+        "provenance": "explicit_code",
+    }
+
+
+def test_persistence_v2_fails_integrity_closed_before_policy() -> None:
+    analysis = DeterministicSmsAnalyzer(CurrencyContext("INR", ("core-en", "india"))).analyze(
+        "INR 12 was paid from account **1234 at SYNTH STORE.",
+        operation_id="synthetic-v1-invalid-result",
+    )
+    context = PersistenceContextV2(
+        timestamp_epoch_ms=None,
+        timestamp_provenance=TimestampProvenance.UNKNOWN,
+        approved_timestamp_provenance=frozenset(),
+        account_resolution=AccountResolution(AccountResolutionStatus.UNRESOLVED, 0),
+        approved_currency_provenance=frozenset(),
+        financial_family=None,
+        supported_automatic_families=frozenset(),
+        rollout_mode="review_only",
+        selector_mode_valid=False,
+        claim_ownership_current=False,
+        configuration_hash_matches=False,
+    )
+    decision = evaluate_persistence_v2(
+        SelectorResult("abstain"),
+        analysis,
+        evaluate_triage(analysis),
+        context,
+    )
+
+    assert decision.result.value == "invalid_operation"
+    assert decision.primary_reason == "persistence_unknown_analysis_contract"
