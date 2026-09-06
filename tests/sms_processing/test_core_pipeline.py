@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -46,6 +47,16 @@ def _posted_payload(analysis, *, absent_account: bool = False) -> str:
             "counterparty": first(CandidateKind.COUNTERPARTY, absent=False),
         }
     )
+
+
+def _selector_validation_vectors() -> list[dict[str, object]]:
+    path = (
+        Path(__file__).parent
+        / "golden"
+        / "native-v1"
+        / "selector-validation.json"
+    )
+    return json.loads(path.read_text(encoding="utf-8"))["vectors"]
 
 
 def test_single_completed_event_invokes_and_reconstructs_only_selected_ids() -> None:
@@ -143,6 +154,24 @@ def test_posted_requires_exact_field_set_and_available_grounded_candidates() -> 
 
     with pytest.raises(SelectorValidationError, match="selector_posted_field_set_invalid"):
         parse_and_reconstruct(json.dumps(payload), analysis)
+
+
+@pytest.mark.parametrize(
+    "vector",
+    _selector_validation_vectors(),
+    ids=lambda vector: str(vector["id"]),
+)
+def test_sanitized_selector_validation_vectors(vector: dict[str, object]) -> None:
+    analysis = _analysis("INR 10 was debited from account **1111 at SYNTH MARKET.")
+    raw_output = str(vector["raw_output"])
+    expected = vector["expected"]
+
+    if expected == "valid":
+        assert parse_and_reconstruct(raw_output, analysis).decision == vector["decision"]
+        return
+
+    with pytest.raises(SelectorValidationError, match=f"^{expected}$"):
+        parse_and_reconstruct(raw_output, analysis)
 
 
 def test_model_payload_contains_ids_and_host_evidence_but_never_offsets_or_money_values() -> None:

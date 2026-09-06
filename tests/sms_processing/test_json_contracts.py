@@ -21,6 +21,7 @@ from pocketfinancer_sms.profiles import PROFILES
 from pocketfinancer_sms.selector import (
     SELECTOR_CONTRACT,
     SELECTOR_INPUT_CONTRACT,
+    SELECTOR_VALIDATION_PROFILE,
     model_candidate_payload,
 )
 from pocketfinancer_sms.trace import ProcessingTrace, TraceStage
@@ -56,6 +57,7 @@ def _schema(name: str) -> dict:
         "processing-trace.schema.json",
         "sms-analysis.schema.json",
         "user-feedback.schema.json",
+        "v2/selector-validation-profile.schema.json",
     ],
 )
 def test_contract_schema_is_valid_draft_2020_12(name: str) -> None:
@@ -130,6 +132,24 @@ def test_selector_schema_accepts_only_three_semantic_branches() -> None:
     )
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate({"decision": "posted", "amount": "12.00"}, schema)
+
+
+def test_selector_validation_profile_v2_is_frozen_and_schema_valid() -> None:
+    schema = _schema("v2/selector-validation-profile.schema.json")
+    profile = _schema("v2/selector-validation-profile.json")
+
+    jsonschema.validate(profile, schema)
+    assert profile["contract"] == SELECTOR_VALIDATION_PROFILE
+    assert profile["selector_output_contract"] == SELECTOR_CONTRACT
+    assert profile["generation"] == {
+        "mode": "DIRECT_NON_THINKING",
+        "decoding": "greedy",
+        "answer_token_limit": 512,
+        "raw_output_utf8_byte_limit": 16_384,
+        "parser_deadline_ms": 60_000,
+    }
+    assert profile["json_policy"]["reject_duplicate_keys"] is True
+    assert profile["json_policy"]["reject_non_string_discriminator"] is True
 
 
 def test_selector_input_payload_conforms_without_host_canonical_values() -> None:

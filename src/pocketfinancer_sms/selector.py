@@ -22,6 +22,7 @@ from .types import (
 
 SELECTOR_CONTRACT = "pocketfinancer.grounded-candidate-selector/1"
 SELECTOR_INPUT_CONTRACT = "pocketfinancer.grounded-candidate-selector-input/1"
+SELECTOR_VALIDATION_PROFILE = "pocketfinancer.selector-validation-profile/2"
 
 
 class SelectorValidationError(ValueError):
@@ -31,6 +32,19 @@ class SelectorValidationError(ValueError):
 
     def __str__(self) -> str:
         return self.reason_code
+
+
+class _DuplicateJsonKeyError(ValueError):
+    """Internal signal raised while decoding an object with repeated members."""
+
+
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise _DuplicateJsonKeyError(key)
+        value[key] = item
+    return value
 
 
 def model_candidate_payload(source: str, analysis: Analysis) -> dict[str, Any]:
@@ -62,12 +76,16 @@ def model_candidate_payload(source: str, analysis: Analysis) -> dict[str, Any]:
 
 def parse_and_reconstruct(raw_output: str, analysis: Analysis) -> SelectorResult:
     try:
-        payload = json.loads(raw_output)
+        payload = json.loads(raw_output, object_pairs_hook=_reject_duplicate_json_keys)
+    except _DuplicateJsonKeyError as exc:
+        raise SelectorValidationError("selector_duplicate_json_key") from exc
     except (json.JSONDecodeError, TypeError) as exc:
         raise SelectorValidationError("selector_malformed_json") from exc
     if not isinstance(payload, dict):
         raise SelectorValidationError("selector_output_not_object")
     decision = payload.get("decision")
+    if not isinstance(decision, str):
+        raise SelectorValidationError("selector_decision_type_invalid")
     if decision in {"none", "abstain"}:
         if set(payload) != {"decision"}:
             raise SelectorValidationError("selector_non_posted_extra_fields")
