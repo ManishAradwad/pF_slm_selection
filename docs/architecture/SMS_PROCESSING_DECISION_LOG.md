@@ -119,7 +119,22 @@ dataset.
   false discard/invoke and candidate-oracle gaps by group.
 - Counterparty and bare-amount enumeration need broader language/profile coverage.
 - Multiple-event runtime support currently retains/abstains rather than persisting.
-- Native apps do not yet implement this contract, primary-currency onboarding,
-  review inbox, trace UI, or revisioned feedback.
+- Native implementation and migration verification are tracked by the native
+  integration plan; the shared contract is frozen independently of rollout.
 - Protected evaluation is not human gold until blind review/adjudication completes.
 - No model has been trained or deployed on this foundation.
+
+## 2026-09-06 — Freeze native integration release v1
+
+Selected a hash-bound native release instead of allowing Kotlin and Swift ports to
+infer behavior from prose. The release preserves stored `/1` compatibility and
+adds `/2` analysis, result, trace, feedback, and selector-validation behavior.
+
+Automatic persistence remains disabled. A native result can be recognized as a
+posted event yet remain blocked by rollout, unresolved account identity, multiple
+events, incomplete grounding, or any integrity failure. This separation is an
+intentional safety boundary, not a temporary parser limitation.
+
+Trace and feedback storage are append-only and operation-bound. User corrections
+record grounding provenance and revisions but do not automatically become training
+labels. Diagnostic transfer is encrypted and requires explicit consent.

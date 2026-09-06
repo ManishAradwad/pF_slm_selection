@@ -899,13 +899,20 @@ Each milestone has a bounded completion gate and a concise handoff. Do not run t
 
 ### Milestone A — Synchronize and freeze shared behavior
 
-- [ ] Pull merged native updates safely and record new baselines.
-- [ ] Review relevant merged deltas against this plan.
-- [ ] Add sanitized regression vectors for the narrow foundation safety findings.
-- [ ] Freeze schemas, reason codes, ID/Unicode/money rules, configuration and persistence policy.
-- [ ] Publish the local versioned manifest/fixture bundle inside the foundation repository.
+- [x] Pull merged native updates safely and record new baselines.
+- [x] Review relevant merged deltas against this plan.
+- [x] Add sanitized regression vectors for the narrow foundation safety findings.
+- [x] Freeze schemas, reason codes, ID/Unicode/money rules, configuration and persistence policy.
+- [x] Publish the local versioned manifest/fixture bundle inside the foundation repository.
 
 Completion: all contract decisions represented by executable schemas and vectors; no private run rewrite; native ports can implement without inventing semantics.
+
+Recorded baselines (2026-09-06): Android `a58fcad7903f99484cc98f16006b00cf02fa127c`
+and iOS `c79b7b574fc1d390adbc59dc4771b656015c1144`. Both native feature histories were
+already squash-merged with tree-identical content, so their historical branches
+were preserved and new work began on `codex/feat-native-sms-integration`. The
+frozen foundation release is
+`configs/sms_processing/contracts/releases/native-integration-v1.json`.
 
 Foundation commit sequence:
 

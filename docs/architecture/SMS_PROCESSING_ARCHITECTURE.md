@@ -7,8 +7,9 @@ Private corpus configuration: `configs/sms_processing/archive-india-inr.json`
 ## Outcome
 
 PocketFinancer now has one platform-neutral processing foundation. Android and iOS
-will eventually call the same logical contract, but neither native app is changed
-by this implementation.
+implement the frozen native release described by
+`docs/contracts/NATIVE_SMS_INTEGRATION_CONTRACT.md`; the foundation remains the
+behavioral authority and parity oracle.
 
 For one incoming message, the intended runtime sequence is:
 
@@ -123,3 +124,16 @@ selector invocation, 125 may receive assistive invocation, and 16,252 skip the
 model. This is a starting diagnostic, not a claim that
 the deterministic analyzer is complete. Human segregation work will measure and
 improve those boundaries without using weak outputs as ground truth.
+
+## Frozen native release
+
+`configs/sms_processing/contracts/releases/native-integration-v1.json` binds the
+schemas, profiles, policies, selector prompt, algorithms, and sanitized golden
+vectors by SHA-256. Native ports reproduce those bytes and decisions rather than
+reinterpret prose. The release adds versioned operation results, durable
+hash-chained traces, revision-bound feedback, explicit account resolution, and a
+typed persistence gate while retaining every historical `/1` reader.
+
+Automatic persistence is deliberately disabled. Android and iOS first operate in
+shadow/review-only mode and record the same typed gate result that the foundation
+would produce.
