@@ -1,8 +1,9 @@
 # PocketFinancer native SMS integration and local workbench plan
 
-Status: implementation review prepared. Foundation and iOS automated suites are green;
-Android implementation awaits its first Gradle, exported-schema, emulator, and physical-device
-verification on the user's PC. Automatic persistence remains disabled.
+Status: Milestones A-D are implemented. Foundation, iOS, and Android automated suites are green;
+Android schema export, lint, and debug APK assembly also pass in Linux CI. Milestone E still needs
+the explicitly deferred physical-device and shadow-volume evidence. Automatic persistence remains
+disabled and Milestone F requires a separate rollout decision.
 
 Prepared: 2026-09-06. This document records the planning audit and the proposed implementation decisions. Creating this document does not implement or enable any processing change.
 
@@ -926,10 +927,10 @@ Foundation commit sequence:
 
 ### Milestone B — Native storage and state foundations
 
-- [ ] Android Room V6 and iOS SwiftData V5 migrations.
-- [ ] Immutable sources/configuration/analysis/output and append-only feedback/revisions.
-- [ ] Claims, fencing, idempotency and atomic account/ledger/trace settlement.
-- [ ] Legacy transaction compatibility and fail-closed startup.
+- [x] Android Room V6 and iOS SwiftData V5 migrations.
+- [x] Immutable sources/configuration/analysis/output and append-only feedback/revisions.
+- [x] Claims, fencing, idempotency and atomic account/ledger/trace settlement.
+- [x] Legacy transaction compatibility and fail-closed startup.
 
 Completion: migration and crash-state tests pass before model integration or new automatic persistence.
 
@@ -945,11 +946,11 @@ iOS commits:
 
 ### Milestone C — Native parity, direct adapters and coordinators
 
-- [ ] Kotlin/Swift analyzer and grounding/reconstruction/gate parity.
-- [ ] Direct-only Candidate Selector adapters.
-- [ ] Android automatic/manual/historical/retry/diagnostic callers converge.
-- [ ] iOS intent admission/pending/review retry/foreground recovery converge.
-- [ ] Complete durable traces and typed outcomes.
+- [x] Kotlin/Swift analyzer and grounding/reconstruction/gate parity.
+- [x] Direct-only Candidate Selector adapters.
+- [x] Android automatic/manual/historical/retry/diagnostic callers converge.
+- [x] iOS intent admission/pending/review retry/foreground recovery converge.
+- [x] Complete durable traces and typed outcomes.
 
 Completion: parity and failure matrix pass; one selector attempt per operation; no app-side thinking path; no automatic ledger writes in shadow mode.
 
@@ -967,11 +968,11 @@ iOS commits:
 
 ### Milestone D — Review, trace UI, currency and workbench
 
-- [ ] Durable review/correction, candidate misses, feedback and revision projection.
-- [ ] Decision Trace replaces Thinking Output; truthful platform visibility.
-- [ ] Primary-currency onboarding/settings with immutable snapshots.
-- [ ] Encrypted local workbench import and provenance-separated inspection.
-- [ ] Optional streamlined labeling UI without performing labeling.
+- [x] Durable review/correction, candidate misses, feedback and revision projection.
+- [x] Decision Trace replaces Thinking Output; truthful platform visibility.
+- [x] Primary-currency onboarding/settings with immutable snapshots.
+- [x] Encrypted local workbench import and provenance-separated inspection.
+- [x] Optional streamlined labeling UI without performing labeling.
 
 Completion: accessibility/review/restart tests pass; no fake historical output; no silent annotation/target promotion; blind-pool boundaries preserved.
 
@@ -1025,12 +1026,25 @@ Implementation evidence recorded 2026-09-09:
   transaction navigation, settings/privacy controls, protected-store startup, and fail-closed
   unavailable-store behavior. Physical-iPhone Shortcut delivery and system-model behavior are
   still intentionally unclaimed.
-- Android: Kotlin/Room/Compose implementation and source-level policy tests are present, but no
-  Gradle task was run on this Mac at the user's request. Room schema 6 export, compilation,
-  Robolectric/instrumentation tests, emulator behavior, and physical-device inference remain the
-  PC validation gate.
+- Android: the GitHub Linux CI clean build passed all debug unit tests, Android lint, full debug
+  APK assembly, and artifact upload. Room schema 6 was exported and committed. No Gradle task was
+  run on this Mac at the user's request. Connected instrumentation, emulator behavior, and
+  physical-device inference remain the PC validation gate.
 - All three implementations remain shadow/review-only. No code path was enabled to insert an
   automatically inferred transaction, and Milestone F still requires separate explicit approval.
+
+Remaining verification and rollout work:
+
+1. Exercise iPhone Shortcut delivery, system-model selection, interruption/retry, recovery, review,
+   and protected-store behavior on a physical iPhone.
+2. Run the connected Android instrumentation suite and the corresponding emulator/physical-device
+   flow matrix on the user's PC.
+3. Run the encrypted workbench integration test in an environment with the optional SQLCipher,
+   keyring, and cryptography dependencies installed.
+4. Accumulate the required shadow/review-only operation counts and record the unresolved cohort and
+   precision evidence. These are evidence gates, not missing implementation paths.
+5. Treat Milestone F as a later, separately approved rollout. Until then, inferred transactions
+   remain review-only and are never inserted automatically.
 
 ### Milestone F — Separate rollout decision
 
