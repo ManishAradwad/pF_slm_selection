@@ -120,6 +120,46 @@ def test_executable_analysis_conforms_to_schema() -> None:
     assert Analysis.from_dict(analysis.to_dict(), source=source) == analysis
 
 
+def test_corpus_record_schema_is_self_contained() -> None:
+    source = "INR 12 was debited from account **1234 at SYNTH STORE."
+    analysis = DeterministicSmsAnalyzer(CurrencyContext("INR", ("core-en", "india"))).analyze(
+        source,
+        operation_id="synthetic-corpus-contract",
+        is_outgoing=False,
+    )
+    corpus_schema = _schema("corpus-record.schema.json")
+    analysis_schema = _schema("sms-analysis.schema.json")
+    embedded_analysis = {
+        **corpus_schema["$defs"]["analysis"],
+        "$defs": {
+            name: corpus_schema["$defs"][name]
+            for name in ("evidence", "clause", "candidate", "cue")
+        },
+    }
+    canonical_analysis = {
+        key: value
+        for key, value in analysis_schema.items()
+        if key not in {"$schema", "$id", "title"}
+    }
+    assert embedded_analysis == canonical_analysis
+
+    jsonschema.validate(
+        {
+            "contract": "pocketfinancer.corpus-record/1",
+            "source_id": "src_" + "a" * 32,
+            "source": {"body": source, "sender": "SYNTH-BANK"},
+            "source_metadata": {},
+            "analysis": analysis.to_dict(),
+            "weak_facets": {},
+            "grouping": {},
+            "pool": "annotation_development",
+            "review_state": "unreviewed",
+            "provenance": {},
+        },
+        corpus_schema,
+    )
+
+
 def test_executable_v2_analysis_conforms_to_versioned_schema() -> None:
     source = "INR 12 will be refunded to account **1234 by SYNTH STORE."
     analysis = DeterministicSmsAnalyzer(
