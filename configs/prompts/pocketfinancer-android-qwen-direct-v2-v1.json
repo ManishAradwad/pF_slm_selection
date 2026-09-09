@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "prompt_profile_id": "pocketfinancer-android-qwen-direct-v2-v1",
+  "model_family": "qwen3",
+  "protocol_id": "direct_v2",
+  "chat_messages": {
+    "system": "You are an evaluation-only financial-message interpreter. Reason only in the runtime-provided thinking channel. Your final response must be one JSON object and nothing else.",
+    "user_template": "Interpret the invented message below. Return a Semantic V2 core object with exactly these root keys: semantic_contract_id, semantic_contract_version, scope, posting_status, event_cardinality, events. Never output source_metadata, a date, or a timestamp; trusted source time is injected by the host. scope is bank_card, wallet_bnpl, or other. posting_status is posted or not_posted. event_cardinality is none, single, or multiple and must agree with events. Each event has event_id, amount, direction, account, and counterparty. amount is null or {decimal_text,currency,minor_units,evidence}; direction is null or {value,evidence}; account is null or {value,evidence}; counterparty is {state:absent} or {state:present,value,evidence}. Evidence uses zero-based half-open UTF-8 byte offsets into the exact message. Do not infer ungrounded values and do not round money.\n\nMESSAGE_UTF8:\n{{MESSAGE}}\n\nFINAL_JSON:"
+  },
+  "output_contract": {
+    "adapter": "direct_semantic_v2_core",
+    "strict_json_object": true,
+    "host_injects_source_metadata": true,
+    "model_emits_minor_units": true,
+    "grammar": null
+  }
+}

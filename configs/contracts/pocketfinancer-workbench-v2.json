@@ -1,0 +1,82 @@
+{
+  "contract_id": "pocketfinancer_workbench_v2",
+  "contract_version": 2,
+  "status": "frozen",
+  "purpose": "Local-only Semantic V2 annotation, adjudication, split, anonymization, and evaluation-package foundation.",
+  "semantic_contract": {
+    "id": "pocketfinancer_semantic_v2",
+    "version": 2,
+    "schema_path": "configs/contracts/pocketfinancer-semantic-v2.schema.json",
+    "schema_sha256": "6c65b29543a85ca314f45620ed6300300d802ecab58d11371cc85af314a27bf8",
+    "reference_path": "lfm25/semantic_v2.py",
+    "reference_sha256": "ae0da990999035b8e04999d81854ed7ce4a95914a9079ff08eb50da03874c018",
+    "conformance_path": "tests/fixtures/pocketfinancer_semantic_v2_synthetic_golden.json",
+    "conformance_sha256": "1bb7053d7b49066830eb0c08f546c8b3be5490e292f3497928c832f25b03f2fa"
+  },
+  "privacy": {
+    "private_input_root": "PRIVATE_DATA",
+    "generated_result_root": "RESULTS",
+    "private_classification": "private_local_only",
+    "synthetic_classification": "invented_synthetic_only",
+    "anonymized_classification": "local_anonymized_row_level",
+    "raw_or_row_level_artifacts_must_remain_ignored": true,
+    "aggregate_reports_must_omit_messages_row_ids_and_source_mappings": true,
+    "hosted_services_forbidden": true
+  },
+  "split_policy": {
+    "policy_id": "pocketfinancer_sender_template_held_out_v1",
+    "allowed_splits": [
+      "train",
+      "development",
+      "protected_test"
+    ],
+    "group_keys": [
+      "sender_family",
+      "template_family"
+    ],
+    "group_isolation": "A non-null group identifier may occur in exactly one split.",
+    "protected_test_locked_before_scoring": true
+  },
+  "adjudication_policy": {
+    "policy_id": "pocketfinancer_independent_adjudication_v1",
+    "minimum_independent_annotations": 2,
+    "adjudicator_must_be_independent": true,
+    "allowed_statuses": [
+      "pending",
+      "resolved",
+      "excluded"
+    ],
+    "resolved_value": "A resolved row selects one submitted annotation or supplies a separately validated Semantic V2 record."
+  },
+  "safety_tags": [
+    "ordinary",
+    "ungrounded_evidence",
+    "ambiguous_currency",
+    "not_posted",
+    "none_or_multiple",
+    "non_inr",
+    "inexact_money",
+    "missing_timestamp_provenance",
+    "invalid_output"
+  ],
+  "anonymization": {
+    "row_identifier": "HMAC-SHA256 using a caller-held secret, package scope, and per-export nonce",
+    "removed": [
+      "message text",
+      "source timestamp",
+      "source evidence ranges",
+      "amount values",
+      "account values",
+      "counterparty values",
+      "annotator and adjudicator identifiers",
+      "sender and template group identifiers"
+    ],
+    "retained": [
+      "split",
+      "safety tags",
+      "categorical Semantic V2 shape",
+      "automatic-post eligibility and reason codes"
+    ],
+    "publication_status": "The anonymized form remains row-level local material and is not publication-approved."
+  }
+}

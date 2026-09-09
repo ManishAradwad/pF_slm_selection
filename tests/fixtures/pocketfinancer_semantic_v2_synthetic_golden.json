@@ -1,0 +1,744 @@
+{
+  "artifact": "pocketfinancer_semantic_v2_synthetic_golden",
+  "schema_version": 1,
+  "semantic_contract": {
+    "id": "pocketfinancer_semantic_v2",
+    "version": 2,
+    "schema_path": "configs/contracts/pocketfinancer-semantic-v2.schema.json"
+  },
+  "privacy": {
+    "classification": "invented_synthetic_only",
+    "contains_private_messages": false,
+    "contains_real_senders_or_accounts": false,
+    "construction": "Every sender, message, account hint, merchant, timestamp, and value in this file was invented for conformance testing."
+  },
+  "record_construction": {
+    "source_metadata": "Injected by the host after interpretation; semantic_core deliberately contains no timestamp or date field.",
+    "evidence_offsets": "zero-based, half-open UTF-8 byte offsets into message"
+  },
+  "vectors": [
+    {
+      "id": "posted_inr_debit",
+      "message": "Orbit Bank: ₹1,250.50 debited from Card XX1234 at MAPLE BOOKS.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000001,
+        "received_at_provenance": "android_sms_message_date"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "bank_card",
+        "posting_status": "posted",
+        "event_cardinality": "single",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "1250.50",
+              "currency": "INR",
+              "minor_units": 125050,
+              "evidence": {
+                "start_utf8_byte": 12,
+                "end_utf8_byte": 23
+              }
+            },
+            "direction": {
+              "value": "debit",
+              "evidence": {
+                "start_utf8_byte": 24,
+                "end_utf8_byte": 31
+              }
+            },
+            "account": {
+              "value": "Card XX1234",
+              "evidence": {
+                "start_utf8_byte": 37,
+                "end_utf8_byte": 48
+              }
+            },
+            "counterparty": {
+              "state": "present",
+              "value": "MAPLE BOOKS",
+              "evidence": {
+                "start_utf8_byte": 52,
+                "end_utf8_byte": 63
+              }
+            }
+          }
+        ]
+      },
+      "expected_projection": {
+        "eligible": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "posted_inr_credit",
+      "message": "Orbit Bank: INR 75.00 credited to A/c XX4321 from AURORA LABS.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000002,
+        "received_at_provenance": "ios_inbox_alert_received_at_supplied"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "bank_card",
+        "posting_status": "posted",
+        "event_cardinality": "single",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "75.00",
+              "currency": "INR",
+              "minor_units": 7500,
+              "evidence": {
+                "start_utf8_byte": 12,
+                "end_utf8_byte": 21
+              }
+            },
+            "direction": {
+              "value": "credit",
+              "evidence": {
+                "start_utf8_byte": 22,
+                "end_utf8_byte": 30
+              }
+            },
+            "account": {
+              "value": "A/c XX4321",
+              "evidence": {
+                "start_utf8_byte": 34,
+                "end_utf8_byte": 44
+              }
+            },
+            "counterparty": {
+              "state": "present",
+              "value": "AURORA LABS",
+              "evidence": {
+                "start_utf8_byte": 50,
+                "end_utf8_byte": 61
+              }
+            }
+          }
+        ]
+      },
+      "expected_projection": {
+        "eligible": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "not_transaction",
+      "message": "Orbit Bank reminder: update your contact details.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000003,
+        "received_at_provenance": "synthetic_system_timestamp_injected"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "other",
+        "posting_status": "not_posted",
+        "event_cardinality": "none",
+        "events": []
+      },
+      "expected_projection": {
+        "eligible": false,
+        "reasons": [
+          "not_posted",
+          "event_cardinality_not_single",
+          "scope_not_bank_card"
+        ]
+      }
+    },
+    {
+      "id": "refund_is_credit",
+      "message": "Orbit Bank: ₹499.00 refund credited to Card XX1234 from RIVER MART.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000004,
+        "received_at_provenance": "android_sms_message_date"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "bank_card",
+        "posting_status": "posted",
+        "event_cardinality": "single",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "499.00",
+              "currency": "INR",
+              "minor_units": 49900,
+              "evidence": {
+                "start_utf8_byte": 12,
+                "end_utf8_byte": 21
+              }
+            },
+            "direction": {
+              "value": "credit",
+              "evidence": {
+                "start_utf8_byte": 29,
+                "end_utf8_byte": 37
+              }
+            },
+            "account": {
+              "value": "Card XX1234",
+              "evidence": {
+                "start_utf8_byte": 41,
+                "end_utf8_byte": 52
+              }
+            },
+            "counterparty": {
+              "state": "present",
+              "value": "RIVER MART",
+              "evidence": {
+                "start_utf8_byte": 58,
+                "end_utf8_byte": 68
+              }
+            }
+          }
+        ]
+      },
+      "expected_projection": {
+        "eligible": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "wallet_bnpl_out_of_scope",
+      "message": "PayPocket: ₹300.00 paid from wallet XX6666 to NORTH CAFE.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000005,
+        "received_at_provenance": "synthetic_system_timestamp_injected"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "wallet_bnpl",
+        "posting_status": "posted",
+        "event_cardinality": "single",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "300.00",
+              "currency": "INR",
+              "minor_units": 30000,
+              "evidence": {
+                "start_utf8_byte": 11,
+                "end_utf8_byte": 20
+              }
+            },
+            "direction": {
+              "value": "debit",
+              "evidence": {
+                "start_utf8_byte": 21,
+                "end_utf8_byte": 25
+              }
+            },
+            "account": {
+              "value": "wallet XX6666",
+              "evidence": {
+                "start_utf8_byte": 31,
+                "end_utf8_byte": 44
+              }
+            },
+            "counterparty": {
+              "state": "present",
+              "value": "NORTH CAFE",
+              "evidence": {
+                "start_utf8_byte": 48,
+                "end_utf8_byte": 58
+              }
+            }
+          }
+        ]
+      },
+      "expected_projection": {
+        "eligible": false,
+        "reasons": [
+          "scope_not_bank_card"
+        ]
+      }
+    },
+    {
+      "id": "multiple_posted_events",
+      "message": "Orbit Bank: ₹100.00 debited from A/c XX1111 at ALPHA. ₹200.00 debited from A/c XX1111 at BETA.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000006,
+        "received_at_provenance": "android_sms_message_date"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "bank_card",
+        "posting_status": "posted",
+        "event_cardinality": "multiple",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "100.00",
+              "currency": "INR",
+              "minor_units": 10000,
+              "evidence": {
+                "start_utf8_byte": 12,
+                "end_utf8_byte": 21
+              }
+            },
+            "direction": {
+              "value": "debit",
+              "evidence": {
+                "start_utf8_byte": 22,
+                "end_utf8_byte": 29
+              }
+            },
+            "account": {
+              "value": "A/c XX1111",
+              "evidence": {
+                "start_utf8_byte": 35,
+                "end_utf8_byte": 45
+              }
+            },
+            "counterparty": {
+              "state": "present",
+              "value": "ALPHA",
+              "evidence": {
+                "start_utf8_byte": 49,
+                "end_utf8_byte": 54
+              }
+            }
+          },
+          {
+            "event_id": "event_2",
+            "amount": {
+              "decimal_text": "200.00",
+              "currency": "INR",
+              "minor_units": 20000,
+              "evidence": {
+                "start_utf8_byte": 56,
+                "end_utf8_byte": 65
+              }
+            },
+            "direction": {
+              "value": "debit",
+              "evidence": {
+                "start_utf8_byte": 66,
+                "end_utf8_byte": 73
+              }
+            },
+            "account": {
+              "value": "A/c XX1111",
+              "evidence": {
+                "start_utf8_byte": 79,
+                "end_utf8_byte": 89
+              }
+            },
+            "counterparty": {
+              "state": "present",
+              "value": "BETA",
+              "evidence": {
+                "start_utf8_byte": 93,
+                "end_utf8_byte": 97
+              }
+            }
+          }
+        ]
+      },
+      "expected_projection": {
+        "eligible": false,
+        "reasons": [
+          "event_cardinality_not_single"
+        ]
+      }
+    },
+    {
+      "id": "missing_account",
+      "message": "Orbit Bank: ₹70.00 debited at LANTERN STORE.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000007,
+        "received_at_provenance": "synthetic_system_timestamp_injected"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "bank_card",
+        "posting_status": "posted",
+        "event_cardinality": "single",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "70.00",
+              "currency": "INR",
+              "minor_units": 7000,
+              "evidence": {
+                "start_utf8_byte": 12,
+                "end_utf8_byte": 20
+              }
+            },
+            "direction": {
+              "value": "debit",
+              "evidence": {
+                "start_utf8_byte": 21,
+                "end_utf8_byte": 28
+              }
+            },
+            "account": null,
+            "counterparty": {
+              "state": "present",
+              "value": "LANTERN STORE",
+              "evidence": {
+                "start_utf8_byte": 32,
+                "end_utf8_byte": 45
+              }
+            }
+          }
+        ]
+      },
+      "expected_projection": {
+        "eligible": false,
+        "reasons": [
+          "missing_account"
+        ]
+      }
+    },
+    {
+      "id": "explicitly_absent_counterparty",
+      "message": "Orbit Bank: ₹90.00 debited from Card XX8888.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000008,
+        "received_at_provenance": "android_sms_message_date"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "bank_card",
+        "posting_status": "posted",
+        "event_cardinality": "single",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "90.00",
+              "currency": "INR",
+              "minor_units": 9000,
+              "evidence": {
+                "start_utf8_byte": 12,
+                "end_utf8_byte": 20
+              }
+            },
+            "direction": {
+              "value": "debit",
+              "evidence": {
+                "start_utf8_byte": 21,
+                "end_utf8_byte": 28
+              }
+            },
+            "account": {
+              "value": "Card XX8888",
+              "evidence": {
+                "start_utf8_byte": 34,
+                "end_utf8_byte": 45
+              }
+            },
+            "counterparty": {
+              "state": "absent"
+            }
+          }
+        ]
+      },
+      "expected_projection": {
+        "eligible": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "non_inr_currency",
+      "message": "Nova Card: USD 12.34 debited from Card XX9999 at SKY MARKET.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000009,
+        "received_at_provenance": "synthetic_system_timestamp_injected"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "bank_card",
+        "posting_status": "posted",
+        "event_cardinality": "single",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "12.34",
+              "currency": "USD",
+              "minor_units": 1234,
+              "evidence": {
+                "start_utf8_byte": 11,
+                "end_utf8_byte": 20
+              }
+            },
+            "direction": {
+              "value": "debit",
+              "evidence": {
+                "start_utf8_byte": 21,
+                "end_utf8_byte": 28
+              }
+            },
+            "account": {
+              "value": "Card XX9999",
+              "evidence": {
+                "start_utf8_byte": 34,
+                "end_utf8_byte": 45
+              }
+            },
+            "counterparty": {
+              "state": "present",
+              "value": "SKY MARKET",
+              "evidence": {
+                "start_utf8_byte": 49,
+                "end_utf8_byte": 59
+              }
+            }
+          }
+        ]
+      },
+      "expected_projection": {
+        "eligible": false,
+        "reasons": [
+          "currency_not_inr"
+        ]
+      }
+    },
+    {
+      "id": "repeated_equal_amount_uses_first_utf8_span",
+      "message": "Orbit Bank: ₹50.00 debited from A/c XX1212 at TWIN CAFE. Balance ₹50.00.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000010,
+        "received_at_provenance": "android_sms_message_date"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "bank_card",
+        "posting_status": "posted",
+        "event_cardinality": "single",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "50.00",
+              "currency": "INR",
+              "minor_units": 5000,
+              "evidence": {
+                "start_utf8_byte": 12,
+                "end_utf8_byte": 20
+              }
+            },
+            "direction": {
+              "value": "debit",
+              "evidence": {
+                "start_utf8_byte": 21,
+                "end_utf8_byte": 28
+              }
+            },
+            "account": {
+              "value": "A/c XX1212",
+              "evidence": {
+                "start_utf8_byte": 34,
+                "end_utf8_byte": 44
+              }
+            },
+            "counterparty": {
+              "state": "present",
+              "value": "TWIN CAFE",
+              "evidence": {
+                "start_utf8_byte": 48,
+                "end_utf8_byte": 57
+              }
+            }
+          }
+        ]
+      },
+      "additional_assertions": {
+        "other_equal_amount_span": {
+          "start_utf8_byte": 67,
+          "end_utf8_byte": 75
+        }
+      },
+      "expected_projection": {
+        "eligible": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "unicode_multibyte_evidence",
+      "message": "Orbit Bank: ₹1,000.00 debited from कार्ड XX1234 at Café नीला.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000011,
+        "received_at_provenance": "synthetic_system_timestamp_injected"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "bank_card",
+        "posting_status": "posted",
+        "event_cardinality": "single",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "1000.00",
+              "currency": "INR",
+              "minor_units": 100000,
+              "evidence": {
+                "start_utf8_byte": 12,
+                "end_utf8_byte": 23
+              }
+            },
+            "direction": {
+              "value": "debit",
+              "evidence": {
+                "start_utf8_byte": 24,
+                "end_utf8_byte": 31
+              }
+            },
+            "account": {
+              "value": "कार्ड XX1234",
+              "evidence": {
+                "start_utf8_byte": 37,
+                "end_utf8_byte": 59
+              }
+            },
+            "counterparty": {
+              "state": "present",
+              "value": "Café नीला",
+              "evidence": {
+                "start_utf8_byte": 63,
+                "end_utf8_byte": 81
+              }
+            }
+          }
+        ]
+      },
+      "expected_projection": {
+        "eligible": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "system_timestamp_injection",
+      "message": "Orbit Bank: ₹5.00 credited to A/c XX0005 from HELIO.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000123,
+        "received_at_provenance": "ios_inbox_alert_received_at_assigned_during_ingestion"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "bank_card",
+        "posting_status": "posted",
+        "event_cardinality": "single",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "5.00",
+              "currency": "INR",
+              "minor_units": 500,
+              "evidence": {
+                "start_utf8_byte": 12,
+                "end_utf8_byte": 19
+              }
+            },
+            "direction": {
+              "value": "credit",
+              "evidence": {
+                "start_utf8_byte": 20,
+                "end_utf8_byte": 28
+              }
+            },
+            "account": {
+              "value": "A/c XX0005",
+              "evidence": {
+                "start_utf8_byte": 32,
+                "end_utf8_byte": 42
+              }
+            },
+            "counterparty": {
+              "state": "present",
+              "value": "HELIO",
+              "evidence": {
+                "start_utf8_byte": 48,
+                "end_utf8_byte": 53
+              }
+            }
+          }
+        ]
+      },
+      "expected_projection": {
+        "eligible": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "inr_fractional_minor_unit_unavailable",
+      "message": "Orbit Bank: INR 100.005 debited from A/c XX4545 at COPPER CAFE.",
+      "source_metadata": {
+        "received_at_epoch_ms": 1760000000124,
+        "received_at_provenance": "synthetic_system_timestamp_injected"
+      },
+      "semantic_core": {
+        "semantic_contract_id": "pocketfinancer_semantic_v2",
+        "semantic_contract_version": 2,
+        "scope": "bank_card",
+        "posting_status": "posted",
+        "event_cardinality": "single",
+        "events": [
+          {
+            "event_id": "event_1",
+            "amount": {
+              "decimal_text": "100.005",
+              "currency": "INR",
+              "minor_units": null,
+              "evidence": {
+                "start_utf8_byte": 12,
+                "end_utf8_byte": 23
+              }
+            },
+            "direction": {
+              "value": "debit",
+              "evidence": {
+                "start_utf8_byte": 24,
+                "end_utf8_byte": 31
+              }
+            },
+            "account": {
+              "value": "A/c XX4545",
+              "evidence": {
+                "start_utf8_byte": 37,
+                "end_utf8_byte": 47
+              }
+            },
+            "counterparty": {
+              "state": "present",
+              "value": "COPPER CAFE",
+              "evidence": {
+                "start_utf8_byte": 51,
+                "end_utf8_byte": 62
+              }
+            }
+          }
+        ]
+      },
+      "expected_projection": {
+        "eligible": false,
+        "reasons": [
+          "exact_minor_units_unavailable"
+        ]
+      }
+    }
+  ]
+}

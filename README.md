@@ -1,30 +1,47 @@
-# PocketFinancer SLM Selection and Fine-Tuning
+# PocketFinancer SMS Processing and Model Research
 
 [![CI](https://github.com/ManishAradwad/pF_slm_selection/actions/workflows/ci.yml/badge.svg)](https://github.com/ManishAradwad/pF_slm_selection/actions/workflows/ci.yml)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Runtime](https://img.shields.io/badge/target-Android%20on--device-3DDC84?logo=android&logoColor=white)](https://github.com/ManishAradwad/pocket-financer-android)
 
-This repository develops, fine-tunes, converts, and evaluates small language
-models for PocketFinancer's on-device financial SMS extraction pipeline. The
-target behavior is deliberately narrow: after the Android app's deterministic
-filter, produce either literal `null` or one four-field transaction object.
+This repository contains PocketFinancer's active platform-neutral SMS-processing
+foundation and the historical small-language-model research that led to it. The
+active path preserves source evidence, applies one deterministic analyzer, invokes
+one non-thinking Grounded Candidate Selector pass when appropriate, reconstructs
+the result on the host, and independently decides whether automatic persistence is
+safe.
 
 ```json
-{
-  "amount": "1500.00",
-  "counterparty": "Example merchant",
-  "type": "debit",
-  "account": "A/c XX1234"
-}
+{"decision":"posted","amount":"amt_…","direction":"dir_…","account":"acc_…","counterparty":"cp_…"}
 ```
 
-PocketFinancer Android is the product source of truth. In this project, the word
-**contract** simply means the exact app-facing behavior that must stay aligned:
-filter, prompt/messages, GGUF chat template, context and decoding, output parser,
-and metrics interpretation. The current versioned record is
-[`configs/contracts/pocketfinancer-android-current.json`](configs/contracts/pocketfinancer-android-current.json).
+The model selects IDs only. Exact money, currencies, direction semantics, optional
+field state, dates, and UTF-8 spans remain host responsibilities. Android and iOS
+have not yet integrated the shared foundation. Their existing contracts remain
+historical/native-parity evidence until that separate integration is planned and
+implemented.
 
-## Current status
+## Active status
+
+The complete private archive has been rebuilt into one ignored canonical manifest:
+
+- 17,830/17,830 source rows represented exactly once;
+- zero source-ID, exact-body, normalized-template, or sender-template overlap
+  across protected pools;
+- all 15 mapped legacy positives avoid deterministic discard;
+- no final SFT targets were generated;
+- the local SQLite workbench contains the complete manifest and has a verified
+  hash-recorded backup.
+
+The current analyzer pass is deliberately conservative: 1,453 rows are normal
+selector invocations, 125 are assistive review invocations, and 16,252 skip the
+model. These are weak operational suggestions, not truth.
+
+Start with the [SMS Processing Architecture](docs/architecture/SMS_PROCESSING_ARCHITECTURE.md),
+[Grounded Candidate Selector Contract](docs/contracts/GROUNDED_CANDIDATE_SELECTOR_CONTRACT.md),
+and [active execution plan](docs/plans/SMS_PROCESSING_EXECUTION_PLAN.md).
+
+## Historical model evidence
 
 As of 2026-08-08, the three-seed Candidate Protocol V1 comparison is complete.
 It improved transaction extraction substantially on every seed but failed its
@@ -98,34 +115,45 @@ decision remains open. See the
 [completed 2.6B report](docs/experiments/POCKETFINANCER_LFM25_2_6B_R16_S17.md)
 for the controlled comparisons and limitations.
 
-## System overview
+## Active system overview
 
 ```mermaid
 flowchart LR
-    A["PocketFinancer Android source"] --> B["Versioned app profile + hashes"]
-    B --> C["Private source-grounded data builder"]
-    C --> D["Completion-only LoRA training"]
-    D --> E["HF diagnostic"]
-    E --> F["Merge + locked GGUF conversion"]
-    F --> G["Host Android-profile GGUF evaluation"]
-    G --> H["Target-phone validation gate"]
-
-    I["Private SMS and per-row outputs"] -. "local and ignored" .-> C
-    I -. "local and ignored" .-> G
+    A["Message + currency snapshot"] --> B["Deterministic analyzer"]
+    B --> C["Invoke / discard / retain review"]
+    C --> D["One-pass grounded ID selector"]
+    D --> E["Strict host reconstruction"]
+    E --> F["Independent persistence gate"]
+    C --> G["Local review workbench"]
+    F --> G
+    H["Canonical private manifest"] -. "local and ignored" .-> G
 ```
 
-The pipeline reports two distinct views where applicable:
+The architecture distinguishes three product facts:
 
-- **App-interpreted metrics** mirror PocketFinancer's fail-closed parser and are
-  the primary product-facing score.
-- **Strict raw-output metrics** reveal malformed or schema-invalid generation that
-  the app safely collapses to `null`.
+- the model recognized a posted event;
+- the host reconstructed a valid semantic result;
+- the result passed every automatic-persistence safety gate.
 
-HF evaluation is a fast training proxy. Desktop `llama-cpp-python` GGUF evaluation
-is closer to deployment but is still not the app's custom JNI runtime or phone
-hardware. A deployment claim requires an instrumented Android-device run.
+The processing trace can expose real analyzer cues/candidates, compact JSON token
+decoding, raw model output, validation, reconstruction, and persistence reasons.
+It must not fabricate or expose chain of thought.
 
-## Canonical workflow
+## Active local workflow
+
+```bash
+python scripts/run_sms_processing.py build-corpus
+python scripts/run_sms_processing.py init-workbench
+python scripts/run_sms_processing.py serve-workbench
+python scripts/run_sms_processing.py backup-workbench
+python scripts/run_sms_processing.py export-workbench
+```
+
+The workbench binds only to `127.0.0.1`, uses no remote assets/API/telemetry, and
+stores all state below ignored `PRIVATE_DATA/sms_processing`. Do not tunnel or
+screen-share private review rows.
+
+## Historical model-research workflow
 
 Development happens in the native WSL2 checkout, not in a duplicated NTFS clone:
 
@@ -185,7 +213,7 @@ source /tmp/pf-slm-ci/bin/activate
 python -m pip install -r requirements-ci.txt
 python scripts/check_repo_safety.py
 python -m ruff check .
-python -m ruff check --select E4,E7,E9,F lfm25 scripts tests
+python -m ruff check --select E4,E7,E9,F lfm25 src scripts tests
 python -m pytest -q
 ```
 
@@ -207,14 +235,16 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for change-specific verification and
 
 ```text
 configs/
-  contracts/       versioned Android prompt/runtime/parser profiles
+  sms_processing/  active schemas, currency table, profiles, archive run
+  contracts/       historical/native prompt/runtime/parser profiles
   pipelines/       app-facing experiment declarations
   models/          candidate model records
 docs/
   architecture/    stable boundaries and improvement roadmap
   experiments/     dated evidence and the canonical catalog
   guides/          fine-tuning and conceptual guides
-lfm25/              current Python implementation and compatibility package
+src/pocketfinancer_sms/ active analyzer, triage, selector, corpus, workbench
+lfm25/              historical model-research and compatibility package
 scripts/            CLI entry points, safety checks, training and conversion
 tests/              lightweight unit, contract, provenance and safety tests
 DATA/               grandfathered regression task assets
@@ -224,17 +254,15 @@ Local/generated roots are intentionally absent from the tracked map:
 
 | Ignored root | Contents |
 |---|---|
-| `PRIVATE_DATA/` | Raw-derived manifests, labels, train/dev rows, review queues |
+| `PRIVATE_DATA/` | Raw archive, canonical runs, labels, workbench, backups/exports |
 | `PUBLIC_CANDIDATE/` | Unreleased public-dataset candidates and audits |
 | `MODELS/` | Downloaded model, tokenizer, and GGUF files |
 | `TRAINING_ARTIFACTS/` | Adapters, checkpoints, merged weights, conversion output |
 | `RESULTS/` | Aggregate metrics and private per-row predictions |
 | `UPSTREAM/` | Pinned local external source trees such as llama.cpp |
 
-The current package remains named `lfm25` for artifact and import compatibility.
-The [repository layout plan](docs/architecture/REPOSITORY_LAYOUT.md) describes the
-staged move toward a model-agnostic `pf_slm` package without breaking historical
-provenance.
+The `lfm25` package remains for artifact/import compatibility and measured
+historical provenance. New SMS behavior belongs in `src/pocketfinancer_sms`.
 
 ## Data and evaluation rules
 
@@ -244,9 +272,9 @@ provenance.
   weights, checkpoints, or GGUF files.
 - `DATA/extraction_ds.jsonl` is locked as a reused regression fixture. Do not train
   on it or use it for a fresh production claim.
-- Silver labels are not human gold. Preserve label source, confidence, grounding,
+- Weak and silver labels are not human gold. Preserve label source, confidence, grounding,
   split policy, and hashes.
-- Training data should be source-grounded and sender/template-disjoint across
+- Any future training data must be source-grounded and template-component-disjoint across
   train, tuning, and fresh test boundaries.
 - Grammar state, BOS handling, quantization, parser interpretation, and runtime
   must be explicit in every result.
@@ -262,6 +290,10 @@ guard, not a substitute for reviewing content and diffs.
 - [Agent/tool-neutral repository rules](AGENTS.md)
 - [Contribution and pull-request workflow](CONTRIBUTING.md)
 - [Command map](scripts/README.md)
+- [SMS Processing Architecture](docs/architecture/SMS_PROCESSING_ARCHITECTURE.md)
+- [Grounded Candidate Selector Contract](docs/contracts/GROUNDED_CANDIDATE_SELECTOR_CONTRACT.md)
+- [Workbench Requirements and Data Flow](docs/architecture/WORKBENCH_REQUIREMENTS_AND_DATA_FLOW.md)
+- [SMS Processing Decision Log](docs/architecture/SMS_PROCESSING_DECISION_LOG.md)
 - [Candidate Protocol V1 controlled run](docs/experiments/POCKETFINANCER_LFM25_350M_CANDIDATE_PROTOCOL_V1.md)
 - [Completed 2.6B diagnostic report](docs/experiments/POCKETFINANCER_LFM25_2_6B_R16_S17.md)
 - [Historical 350M Android-aligned run](docs/experiments/POCKETFINANCER_A9_LORA_R16_S17.md)
@@ -272,14 +304,14 @@ guard, not a substitute for reviewing content and diffs.
 
 ## Next decision gates
 
-1. Diagnose the per-seed Candidate Protocol false-positive failure and rerun
-   the full controlled three-seed gate before reconsidering promotion.
-2. Complete adjudication of the already-created frozen blind package (1,436 rows
-   pending) for a fresh human-gold test.
-3. Implement and validate the candidate wire contract separately in Android and
-   iOS, then add a supported selector GGUF evaluator.
-4. Fix or verify BOS handling on the real Android JNI token stream.
-5. Measure RAM, latency, thermals, and battery on each target device.
+1. Use the workbench to rebuild operational segregation and canonical human truth
+   from the annotation-training/development pools.
+2. Measure candidate-oracle failures and reduce retain-review through reviewed,
+   provenance-bound analyzer/profile changes.
+3. Plan Android/iOS integration for currency snapshots, retain-review assistance,
+   grounded selector decoding, processing traces, feedback, and safe persistence.
+4. Freeze the pipeline before blind protected-test/later-time evaluation.
+5. Only then build training targets, select a model, and run native-device gates.
 
 ## Contributing
 

@@ -1,0 +1,151 @@
+{
+  "contract_id": "pocketfinancer_android_runtime_evidence",
+  "contract_version": 1,
+  "privacy_classification": "aggregate_only_no_message_content",
+  "baseline": {
+    "baseline_id": "pocketfinancer-android-552ffbdf-phase-c",
+    "baseline_manifest_sha256": "9274e5a63524b46bb4149e11d5190bae4ebcfef15170a69af77ad050b31167fc",
+    "android_commit": "552ffbdfbd41773980aa249789b0cb508fdb19fd"
+  },
+  "captures": [
+    {
+      "capture_id": "invented-host-smoke",
+      "evidence_class": "host",
+      "status": "synthetic_fixture",
+      "provenance": {
+        "environment_id": "invented-linux-host",
+        "os": "linux",
+        "architecture": "x86_64",
+        "engine": "invented-runtime",
+        "device_fingerprint_sha256": null,
+        "android_api_level": null
+      },
+      "runtime": {
+        "runtime_variant_id": "invented-test-runtime",
+        "model_artifact_sha256": null,
+        "chat_template": "invented-template",
+        "grammar_enabled": false,
+        "thinking_enabled": false,
+        "thinking_token_budget": 0,
+        "answer_token_budget": 32
+      },
+      "sample": {
+        "total": 4,
+        "success": 2,
+        "null": 1,
+        "error": 1,
+        "stopped": 0,
+        "cache_attempts": 4,
+        "cache_hits": 3
+      },
+      "measurements": {
+        "prompt_eval_ms": {
+          "count": 3,
+          "minimum": 10,
+          "p50": 12,
+          "p95": 18,
+          "maximum": 20
+        },
+        "generation_ms": {
+          "count": 3,
+          "minimum": 20,
+          "p50": 24,
+          "p95": 31,
+          "maximum": 35
+        },
+        "generated_tokens": {
+          "count": 3,
+          "minimum": 4,
+          "p50": 6,
+          "p95": 9,
+          "maximum": 10
+        },
+        "tokens_per_second": {
+          "count": 3,
+          "minimum": 100,
+          "p50": 125,
+          "p95": 150,
+          "maximum": 160
+        },
+        "peak_rss_mib": null,
+        "battery_delta_pct": null
+      },
+      "gaps": [
+        "no_peak_memory_instrumentation",
+        "no_battery_instrumentation"
+      ]
+    },
+    {
+      "capture_id": "invented-device-smoke",
+      "evidence_class": "android_device",
+      "status": "synthetic_fixture",
+      "provenance": {
+        "environment_id": "invented-android-device",
+        "os": "android",
+        "architecture": "arm64-v8a",
+        "engine": "custom-kotlin-jni-llama-cpp",
+        "device_fingerprint_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "android_api_level": 36
+      },
+      "runtime": {
+        "runtime_variant_id": "invented-test-runtime",
+        "model_artifact_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "chat_template": "invented-template",
+        "grammar_enabled": false,
+        "thinking_enabled": true,
+        "thinking_token_budget": 16,
+        "answer_token_budget": 32
+      },
+      "sample": {
+        "total": 3,
+        "success": 2,
+        "null": 1,
+        "error": 0,
+        "stopped": 0,
+        "cache_attempts": 3,
+        "cache_hits": 2
+      },
+      "measurements": {
+        "prompt_eval_ms": {
+          "count": 3,
+          "minimum": 100,
+          "p50": 120,
+          "p95": 180,
+          "maximum": 200
+        },
+        "generation_ms": {
+          "count": 3,
+          "minimum": 200,
+          "p50": 240,
+          "p95": 310,
+          "maximum": 350
+        },
+        "generated_tokens": {
+          "count": 3,
+          "minimum": 4,
+          "p50": 6,
+          "p95": 9,
+          "maximum": 10
+        },
+        "tokens_per_second": {
+          "count": 3,
+          "minimum": 10,
+          "p50": 12,
+          "p95": 15,
+          "maximum": 16
+        },
+        "peak_rss_mib": {
+          "count": 3,
+          "minimum": 600,
+          "p50": 620,
+          "p95": 680,
+          "maximum": 700
+        },
+        "battery_delta_pct": null
+      },
+      "gaps": [
+        "no_battery_instrumentation"
+      ]
+    }
+  ]
+}
