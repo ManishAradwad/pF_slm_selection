@@ -1,6 +1,8 @@
 # PocketFinancer native SMS integration and local workbench plan
 
-Status: proposed implementation plan; saved for the next implementation session.
+Status: implementation review prepared. Foundation and iOS automated suites are green;
+Android implementation awaits its first Gradle, exported-schema, emulator, and physical-device
+verification on the user's PC. Automatic persistence remains disabled.
 
 Prepared: 2026-09-06. This document records the planning audit and the proposed implementation decisions. Creating this document does not implement or enable any processing change.
 
@@ -1010,6 +1012,25 @@ iOS commit:
 Foundation commit:
 
 9. docs(verification): record native parity evidence and rollout readiness
+
+Implementation evidence recorded 2026-09-09:
+
+- Foundation: 696 tests passed and four environment-specific tests skipped (three optional
+  Torch tests and one WSL-only guard). Ruff and whitespace checks passed. Synthetic localhost
+  workbench tests also passed. The optional SQLCipher/keyring/cryptography runtime was not
+  installed in this environment, so the encrypted driver path is implemented fail-closed but
+  still requires an environment with those dependencies for an integration test.
+- iOS: formatting and whitespace checks passed; 83 unit tests and five UI tests passed on the
+  iOS simulator. The UI suite exercised onboarding, primary-currency choice, normal app launch,
+  transaction navigation, settings/privacy controls, protected-store startup, and fail-closed
+  unavailable-store behavior. Physical-iPhone Shortcut delivery and system-model behavior are
+  still intentionally unclaimed.
+- Android: Kotlin/Room/Compose implementation and source-level policy tests are present, but no
+  Gradle task was run on this Mac at the user's request. Room schema 6 export, compilation,
+  Robolectric/instrumentation tests, emulator behavior, and physical-device inference remain the
+  PC validation gate.
+- All three implementations remain shadow/review-only. No code path was enabled to insert an
+  automatically inferred transaction, and Milestone F still requires separate explicit approval.
 
 ### Milestone F — Separate rollout decision
 
