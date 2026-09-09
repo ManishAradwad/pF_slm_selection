@@ -107,7 +107,10 @@ class WorkbenchWebServer:
                     elif parsed.path == "/api/backup" and backup_root is not None:
                         result = service.store.create_backup(backup_root)
                     elif parsed.path == "/api/export" and export_root is not None:
-                        result = service.store.export_labels(export_root)
+                        result = service.store.export_labels(
+                            export_root,
+                            explicit_consent=payload.get("explicit_consent") is True,
+                        )
                     else:
                         self._json(HTTPStatus.NOT_FOUND, {"error": "endpoint not found"})
                         return

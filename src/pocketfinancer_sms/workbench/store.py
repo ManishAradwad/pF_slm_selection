@@ -337,6 +337,17 @@ class WorkbenchStore:
             ).fetchone()
         return _annotation_row(row) if row else None
 
+    def annotation_history(self, source_id: str, reviewer_id: str) -> list[dict[str, Any]]:
+        """Return one reviewer's append-only history without exposing other reviewers."""
+
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM annotation_revisions WHERE source_id = ? AND reviewer_id = ? "
+                "ORDER BY revision",
+                (source_id, reviewer_id),
+            ).fetchall()
+        return [_annotation_row(row) for row in rows]
+
     def submitted_annotations(self, source_id: str) -> list[dict[str, Any]]:
         with self.connect() as connection:
             rows = connection.execute(
@@ -591,7 +602,13 @@ class WorkbenchStore:
             Path(f"{temporary}-wal").unlink(missing_ok=True)
             Path(f"{temporary}-shm").unlink(missing_ok=True)
 
-    def export_labels(self, output_root: Path) -> dict[str, Any]:
+    def export_labels(
+        self,
+        output_root: Path,
+        *,
+        explicit_consent: bool = False,
+    ) -> dict[str, Any]:
+        del explicit_consent  # Legacy direct-call compatibility; production CLI requires SQLCipher.
         self.verify_revision_chains()
         ensure_private_directory(output_root)
         with self.connect() as connection:

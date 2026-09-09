@@ -253,6 +253,27 @@ function renderAnalysis(record) {
     const trace = section("Processing trace");
     const pre = document.createElement("pre"); pre.textContent = JSON.stringify(record.processing_trace, null, 2); trace.append(pre); root.append(trace);
   }
+  if (Array.isArray(record.native_traces) && record.native_traces.length > 0) {
+    const traces = section("Imported native traces");
+    record.native_traces.forEach((trace, index) => {
+      const heading = document.createElement("p");
+      const coverage = trace.candidate_coverage;
+      heading.textContent = `${index + 1}. ${trace.source_platform} · candidates ${coverage.deterministic_candidate_count} · selected ${coverage.selected_candidate_count} · misses ${coverage.candidate_miss_count}`;
+      const pre = document.createElement("pre");
+      pre.textContent = trace.record_json;
+      traces.append(heading, pre);
+    });
+    root.append(traces);
+  }
+  if (Array.isArray(record.annotation_history) && record.annotation_history.length > 0) {
+    const history = section("Your annotation revision history");
+    record.annotation_history.forEach((revision) => {
+      const item = document.createElement("p");
+      item.textContent = `Revision ${revision.revision} · ${revision.status} · ${revision.revision_hash}`;
+      history.append(item);
+    });
+    root.append(history);
+  }
 }
 function section(title) { const node = document.createElement("div"); node.className = "analysis-section"; const h = document.createElement("h3"); h.textContent = title; node.append(h); return node; }
 
@@ -411,7 +432,11 @@ el("correctionButton").addEventListener("click", () => run(async () => {
   state.correctionRevision = value.revision; toast("Weak segregation correction saved separately.");
 }));
 el("backupButton").addEventListener("click", () => run(async () => { const value = await post("/api/backup", {}); toast(`Backup created: ${value.backup}`); }));
-el("exportButton").addEventListener("click", () => run(async () => { const value = await post("/api/export", {}); toast(`Export ${value.export_id} created with ${value.label_count} labels.`); }));
+el("exportButton").addEventListener("click", () => run(async () => {
+  if (!window.confirm("Create a local encrypted export of submitted labels?")) return;
+  const value = await post("/api/export", { explicit_consent: true });
+  toast(`Encrypted export ${value.export_id} created with ${value.label_count} labels.`);
+}));
 function updateDecisionUi() {
   const decision = el("decision").value;
   const defaults = {posted: ["posted_candidate", "posted"], not_posted: ["financial_non_posted", "not_posted"], non_financial: ["non_financial", "no_event"], ambiguous: ["ambiguous", "unknown"], multiple_event: ["posted_candidate", "posted"]};

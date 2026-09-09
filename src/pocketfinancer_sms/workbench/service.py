@@ -22,6 +22,7 @@ from ..labels import (
 )
 from ..provenance import object_sha256
 from ..types import Analysis, CurrencyProvenance, Direction, EvidenceSpan
+from .native_import import NativeTraceImporter
 from .store import WorkbenchStore
 
 
@@ -33,8 +34,14 @@ class WorkbenchValidationError(ValueError):
 
 
 class WorkbenchService:
-    def __init__(self, store: WorkbenchStore) -> None:
+    def __init__(
+        self,
+        store: WorkbenchStore,
+        *,
+        native_trace_importer: NativeTraceImporter | None = None,
+    ) -> None:
         self.store = store
+        self.native_trace_importer = native_trace_importer
 
     def list_rows(
         self,
@@ -107,6 +114,7 @@ class WorkbenchService:
                 else record["review_state"]
             ),
             "latest_annotation": latest,
+            "annotation_history": self.store.annotation_history(source_id, reviewer_id),
             "blind_locked": not may_reveal,
             "can_reveal": (
                 record["pool"] in PROTECTED_POOLS
@@ -123,6 +131,11 @@ class WorkbenchService:
                     "processing_trace": record.get("processing_trace"),
                     "latest_weak_correction": self.store.latest_weak_correction(source_id),
                     "candidate_coverage": _candidate_coverage(record["analysis"]),
+                    "native_traces": (
+                        self.native_trace_importer.records_for_source(source_id)
+                        if self.native_trace_importer is not None
+                        else []
+                    ),
                 }
             )
         return result

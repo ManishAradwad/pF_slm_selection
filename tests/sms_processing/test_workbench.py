@@ -199,6 +199,9 @@ def test_revision_conflicts_and_invalid_submissions_never_downgrade_to_negative(
         )
     assert store.current_revision(source_id, "reviewer-one") == 1
     assert store.latest_annotation(source_id, "reviewer-one")["status"] == "draft"
+    row = service.view_row(source_id, "reviewer-one")
+    assert [item["revision"] for item in row["annotation_history"]] == [1]
+    assert row["annotation_history"][0]["status"] == "draft"
 
 
 def test_target_preview_reports_candidate_oracle_without_silent_fallback(tmp_path: Path) -> None:
