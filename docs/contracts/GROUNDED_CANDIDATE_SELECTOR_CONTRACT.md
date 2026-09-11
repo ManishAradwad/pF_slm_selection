@@ -3,7 +3,7 @@
 Status: **active production-intended host/model contract**
 Input schema: `configs/sms_processing/contracts/grounded-candidate-selector-input.schema.json`
 Output schema: `configs/sms_processing/contracts/grounded-candidate-selector.schema.json`
-Validation profile: `configs/sms_processing/contracts/v2/selector-validation-profile.json`
+Validation profile: `configs/sms_processing/contracts/v3/selector-validation-profile.json`
 Executable parser: `src/pocketfinancer_sms/selector.py`
 
 ## Model input
@@ -66,10 +66,11 @@ optional-field states, and exact evidence. The raw compact output, validation
 stage, and reconstruction stage may be stored in the private processing trace for
 truthful user-facing transparency.
 
-Validation profile `/2` freezes this behavior without changing the selector's
-output language from `/1`. It also binds direct, greedy generation to a 512-token
-answer limit, a 16 KiB UTF-8 raw-output limit, and a 60-second parser deadline.
-The native runtime owns those operational limits; the host parser never repairs a
+Validation profile `/3` freezes this behavior without changing the selector's
+output language from `/1`. It binds direct, greedy generation to a 512-token
+answer limit and a 16 KiB UTF-8 raw-output limit. Its `parser_deadline_ms` is zero,
+which disables the wall-clock selector deadline; explicit user cancellation and
+operation interruption still stop processing. The host parser never repairs a
 malformed or truncated response.
 
 ## Persistence is separate

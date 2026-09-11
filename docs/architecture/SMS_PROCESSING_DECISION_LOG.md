@@ -138,3 +138,15 @@ intentional safety boundary, not a temporary parser limitation.
 Trace and feedback storage are append-only and operation-bound. User corrections
 record grounding provenance and revisions but do not automatically become training
 labels. Diagnostic transfer is encrypted and requires explicit consent.
+
+## 2026-09-10 — Disable the selector wall-clock deadline
+
+Native integration release v2 supersedes v1 for newly created operations. Selector
+validation profile `/3` and processing configuration `/2` record
+`parser_deadline_ms: 0`, meaning Android and iOS wait for the on-device selector to
+finish instead of retaining a review after 60 seconds. Explicit user cancellation,
+process interruption, durable claims, and heartbeat recovery remain active.
+
+Release v1 and validation profile `/2` remain unchanged for historical operations.
+Automatic persistence remains disabled; this release changes runtime completion,
+not the rollout gate.

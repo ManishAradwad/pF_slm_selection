@@ -13,7 +13,7 @@ from .selector import SELECTOR_VALIDATION_PROFILE
 from .types import TimestampProvenance
 
 
-PROCESSING_CONFIG_CONTRACT = "pocketfinancer.processing-config/1"
+PROCESSING_CONFIG_CONTRACT = "pocketfinancer.processing-config/2"
 
 
 class ProcessingTrigger(StrEnum):
@@ -61,7 +61,7 @@ class SelectorRuntimeConfig:
     decoding: str = "greedy"
     answer_token_limit: int = 512
     raw_output_utf8_byte_limit: int = 16_384
-    parser_deadline_ms: int = 60_000
+    parser_deadline_ms: int = 0
 
     def __post_init__(self) -> None:
         if self.eligible:
@@ -85,7 +85,7 @@ class SelectorRuntimeConfig:
             or self.decoding != "greedy"
             or self.answer_token_limit != 512
             or self.raw_output_utf8_byte_limit != 16_384
-            or self.parser_deadline_ms != 60_000
+            or self.parser_deadline_ms != 0
         ):
             raise ValueError("selector runtime policy does not match the frozen profile")
 

@@ -127,10 +127,12 @@ improve those boundaries without using weak outputs as ground truth.
 
 ## Frozen native release
 
-`configs/sms_processing/contracts/releases/native-integration-v1.json` binds the
+`configs/sms_processing/contracts/releases/native-integration-v2.json` binds the
 schemas, profiles, policies, selector prompt, algorithms, and sanitized golden
 vectors by SHA-256. Native ports reproduce those bytes and decisions rather than
-reinterpret prose. The release adds versioned operation results, durable
+reinterpret prose. Release v1 remains immutable historical compatibility. Release
+v2 disables the selector wall-clock deadline while preserving explicit
+cancellation and interruption. The active release adds versioned operation results, durable
 hash-chained traces, revision-bound feedback, explicit account resolution, and a
 typed persistence gate while retaining every historical `/1` reader.
 

@@ -209,7 +209,7 @@ def _release_manifest_sha256(repo_root: Path) -> str:
         / "sms_processing"
         / "contracts"
         / "releases"
-        / "native-integration-v1.json"
+        / "native-integration-v2.json"
     )
     try:
         return file_sha256(manifest)

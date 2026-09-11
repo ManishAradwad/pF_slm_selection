@@ -9,6 +9,7 @@ from pathlib import Path
 import jsonschema
 import pytest
 from scripts.build_native_contract_release import build_manifest
+from scripts.build_native_contract_release_v2 import build_manifest as build_manifest_v2
 from scripts.build_native_sms_golden import build_fixture
 
 from pocketfinancer_sms.analyzer import (
@@ -222,7 +223,7 @@ def _processing_config(*, primary_currency: str = "INR") -> ProcessingConfigSnap
         trigger=ProcessingTrigger.APP_INTENT,
         created_at_epoch_ms=1_700_000_000_100,
         admission_epoch_ms=1_700_000_000_000,
-        release_id="native-integration-v1",
+        release_id="native-integration-v2",
         release_manifest_sha256="2" * 64,
         analyzer_behavior_version=ANALYZER_BEHAVIOR_V2,
         unicode_behavior_version="unicode-15.0-per-code-point-nfkc-casefold",
@@ -259,7 +260,7 @@ def test_processing_configuration_is_immutable_schema_bound_and_canonically_hash
     config = _processing_config()
     value = config.to_dict()
 
-    jsonschema.validate(value, _schema("processing-config.schema.json"))
+    jsonschema.validate(value, _schema("v2/processing-config.schema.json"))
     assert value["config_hash"] == config.config_hash
     assert config.config_hash == _processing_config().config_hash
     assert config.config_hash != _processing_config(primary_currency="USD").config_hash
@@ -291,7 +292,7 @@ def test_selector_validation_profile_v2_is_frozen_and_schema_valid() -> None:
     profile = _schema("v2/selector-validation-profile.json")
 
     jsonschema.validate(profile, schema)
-    assert profile["contract"] == SELECTOR_VALIDATION_PROFILE
+    assert profile["contract"] == "pocketfinancer.selector-validation-profile/2"
     assert profile["selector_output_contract"] == SELECTOR_CONTRACT
     assert profile["generation"] == {
         "mode": "DIRECT_NON_THINKING",
@@ -304,6 +305,22 @@ def test_selector_validation_profile_v2_is_frozen_and_schema_valid() -> None:
     assert profile["json_policy"]["reject_non_string_discriminator"] is True
 
 
+def test_selector_validation_profile_v3_disables_the_wall_clock_deadline() -> None:
+    schema = _schema("v3/selector-validation-profile.schema.json")
+    profile = _schema("v3/selector-validation-profile.json")
+
+    jsonschema.validate(profile, schema)
+    assert profile["contract"] == SELECTOR_VALIDATION_PROFILE
+    assert profile["selector_output_contract"] == SELECTOR_CONTRACT
+    assert profile["generation"] == {
+        "mode": "DIRECT_NON_THINKING",
+        "decoding": "greedy",
+        "answer_token_limit": 512,
+        "raw_output_utf8_byte_limit": 16_384,
+        "parser_deadline_ms": 0,
+    }
+
+
 def test_reason_registry_is_unique_complete_for_frozen_profiles_and_fails_closed() -> None:
     schema = _schema("v2/reason-code-registry.schema.json")
     registry = _schema("v2/reason-code-registry.json")
@@ -313,7 +330,7 @@ def test_reason_registry_is_unique_complete_for_frozen_profiles_and_fails_closed
 
     assert len(codes) == len(set(codes))
     assert registry["unknown_safety_code_policy"] == "retain_review"
-    selector_profile = _schema("v2/selector-validation-profile.json")
+    selector_profile = _schema("v3/selector-validation-profile.json")
     assert set(selector_profile["reason_codes"]) <= set(codes)
     financial_vectors = json.loads(
         (ROOT / "tests/sms_processing/golden/native-v1/financial-state.json").read_text(
@@ -400,6 +417,20 @@ def test_native_release_manifest_hashes_every_frozen_artifact() -> None:
         "configs/sms_processing/contracts/v2/user-feedback.schema.json",
         "tests/sms_processing/golden/native-v1/parity-bundle.json",
     } <= set(paths)
+
+
+def test_native_release_v2_disables_the_selector_deadline_without_mutating_v1() -> None:
+    stored = _schema("releases/native-integration-v2.json")
+    schema = _schema("releases/v2/release-manifest.schema.json")
+
+    jsonschema.validate(stored, schema)
+    assert stored == build_manifest_v2()
+    assert stored["release_id"] == "native-integration-v2"
+    assert stored["runtime_policy"]["parser_deadline_ms"] == 0
+    assert any(
+        artifact["contract"] == "pocketfinancer.selector-validation-profile/3"
+        for artifact in stored["artifacts"]
+    )
 
 
 def test_selector_input_payload_conforms_without_host_canonical_values() -> None:

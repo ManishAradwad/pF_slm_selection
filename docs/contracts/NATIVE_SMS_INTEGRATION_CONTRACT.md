@@ -2,14 +2,14 @@
 
 Status: **frozen for Kotlin and Swift implementation**
 
-Release manifest: `configs/sms_processing/contracts/releases/native-integration-v1.json`
+Release manifest: `configs/sms_processing/contracts/releases/native-integration-v2.json`
 
 ## Compatibility boundary
 
 Existing `/1` readers and stored artifacts remain supported. Native integration uses
 `sms-analysis/2`, `processing-result/2`, `processing-trace/2`, and
-`user-feedback/2`, plus `processing-config/1`, selector output `/1`, selector
-validation profile `/2`, and native trace bundle `/1`. Changing any frozen asset
+`user-feedback/2`, plus `processing-config/2`, selector output `/1`, selector
+validation profile `/3`, and native trace bundle `/1`. Changing any frozen asset
 requires a new release manifest and golden bundle; an existing release is never
 rewritten in place.
 
@@ -30,8 +30,10 @@ rewritten in place.
 
 ## Selector and persistence
 
-The selector is one direct, greedy, non-thinking attempt per operation. It may
-return only `none`, `abstain`, or one source-grounded `posted` selection. Duplicate
+The selector is one direct, greedy, non-thinking attempt per operation with no
+wall-clock deadline. Explicit user cancellation and operation interruption remain
+effective. It may return only `none`, `abstain`, or one source-grounded `posted`
+selection. Duplicate
 JSON keys, extra text, unknown fields, type coercion, unknown candidate IDs, mixed
 clauses, and inconsistent selections are invalid.
 

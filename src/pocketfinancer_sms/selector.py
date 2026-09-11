@@ -22,7 +22,7 @@ from .types import (
 
 SELECTOR_CONTRACT = "pocketfinancer.grounded-candidate-selector/1"
 SELECTOR_INPUT_CONTRACT = "pocketfinancer.grounded-candidate-selector-input/1"
-SELECTOR_VALIDATION_PROFILE = "pocketfinancer.selector-validation-profile/2"
+SELECTOR_VALIDATION_PROFILE = "pocketfinancer.selector-validation-profile/3"
 
 
 class SelectorValidationError(ValueError):
