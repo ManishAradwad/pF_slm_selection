@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .corpus import build_private_corpus
+from .evaluation import EvaluationInterrupted, evaluate_extractor
 from .provenance import PrivateArtifactError, file_sha256, require_private_output
 from .workbench.native_import import AesGcmBundleDecryptor, NativeTraceImporter
 from .workbench.secure_store import (
@@ -53,6 +54,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     native_import.add_argument("--bundle", type=Path, required=True)
     native_import.add_argument("--key-id", default="native-trace-import-v1")
+    evaluation = subparsers.add_parser(
+        "evaluate-extractor",
+        help="evaluate the direct extractor with a local GGUF",
+    )
+    evaluation.add_argument("--gguf", type=Path, required=True)
+    evaluation.add_argument(
+        "--suite",
+        choices=("synthetic", "grandfathered", "private-canonical"),
+        required=True,
+    )
+    evaluation.add_argument("--output-dir", type=Path, required=True)
+    evaluation.add_argument("--account-catalog", type=Path)
+    evaluation.add_argument("--primary-currency", default="INR")
+    evaluation.add_argument("--profile", action="append", dest="profiles")
+    evaluation.add_argument("--n-ctx", type=int, default=4096)
+    evaluation.add_argument("--n-gpu-layers", type=int, default=-1)
+    evaluation.add_argument("--seed", type=int, default=0)
+    evaluation.add_argument("--max-tokens", type=int, default=512)
     return parser
 
 
@@ -61,6 +80,35 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.command == "build-corpus":
             summary = build_private_corpus(args.repo_root, args.config)
+            print(json.dumps(summary, sort_keys=True))
+            return 0
+        if args.command == "evaluate-extractor":
+            try:
+                summary = evaluate_extractor(
+                    args.repo_root,
+                    gguf=args.gguf,
+                    suite=args.suite,
+                    output_dir=args.output_dir,
+                    account_catalog=args.account_catalog,
+                    primary_currency=args.primary_currency,
+                    enabled_profile_ids=tuple(args.profiles or ("core-en", "india")),
+                    n_ctx=args.n_ctx,
+                    n_gpu_layers=args.n_gpu_layers,
+                    seed=args.seed,
+                    max_tokens=args.max_tokens,
+                )
+            except EvaluationInterrupted as exc:
+                print(
+                    json.dumps(
+                        {
+                            "status": "interrupted",
+                            "completed_rows": exc.completed_rows,
+                            "total_rows": exc.total_rows,
+                        },
+                        sort_keys=True,
+                    )
+                )
+                return 130
             print(json.dumps(summary, sort_keys=True))
             return 0
         if args.command == "migrate-secure-workbench":
