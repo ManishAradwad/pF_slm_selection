@@ -464,7 +464,6 @@ def test_manifest_rebuilds_exactly_and_preserves_every_legacy_hash() -> None:
 
 def test_output_contract_rejects_time_fields_and_utf_offsets() -> None:
     schema = _schema("sms-extractor.schema.json")
-    source = "INR 1.00 debited from XX1234."
     payload = {
         "decision": "posted",
         "amount": {

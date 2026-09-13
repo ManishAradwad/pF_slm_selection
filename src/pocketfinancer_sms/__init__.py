@@ -15,8 +15,14 @@ from .triage import evaluate_triage
 __all__ = [
     "CurrencyContext",
     "DeterministicSmsAnalyzer",
+    "ExtractionCoordinator",
+    "SourceSpan",
+    "build_extractor_input",
     "evaluate_persistence",
+    "evaluate_persistence_v3",
     "evaluate_triage",
+    "parse_and_normalize_extraction",
     "parse_and_reconstruct",
     "processing_result_payload",
+    "processing_result_payload_v3",
 ]
