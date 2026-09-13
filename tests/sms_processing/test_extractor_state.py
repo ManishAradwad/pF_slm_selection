@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import replace
 
 import pytest
@@ -88,6 +89,24 @@ def _config() -> ProcessingConfigSnapshotV3:
         ),
         persistence_policy_version="pocketfinancer.persistence-policy/2",
         rollout_mode=RolloutMode.SHADOW,
+    )
+
+
+def _feedback_review(source: str) -> ReviewCase:
+    return ReviewCase(
+        review_case_id="review-synthetic",
+        operation_id_hash=hashlib.sha256(
+            "11111111-1111-4111-8111-111111111111".encode()
+        ).hexdigest(),
+        raw_sender="SYNTH-BANK",
+        source=source,
+        received_at_epoch_ms=1_700_000_000_000,
+        primary_reason="extractor_abstained",
+        reason_codes=("extractor_abstained",),
+        furthest_stage="extractor_validation",
+        analyzer_suggestions=(),
+        extractor_suggestion=None,
+        account_resolution=None,
     )
 
 
@@ -224,8 +243,7 @@ def test_feedback_v3_uses_spans_and_direction_control_without_timestamp_actions(
     feedback = UserFeedbackEventV3.create(
         action_id="22222222-2222-4222-8222-222222222222",
         operation_id="11111111-1111-4111-8111-111111111111",
-        review_case_id="review-synthetic",
-        source=source,
+        review_case=_feedback_review(source),
         expected_review_revision=0,
         resulting_review_revision=1,
         action="correct",
@@ -249,23 +267,22 @@ def test_feedback_v3_rejects_source_spans_not_bound_to_the_review_sms() -> None:
     common = {
         "action_id": "22222222-2222-4222-8222-222222222222",
         "operation_id": "11111111-1111-4111-8111-111111111111",
-        "review_case_id": "review-synthetic",
-        "source": source,
+        "review_case": _feedback_review(source),
         "expected_review_revision": 0,
         "resulting_review_revision": 1,
         "action": "correct",
         "actor_id": "synthetic-user",
         "created_at_epoch_ms": 1_700_000_000_100,
     }
+    substituted_source = "USD 99.99 was credited to account XX7788."
+    substituted_span = SourceSpan.from_source(
+        substituted_source, 0, len("USD 99.99")
+    )
     fabricated = FieldRevisionV3(
         "amount",
         "99.99",
         FieldRevisionProvenance.SOURCE_SPAN_SELECTION,
-        SourceSpan(
-            event.amount_span.start_scalar,
-            event.amount_span.end_scalar,
-            "fabricated",
-        ),
+        substituted_span,
     )
     with pytest.raises(ValueError, match="does not match source"):
         UserFeedbackEventV3.create(field_revisions=(fabricated,), **common)
@@ -278,6 +295,19 @@ def test_feedback_v3_rejects_source_spans_not_bound_to_the_review_sms() -> None:
     )
     with pytest.raises(ValueError, match="span is invalid"):
         UserFeedbackEventV3.create(field_revisions=(out_of_bounds,), **common)
+
+    valid = FieldRevisionV3(
+        "amount",
+        "42.50",
+        FieldRevisionProvenance.SOURCE_SPAN_SELECTION,
+        event.amount_span,
+    )
+    wrong_operation = {
+        **common,
+        "operation_id": "33333333-3333-4333-8333-333333333333",
+    }
+    with pytest.raises(ValueError, match="operation does not match"):
+        UserFeedbackEventV3.create(field_revisions=(valid,), **wrong_operation)
 
 
 def test_processing_trace_v3_hash_chain_and_extractor_stages() -> None:

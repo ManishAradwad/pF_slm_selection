@@ -370,11 +370,23 @@ def test_executable_input_config_result_review_feedback_and_trace_match_schemas(
     revision = FieldRevisionV3(
         "direction", "credit", FieldRevisionProvenance.USER_DIRECTION_CONTROL
     )
+    feedback_review = ReviewCase(
+        review_case_id="synthetic-feedback-review",
+        operation_id_hash=hashlib.sha256(OPERATION_ID.encode()).hexdigest(),
+        raw_sender="AD-SYNTH",
+        source=source,
+        received_at_epoch_ms=RECEIVED_AT,
+        primary_reason="extractor_abstained",
+        reason_codes=("extractor_abstained",),
+        furthest_stage="extractor_validation",
+        analyzer_suggestions=(),
+        extractor_suggestion=None,
+        account_resolution=None,
+    )
     feedback = UserFeedbackEventV3.create(
         action_id="22222222-2222-4222-8222-222222222222",
         operation_id=OPERATION_ID,
-        review_case_id="synthetic-review",
-        source=source,
+        review_case=feedback_review,
         expected_review_revision=0,
         resulting_review_revision=1,
         action="correct",

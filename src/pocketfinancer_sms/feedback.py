@@ -6,11 +6,14 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from .extractor import SourceSpan
 from .types import EvidenceSpan
+
+if TYPE_CHECKING:
+    from .processing_v3 import ReviewCase
 
 
 FEEDBACK_V2_CONTRACT = "pocketfinancer.user-feedback/2"
@@ -326,8 +329,7 @@ class UserFeedbackEventV3:
         *,
         action_id: str,
         operation_id: str,
-        review_case_id: str,
-        source: str,
+        review_case: ReviewCase,
         expected_review_revision: int,
         resulting_review_revision: int,
         action: str,
@@ -338,15 +340,18 @@ class UserFeedbackEventV3:
         canonical_label_id: str | None = None,
         canonical_label_revision: int | None = None,
     ) -> "UserFeedbackEventV3":
+        from .processing_v3 import ReviewCase
+
         _require_uuid(action_id, "action")
         _require_uuid(operation_id, "operation")
-        if (
-            not review_case_id
-            or not actor_id
-            or not isinstance(source, str)
-            or not source
-        ):
-            raise ValueError("feedback review, actor, or source identity is missing")
+        if not isinstance(review_case, ReviewCase):
+            raise TypeError("feedback requires an immutable review case")
+        operation_id_hash = hashlib.sha256(operation_id.encode()).hexdigest()
+        if operation_id_hash != review_case.operation_id_hash:
+            raise ValueError("feedback operation does not match review case")
+        if not review_case.review_case_id or not actor_id:
+            raise ValueError("feedback review or actor identity is missing")
+        source = review_case.source
         for revision in field_revisions:
             span = revision.span
             if span is None:
@@ -361,6 +366,7 @@ class UserFeedbackEventV3:
                 raise ValueError("feedback field revision span does not match source")
         if (
             not _is_nonnegative_int(expected_review_revision)
+            or expected_review_revision != len(review_case.user_revisions)
             or resulting_review_revision != expected_review_revision + 1
         ):
             raise ValueError("feedback review revision transition is invalid")
@@ -382,8 +388,10 @@ class UserFeedbackEventV3:
             raise ValueError("feedback canonical label reference is incomplete")
         return cls(
             action_id=action_id,
-            operation_id_hash=hashlib.sha256(operation_id.encode()).hexdigest(),
-            review_case_id_hash=hashlib.sha256(review_case_id.encode()).hexdigest(),
+            operation_id_hash=operation_id_hash,
+            review_case_id_hash=hashlib.sha256(
+                review_case.review_case_id.encode()
+            ).hexdigest(),
             expected_review_revision=expected_review_revision,
             resulting_review_revision=resulting_review_revision,
             action=action,
