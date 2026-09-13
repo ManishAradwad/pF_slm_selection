@@ -102,3 +102,29 @@ reviewer to distinguish annotation error from analyzer candidate-coverage error.
 
 The workbench currently holds the complete 17,830-row canonical run and has a
 verified initial backup. No final train/dev/test SFT target exists.
+
+## Future native v3 review screen
+
+The local browser workbench remains the implemented corpus-labeling tool. The
+native review screen is a separate, not-yet-integrated product surface governed
+by `review-case/1` and `user-feedback/3`.
+
+For every retained v3 operation, Android and iOS must show:
+
+- the complete immutable source message and read-only receipt time;
+- separate amount, direction, account, and counterparty highlights;
+- analyzer candidates/cues explicitly marked as advisory suggestions;
+- the validated extractor suggestion when available;
+- stable messages resolved from reason-code-registry/2;
+- account-resolution status without silently selecting a default account.
+
+A correction uses native source selection to produce Unicode-scalar evidence.
+When the message provides no selectable direction word, the reviewer may choose
+debit or credit with the explicit direction control and that provenance is
+recorded. A posted correction must select an existing account. Counterparty may
+remain absent.
+
+Confirm, correct, and reject actions carry expected and resulting review
+revisions and are append-only/idempotent by action ID. Receipt time cannot be
+edited. Feedback does not silently become canonical truth or authorize
+persistence, export, telemetry, or training.

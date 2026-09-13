@@ -10,6 +10,8 @@ contains the ignored private archive:
 | `python scripts/run_sms_processing.py build-corpus` | Build/reuse the immutable 17,830-row canonical private run with explicit INR configuration. |
 | `python scripts/run_sms_processing.py init-workbench` | Import the current canonical manifest into the crash-safe local SQLite workbench. |
 | `python scripts/run_sms_processing.py serve-workbench` | Serve the token-protected workbench on `127.0.0.1` only. |
+| `python scripts/run_sms_processing.py evaluate-extractor --gguf <local.gguf> --suite synthetic --output-dir PRIVATE_DATA/sms_processing/evaluations/<run>` | Evaluate the direct extractor locally with aggregate console output and permission-restricted, ignored row-level artifacts. |
+| `python scripts/build_native_contract_release_v3.py` | Validate schemas/profiles/goldens and historical hashes, then print the deterministic frozen v3 manifest for exact comparison. |
 | `python scripts/run_sms_processing.py backup-workbench` | Create a mode-0600 SQLite backup and SHA-256 manifest. |
 | `python scripts/run_sms_processing.py export-workbench` | Export submitted/adjudicated canonical labels into a reproducible hash-bound private directory. |
 
@@ -18,6 +20,11 @@ remain below ignored `PRIVATE_DATA/sms_processing`. Never tunnel, screen-share, 
 open private rows in browser developer tools intended for capture. Synthetic HTTP
 tests are the only supported UI smoke evidence in Git/CI.
 
+
+The direct evaluator also supports `grandfathered` regression and
+`private-canonical` suites, but neither is fresh human-gold evidence and all
+row-level output remains ignored/local. Native integration v3 is review-only;
+the release manifest keeps automatic persistence disabled.
 ## Historical model research environment
 
 Run the following commands inside WSL2 after activating the environment from the canonical

@@ -15,8 +15,13 @@ Development workflow: [repository instructions](../AGENTS.md) and
    submission checklist for human reviewers.
 2. [SMS Processing Architecture](architecture/SMS_PROCESSING_ARCHITECTURE.md) - the
    active end-to-end host/analyzer/model/review path.
-3. [Grounded Candidate Selector Contract](contracts/GROUNDED_CANDIDATE_SELECTOR_CONTRACT.md) -
-   the compact one-pass output and strict reconstruction rules.
+3. [Direct SMS Extractor Contract](contracts/DIRECT_SMS_EXTRACTOR_CONTRACT.md) -
+   the active one-pass semantic output, strict grounding, normalization, review,
+   and native Unicode-scalar conversion rules.
+   [Native SMS Integration Contract](contracts/NATIVE_SMS_INTEGRATION_CONTRACT.md)
+   freezes the v3 handoff while automatic persistence and app integration remain
+   disabled. The [Grounded Candidate Selector Contract](contracts/GROUNDED_CANDIDATE_SELECTOR_CONTRACT.md)
+   is frozen historical compatibility for v1/v2 operations.
 4. [Currency Context and Provenance](architecture/CURRENCY_CONTEXT_AND_PROVENANCE.md) -
    explicit user currency snapshots and override behavior.
 5. [Data Taxonomy and Canonical Labels](architecture/DATA_TAXONOMY_AND_CANONICAL_LABELS.md) -

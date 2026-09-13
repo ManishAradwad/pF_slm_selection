@@ -150,3 +150,34 @@ process interruption, durable claims, and heartbeat recovery remain active.
 Release v1 and validation profile `/2` remain unchanged for historical operations.
 Automatic persistence remains disabled; this release changes runtime completion,
 not the rollout gate.
+
+## 2026-09-12 - Adopt the direct SLM-primary extractor
+
+New production-intended shared operations use one direct local extractor rather
+than selecting deterministic candidate IDs. The model decides posted, none, or
+abstain and, for posted, returns amount, currency, debit/credit direction,
+account reference, optional counterparty, and exact Unicode-scalar evidence.
+
+The deterministic analyzer remains in the runtime only as advisory context. Its
+candidates and cues do not form an allowlist and cannot override the unchanged
+message. The host retains ownership of strict JSON parsing, scalar grounding,
+money normalization, account resolution, duplicate assessment, authoritative
+receipt time, reason codes, review routing, and persistence.
+
+This replaces the candidate selector because candidate coverage made model recall
+depend on a deterministic extractor and prevented the SLM from correcting missed
+or conflicting analysis. Direct semantic output expands validation surface, so
+the choice is paired with grammar-constrained output, duplicate-key and
+trailing-content rejection, exact source slicing, immutable configuration hashes,
+sanitized Unicode goldens, and fail-closed review.
+
+Candidate-selector contracts, prompts, profiles, goldens, and native releases
+v1/v2 remain byte-for-byte frozen for stored-operation compatibility and
+historical reproducibility. Future SFT labels use rich canonical-label/2 truth
+and project directly to sms-extractor/1. No existing private label is silently
+reinterpreted.
+
+Native release v3 freezes the new shared boundary, but Android and iOS have not
+integrated it. Automatic persistence remains disabled. This decision authorizes
+neither model deployment nor data publication; protected human-gold evaluation,
+runtime parity, privacy, license, and device review gates remain open.

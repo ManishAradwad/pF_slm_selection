@@ -4,12 +4,72 @@ Status: **active architecture and implementation authority**
 Executable package: `src/pocketfinancer_sms`
 Private corpus configuration: `configs/sms_processing/archive-india-inr.json`
 
-## Outcome
+## Active v3 outcome
 
-PocketFinancer now has one platform-neutral processing foundation. Android and iOS
-implement the frozen native release described by
-`docs/contracts/NATIVE_SMS_INTEGRATION_CONTRACT.md`; the foundation remains the
-behavioral authority and parity oracle.
+The production-intended shared foundation is SLM-primary. Android and iOS have
+not integrated it. The frozen shared contracts and Python implementation are the
+authority and parity oracle for future native ports.
+
+For each incoming message:
+
+1. The coordinator creates an immutable processing-config/3 snapshot with
+   operation identity, platform receipt time, primary currency, runtime hashes,
+   and automatic persistence disabled.
+2. The deterministic analyzer produces advisory candidates and cues. Advisory
+   evidence is visible to the extractor but is never an answer allowlist.
+3. The host builds sms-extractor-input/1 from the unchanged message and makes one
+   greedy, non-thinking local GGUF attempt.
+4. The extractor returns only none, abstain, or one posted extraction containing
+   semantic values and exact Unicode-scalar source evidence.
+5. The host strictly parses and grounds the output, normalizes exact money, and
+   resolves the account reference against existing accounts.
+6. The coordinator performs duplicate assessment and the typed persistence gate.
+   Recognition and persistence remain separate.
+7. Invalid, interrupted, abstained, unresolved, ambiguous, or blocked operations
+   become revisioned local review cases. Receipt time is read-only.
+
+```text
+platform message + immutable configuration
+                 |
+                 +--> advisory deterministic analysis
+                 |
+                 v
+        one direct local SLM extraction
+             /          |          \
+          none       abstain       posted values + scalar spans
+             \          |          /
+                 strict host validation
+                          |
+               normalization + account resolution
+                          |
+               duplicate + persistence gates
+                    /             \
+             typed result      local review
+```
+
+### Active executable boundaries
+
+| Concern | Authority |
+|---|---|
+| Advisory analysis and source preservation | `analyzer.py`, `structural_text.py`, `types.py` |
+| Extractor input, parsing, grounding, normalization | `extractor.py` |
+| Runtime/configuration eligibility | `configuration_v3.py` |
+| Account resolution | `account_resolution.py` |
+| Operation coordination and typed result | `processing_v3.py` |
+| V3 persistence safety | `processing_v3.py` |
+| Rich human truth and direct target projection | `labels.py` |
+| Trace, review, and feedback | `trace.py`, `feedback.py` |
+| Offline GGUF evaluation | `evaluation.py` |
+
+The model cannot set receipt time, reason codes, operation identity, normalized
+account identity, duplicate status, or persistence. No taxonomy regex or second
+classifier model independently decides semantic truth.
+
+## Historical candidate-selector architecture (native v1/v2)
+
+The following flow remains documented to reproduce stored candidate-selector
+operations and native releases v1/v2. It is not the model contract for newly
+created shared operations. Historical assets remain byte-for-byte frozen.
 
 For one incoming message, the intended runtime sequence is:
 
@@ -61,7 +121,7 @@ platform message + configuration snapshot
                          (all safety gates)                           (any unresolved gate)
 ```
 
-## Executable boundaries
+### Historical executable boundaries
 
 | Concern | Authority |
 |---|---|
@@ -78,7 +138,7 @@ platform message + configuration snapshot
 No taxonomy regex independently decides truth, and no second classifier model is
 part of the production path.
 
-## Analyzer output
+### Historical analyzer output
 
 The versioned analysis object contains:
 
@@ -96,7 +156,7 @@ The versioned analysis object contains:
 
 UTF-8 offsets are host metadata and human truth. They are never model output.
 
-## State transitions
+### Historical state transitions
 
 ```text
 received
@@ -116,7 +176,7 @@ Malformed, unknown, ambiguous, inconsistent, unsupported, cross-message, or
 cross-clause core selections fail closed to review. They never become negative
 truth and never silently persist.
 
-## Current measured foundation state
+## Historical measured candidate baseline
 
 The current configured private rebuild represents all 17,830 archive rows exactly
 once. It is intentionally conservative: 1,453 rows currently receive normal
@@ -125,17 +185,16 @@ model. This is a starting diagnostic, not a claim that
 the deterministic analyzer is complete. Human segregation work will measure and
 improve those boundaries without using weak outputs as ground truth.
 
-## Frozen native release
+## Frozen native release v3
 
-`configs/sms_processing/contracts/releases/native-integration-v2.json` binds the
-schemas, profiles, policies, selector prompt, algorithms, and sanitized golden
-vectors by SHA-256. Native ports reproduce those bytes and decisions rather than
-reinterpret prose. Release v1 remains immutable historical compatibility. Release
-v2 disables the selector wall-clock deadline while preserving explicit
-cancellation and interruption. The active release adds versioned operation results, durable
-hash-chained traces, revision-bound feedback, explicit account resolution, and a
-typed persistence gate while retaining every historical `/1` reader.
+`configs/sms_processing/contracts/releases/native-integration-v3.json` binds the
+direct extractor schemas, profile, prompt, grammar, reason registry, algorithms,
+and sanitized goldens by SHA-256. Native ports reproduce those bytes and
+decisions rather than reinterpret prose. Releases v1/v2 and every selector asset
+remain immutable historical compatibility. V3 adds direct semantic extraction,
+Unicode-scalar grounding, versioned review cases, explicit account resolution,
+hash-chained traces, revision-bound feedback, and rich canonical-label/2 truth.
 
-Automatic persistence is deliberately disabled. Android and iOS first operate in
-shadow/review-only mode and record the same typed gate result that the foundation
-would produce.
+Automatic persistence is deliberately disabled. Android and iOS remain
+unintegrated until their review-only ports reproduce the frozen hashes, scalar
+conversion rules, and golden cases.

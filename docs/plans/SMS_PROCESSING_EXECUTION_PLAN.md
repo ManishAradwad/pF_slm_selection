@@ -1,9 +1,29 @@
 # SMS Processing Execution Plan
 
 Status: **single active execution plan**
-Last updated: 2026-09-01
+Last updated: 2026-09-12
 
-## Completed foundation
+## Active direct-extractor v3 phase
+
+- [x] Make one local SLM the primary semantic extractor for new shared operations;
+  retain deterministic analysis as advisory evidence only.
+- [x] Freeze the extractor input/output, prompt, grammar, validation, processing,
+  reason, account, review, feedback, and rich canonical-label contracts.
+- [x] Enforce strict JSON, Unicode-scalar grounding, signed-64-bit money,
+  existing-account resolution, duplicate assessment, and read-only receipt time.
+- [x] Add deterministic sanitized Unicode/adversarial goldens and local GGUF
+  evaluation without printing private rows.
+- [x] Freeze native-integration-v3 by SHA-256 only after schema, golden, and
+  historical-byte preservation checks pass.
+- [x] Keep automatic persistence disabled and candidate-selector v1/v2 assets
+  byte-for-byte historical.
+- [ ] Integrate Kotlin and Swift review-only ports with scalar conversion,
+  encrypted state, operation ownership, and native review screens.
+- [ ] Produce sufficient blind human-gold labels and run protected evaluation.
+- [ ] Review privacy, data rights, model license, runtime parity, and device
+  behavior before any deployment or persistence-enabling decision.
+
+## Historical completed candidate foundation
 
 - [x] Establish explicit repository/private-data boundaries and focused branch.
 - [x] Preserve the exploratory pre-filter/taxonomy snapshot before replacement.
@@ -18,7 +38,7 @@ Last updated: 2026-09-01
 - [x] Produce queue views, grouping, coverage, pre-filter, leakage, and provenance reports.
 - [x] Build and initialize the local SQLite workbench with backup/recovery/export tests.
 
-## Current cleanup and authority phase
+## Historical cleanup and authority phase
 
 1. [x] Make the active architecture documents authoritative and index historical
    experiment evidence explicitly.
@@ -116,17 +136,16 @@ The next session begins in Plan mode and inspects Android/iOS before changing
 them. It must plan:
 
 - primary-currency onboarding/settings and per-operation snapshots;
-- shared analyzer/profile parity and high-recall triage on both platforms;
-- a user review inbox for every `retain_review` outcome, including assistive SLM
-  results when candidates are complete;
-- one-pass non-thinking Grounded Candidate Selector invocation and token-by-token
-  compact JSON visibility;
-- strict reconstruction/persistence without default-account fallback;
+- advisory analyzer/profile parity without making candidates an answer allowlist;
+- a user review inbox for every retained v3 operation;
+- one-pass non-thinking direct extractor invocation and exact JSON visibility;
+- strict scalar grounding, normalization, account resolution, duplicate
+  assessment, and persistence gating without default-account fallback;
 - a truthful processing trace screen showing analyzer output, candidate IDs and
   evidence, model JSON stream/raw output, validation, reconstruction, and
   persistence reasons—never fabricated chain of thought;
-- append-only user confirmations/corrections/rejections bound to trace and
-  canonical label revisions for future local evaluation/fine-tuning;
+- native source selection, explicit debit/credit fallback, existing-account
+  choice, and append-only revision/hash feedback;
 - migration from Android's current editable result and hard OTP behavior;
 - how native feedback synchronizes into the same local workbench without hosted
   APIs, telemetry, or raw-data logs.
@@ -137,7 +156,7 @@ No native implementation begins until that plan is approved.
 
 Only after human truth is sufficient:
 
-1. Freeze projection contracts and build hash-bound Candidate Selector targets.
+1. Build hash-bound sms-extractor/1 targets from canonical-label/2.
 2. Train/compare models outside this session under one-pass greedy decoding.
 3. Evaluate on annotation-development; freeze decisions.
 4. Open protected test/later-time holdout exactly once for the declared gate.
@@ -173,8 +192,8 @@ Use the following request in the next session:
 > every applicable AGENTS.md and inspect current native SMS filters, inference,
 > persistence, editing/feedback, currency settings, and UI flows before proposing
 > changes. Produce one executable plan—do not edit yet—for integrating the shared
-> deterministic analyzer, configured primary currency, tri-state review behavior,
-> one-pass Grounded Candidate Selector, strict reconstruction/persistence gate,
+> advisory analyzer, configured primary currency, retained-review behavior,
+> one-pass direct SMS extractor, strict validation/normalization/persistence gate,
 > append-only ProcessingTrace/UserFeedbackEvent contracts, and a user review inbox
 > for retain-review cases. Preserve maximum truthful transparency: show analyzer
 > cues/candidates, compact JSON token decoding, raw selector output, validation,

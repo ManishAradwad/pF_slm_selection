@@ -1,10 +1,15 @@
 # Grounded Candidate Selector Contract
 
-Status: **active production-intended host/model contract**
+Status: **historical and frozen compatibility contract**
 Input schema: `configs/sms_processing/contracts/grounded-candidate-selector-input.schema.json`
 Output schema: `configs/sms_processing/contracts/grounded-candidate-selector.schema.json`
 Validation profile: `configs/sms_processing/contracts/v3/selector-validation-profile.json`
 Executable parser: `src/pocketfinancer_sms/selector.py`
+
+This contract remains authoritative only for stored candidate-selector operations
+and native integration releases v1/v2. New production-intended shared operations
+use `docs/contracts/DIRECT_SMS_EXTRACTOR_CONTRACT.md` and native integration
+release v3. No existing selector asset is rewritten.
 
 ## Model input
 
@@ -85,6 +90,11 @@ back to an app default.
 and any failed persistence condition route to review rather than negative truth.
 
 ## Superseded protocols
+
+The whole grounded candidate-selector path is superseded for newly created
+operations. It remains executable to reproduce historical results and read
+stored v1/v2 artifacts; its candidates must not be presented as the current
+model contract or projected as future SFT targets.
 
 Candidate Protocol V1 remains measured historical evidence. It was insufficient
 because its intended product result did not ground direction, did not express the

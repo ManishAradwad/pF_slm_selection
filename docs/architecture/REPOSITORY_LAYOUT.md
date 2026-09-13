@@ -34,7 +34,12 @@ src/pocketfinancer_sms/
   analyzer.py       source-preserving shared analysis
   currency.py       exact money and explicit currency context
   triage.py         invoke/discard/retain-review policy
-  selector.py       compact ID output and reconstruction
+  extractor.py      active direct model input, parsing, and grounding
+  configuration_v3.py immutable runtime eligibility and hashes
+  account_resolution.py deterministic existing-account resolution
+  processing_v3.py  active operation coordinator and result payload
+  evaluation.py     offline local GGUF extractor evaluation
+  selector.py       historical compact-ID compatibility
   persistence.py    automatic-save safety gate
   labels.py         weak taxonomy and canonical human truth
   trace.py          immutable observable processing stages
@@ -49,6 +54,11 @@ configs/sms_processing/
   currency/         supported ISO-4217 subset
   profiles/         core and locale extensions
   archive-india-inr.json
+  prompts/          frozen direct-extractor prompt
+  grammars/         frozen direct-extractor grammar
+  contracts/v3/     active schemas and immutable profiles
+  contracts/releases/native-integration-v3.json
+                    hash-bound direct-extractor native release
 ```
 
 `lfm25` remains in place so measured experiments and reports are reproducible. New
