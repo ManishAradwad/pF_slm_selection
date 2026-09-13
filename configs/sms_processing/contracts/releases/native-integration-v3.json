@@ -220,7 +220,7 @@
     {
       "contract": "pocketfinancer.canonical-label/2",
       "path": "configs/sms_processing/contracts/v3/canonical-label.schema.json",
-      "sha256": "ec7b7d23a3ab669c0158892a6469c858f9ab0f2ac77d4adac00cd537e028d594"
+      "sha256": "16b659566a861957720d52f12dcdd92c26a42cb7b816d6d0619fcc64448ff8f6"
     },
     {
       "contract": "pocketfinancer.contract-release-manifest-schema/3",

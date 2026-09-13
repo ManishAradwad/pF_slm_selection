@@ -65,7 +65,12 @@
         "existing_account_id": {"type": ["string", "null"], "minLength": 1},
         "counterparty": {"type": ["string", "null"], "minLength": 1},
         "counterparty_span": {"oneOf": [{"$ref": "#/$defs/source_span"}, {"type": "null"}]}
-      }
+      },
+      "allOf": [{
+        "if": {"properties": {"counterparty": {"type": "string"}}, "required": ["counterparty"]},
+        "then": {"properties": {"counterparty_span": {"$ref": "#/$defs/source_span"}}},
+        "else": {"properties": {"counterparty_span": {"type": "null"}}}
+      }]
     }
   }
 }

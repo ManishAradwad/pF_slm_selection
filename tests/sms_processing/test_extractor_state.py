@@ -225,6 +225,7 @@ def test_feedback_v3_uses_spans_and_direction_control_without_timestamp_actions(
         action_id="22222222-2222-4222-8222-222222222222",
         operation_id="11111111-1111-4111-8111-111111111111",
         review_case_id="review-synthetic",
+        source=source,
         expected_review_revision=0,
         resulting_review_revision=1,
         action="correct",
@@ -241,6 +242,42 @@ def test_feedback_v3_uses_spans_and_direction_control_without_timestamp_actions(
             FieldRevisionProvenance.SOURCE_SPAN_SELECTION,
             SourceSpan.from_source(source, 0, 3),
         )
+
+
+def test_feedback_v3_rejects_source_spans_not_bound_to_the_review_sms() -> None:
+    source, event = _source_and_event()
+    common = {
+        "action_id": "22222222-2222-4222-8222-222222222222",
+        "operation_id": "11111111-1111-4111-8111-111111111111",
+        "review_case_id": "review-synthetic",
+        "source": source,
+        "expected_review_revision": 0,
+        "resulting_review_revision": 1,
+        "action": "correct",
+        "actor_id": "synthetic-user",
+        "created_at_epoch_ms": 1_700_000_000_100,
+    }
+    fabricated = FieldRevisionV3(
+        "amount",
+        "99.99",
+        FieldRevisionProvenance.SOURCE_SPAN_SELECTION,
+        SourceSpan(
+            event.amount_span.start_scalar,
+            event.amount_span.end_scalar,
+            "fabricated",
+        ),
+    )
+    with pytest.raises(ValueError, match="does not match source"):
+        UserFeedbackEventV3.create(field_revisions=(fabricated,), **common)
+
+    out_of_bounds = FieldRevisionV3(
+        "amount",
+        "42.50",
+        FieldRevisionProvenance.SOURCE_SPAN_SELECTION,
+        SourceSpan(0, len(source) + 1, source),
+    )
+    with pytest.raises(ValueError, match="span is invalid"):
+        UserFeedbackEventV3.create(field_revisions=(out_of_bounds,), **common)
 
 
 def test_processing_trace_v3_hash_chain_and_extractor_stages() -> None:

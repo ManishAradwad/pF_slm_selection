@@ -327,6 +327,7 @@ class UserFeedbackEventV3:
         action_id: str,
         operation_id: str,
         review_case_id: str,
+        source: str,
         expected_review_revision: int,
         resulting_review_revision: int,
         action: str,
@@ -339,8 +340,25 @@ class UserFeedbackEventV3:
     ) -> "UserFeedbackEventV3":
         _require_uuid(action_id, "action")
         _require_uuid(operation_id, "operation")
-        if not review_case_id or not actor_id:
-            raise ValueError("feedback review or actor identity is missing")
+        if (
+            not review_case_id
+            or not actor_id
+            or not isinstance(source, str)
+            or not source
+        ):
+            raise ValueError("feedback review, actor, or source identity is missing")
+        for revision in field_revisions:
+            span = revision.span
+            if span is None:
+                continue
+            try:
+                exact = SourceSpan.from_source(
+                    source, span.start_scalar, span.end_scalar
+                )
+            except ValueError as exc:
+                raise ValueError("feedback field revision span is invalid") from exc
+            if exact.text != span.text:
+                raise ValueError("feedback field revision span does not match source")
         if (
             not _is_nonnegative_int(expected_review_revision)
             or resulting_review_revision != expected_review_revision + 1

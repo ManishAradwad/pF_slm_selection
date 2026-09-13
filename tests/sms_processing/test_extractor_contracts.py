@@ -374,6 +374,7 @@ def test_executable_input_config_result_review_feedback_and_trace_match_schemas(
         action_id="22222222-2222-4222-8222-222222222222",
         operation_id=OPERATION_ID,
         review_case_id="synthetic-review",
+        source=source,
         expected_review_revision=0,
         resulting_review_revision=1,
         action="correct",
@@ -441,6 +442,14 @@ def test_canonical_label_v2_retains_taxonomy_and_requires_grounded_posted_fields
     }
     schema = _schema("canonical-label.schema.json")
     jsonschema.validate(payload, schema)
+    payload["event"]["counterparty"] = "SYNTHETIC MERCHANT"
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(payload, schema)
+    payload["event"]["counterparty"] = None
+    payload["event"]["counterparty_span"] = span("credited")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(payload, schema)
+    payload["event"]["counterparty_span"] = None
     del payload["event"]["direction_span"]
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(payload, schema)
