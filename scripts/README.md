@@ -21,10 +21,31 @@ open private rows in browser developer tools intended for capture. Synthetic HTT
 tests are the only supported UI smoke evidence in Git/CI.
 
 
-The direct evaluator also supports `grandfathered` regression and
-`private-canonical` suites, but neither is fresh human-gold evidence and all
-row-level output remains ignored/local. Native integration v3 is review-only;
-the release manifest keeps automatic persistence disabled.
+The grandfathered regression remains explicitly non-production:
+
+```bash
+python scripts/run_sms_processing.py evaluate-extractor \
+  --gguf <local.gguf> \
+  --suite grandfathered \
+  --output-dir PRIVATE_DATA/sms_processing/evaluations/<grandfathered-run>
+```
+
+On the private MacBook checkout that owns the secure workbench and canonical
+labels, run the protected human-gold follow-up locally:
+
+```bash
+python scripts/run_sms_processing.py evaluate-extractor \
+  --gguf <local.gguf> \
+  --suite private-canonical \
+  --output-dir PRIVATE_DATA/sms_processing/evaluations/<private-run> \
+  --account-catalog PRIVATE_DATA/sms_processing/<local-account-catalog.json>
+```
+
+Only submitted/adjudicated labels contribute accuracy; unlabelled rows contribute
+outcome and latency rates. Keep every row artifact local and ignored. This GGUF
+run is not evidence for Apple Foundation Models: after the iOS port exists, test
+that native path separately on Apple hardware. Native integration v3 remains
+review-only, and its release manifest keeps automatic persistence disabled.
 ## Historical model research environment
 
 Run the following commands inside WSL2 after activating the environment from the canonical
