@@ -104,6 +104,10 @@ def test_processing_config_v3_is_immutable_hashed_and_timestamp_read_only() -> N
     }
     assert payload["config_hash"] == config.config_hash
     assert replace(config, primary_currency="USD").config_hash != config.config_hash
+    with pytest.raises(ValueError, match="release provenance"):
+        replace(config, release_id="native-integration-v2")
+    with pytest.raises(ValueError, match="analyzer provenance"):
+        replace(config, analyzer_behavior_version="pocketfinancer.structural-sms-analyzer/1")
 
 
 def test_canonical_label_v2_projects_direct_json_without_analyzer_candidates() -> None:

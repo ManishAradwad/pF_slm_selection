@@ -116,9 +116,16 @@ class ProcessingConfigSnapshotV3:
             or self.created_at_epoch_ms < self.admission_epoch_ms
         ):
             raise ValueError("configuration timestamps are invalid")
-        if not self.release_id or not _is_sha256(self.release_manifest_sha256):
+        if (
+            self.release_id != "native-integration-v3"
+            or not _is_sha256(self.release_manifest_sha256)
+        ):
             raise ValueError("configuration release provenance is invalid")
-        if not self.analyzer_behavior_version or not self.unicode_behavior_version:
+        if (
+            self.analyzer_behavior_version
+            != "pocketfinancer.structural-sms-analyzer/2"
+            or not self.unicode_behavior_version
+        ):
             raise ValueError("configuration analyzer provenance is incomplete")
         if not _is_sha256(self.currency_asset_sha256):
             raise ValueError("configuration currency hash is invalid")
