@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 
 from .currency import parse_money
+from .extractor import SourceSpan, parse_and_normalize_extraction
 from .types import Analysis, Candidate, CandidateKind, CurrencyProvenance, Direction, EvidenceSpan
 
 
@@ -357,3 +359,156 @@ def _presence_candidate(
     if state == PresenceState.PRESENT and span is not None:
         return _match_span(analysis, kind, span, reason)
     raise LabelValidationError(reason)
+
+
+@dataclass(frozen=True, slots=True)
+class ExtractorCanonicalEvent:
+    """Grounded canonical event used by extractor-era labels."""
+
+    amount_value: str
+    currency: str
+    amount_span: SourceSpan
+    direction: Direction
+    direction_span: SourceSpan
+    account_reference: str
+    account_span: SourceSpan
+    existing_account_id: str | None
+    counterparty: str | None
+    counterparty_span: SourceSpan | None
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalLabelV2:
+    label_id: str
+    source_id: str
+    revision: int
+    status: ReviewStatus
+    decision: str
+    operational_class: OperationalClass
+    event_state: EventState
+    financial_family: str | None
+    payment_rail: str | None
+    event: ExtractorCanonicalEvent | None
+    uncertain: bool
+    notes: str
+    reviewer_id: str
+    created_at_epoch_ms: int
+    supersedes_revision: int | None = None
+    contract: str = "pocketfinancer.canonical-label/2"
+
+    def __post_init__(self) -> None:
+        if self.contract != "pocketfinancer.canonical-label/2":
+            raise LabelValidationError("label_contract_invalid")
+        if not self.label_id or not self.source_id or not self.reviewer_id:
+            raise LabelValidationError("label_identity_missing")
+        if self.revision < 1 or self.created_at_epoch_ms < 0:
+            raise LabelValidationError("label_provenance_invalid")
+        if self.revision == 1 and self.supersedes_revision is not None:
+            raise LabelValidationError("label_first_revision_cannot_supersede")
+        expected_axes = {
+            "posted": {(OperationalClass.POSTED_CANDIDATE, EventState.POSTED)},
+            "none": {
+                (OperationalClass.FINANCIAL_NON_POSTED, EventState.NOT_POSTED),
+                (OperationalClass.NON_FINANCIAL, EventState.NO_EVENT),
+                (OperationalClass.INVALID_OUTGOING, EventState.NO_EVENT),
+            },
+            "abstain": {(OperationalClass.AMBIGUOUS, EventState.UNKNOWN)},
+        }
+        if (self.operational_class, self.event_state) not in expected_axes[self.decision]:
+            raise LabelValidationError("label_taxonomy_axes_inconsistent")
+        _validate_facets(self.financial_family, self.payment_rail)
+        if self.revision > 1 and self.supersedes_revision != self.revision - 1:
+            raise LabelValidationError("label_revision_chain_invalid")
+        if self.decision not in {"posted", "none", "abstain"}:
+            raise LabelValidationError("label_decision_invalid")
+        if (self.decision == "posted") != (self.event is not None):
+            raise LabelValidationError("label_event_count_inconsistent")
+
+
+def validate_canonical_label_v2(label: CanonicalLabelV2, source: str) -> None:
+    """Require source-grounded mandatory fields for every posted event."""
+
+    label.__post_init__()
+    if label.event is None:
+        return
+    event = label.event
+    if event.existing_account_id is not None and not event.existing_account_id:
+        raise LabelValidationError("label_existing_account_id_invalid")
+    for field_name, span in (
+        ("amount", event.amount_span),
+        ("direction", event.direction_span),
+        ("account", event.account_span),
+    ):
+        _validate_source_span(span, source, f"label_{field_name}_span_invalid")
+    if (event.counterparty is None) != (event.counterparty_span is None):
+        raise LabelValidationError("label_counterparty_state_invalid")
+    if event.counterparty_span is not None:
+        _validate_source_span(
+            event.counterparty_span, source, "label_counterparty_span_invalid"
+        )
+    target = _extractor_target(event)
+    try:
+        parse_and_normalize_extraction(
+            json.dumps(target, ensure_ascii=False),
+            source,
+            primary_currency=event.currency,
+            enabled_profile_ids=("core-en", "india"),
+        )
+    except ValueError as exc:
+        raise LabelValidationError("label_extractor_event_invalid") from exc
+
+
+def project_extractor_target(label: CanonicalLabelV2, source: str) -> dict:
+    """Project committed truth directly, without consulting analyzer candidates."""
+
+    validate_canonical_label_v2(label, source)
+    if label.status not in {ReviewStatus.SUBMITTED, ReviewStatus.ADJUDICATED}:
+        raise LabelValidationError("projection_label_not_committed")
+    if label.operational_class == OperationalClass.INVALID_OUTGOING:
+        raise LabelValidationError("projection_invalid_outgoing_excluded")
+    if label.decision in {"none", "abstain"}:
+        return {"decision": label.decision}
+    assert label.event is not None
+    return _extractor_target(label.event)
+
+
+def canonical_label_v2_to_dict(label: CanonicalLabelV2) -> dict:
+    """Return the canonical-label/2 JSON representation."""
+
+    return json.loads(json.dumps(asdict(label), ensure_ascii=False))
+
+
+def _extractor_target(event: ExtractorCanonicalEvent) -> dict:
+    return {
+        "decision": "posted",
+        "amount": {
+            "value": event.amount_value,
+            "currency": event.currency,
+            "evidence": event.amount_span.to_dict(),
+        },
+        "direction": {
+            "value": event.direction.value,
+            "evidence": event.direction_span.to_dict(),
+        },
+        "account": {
+            "reference": event.account_reference,
+            "evidence": event.account_span.to_dict(),
+        },
+        "counterparty": (
+            None
+            if event.counterparty_span is None
+            else {
+                "value": event.counterparty,
+                "evidence": event.counterparty_span.to_dict(),
+            }
+        ),
+    }
+
+
+def _validate_source_span(span: SourceSpan, source: str, reason: str) -> None:
+    try:
+        expected = SourceSpan.from_source(source, span.start_scalar, span.end_scalar)
+    except ValueError as exc:
+        raise LabelValidationError(reason) from exc
+    if expected != span:
+        raise LabelValidationError(reason)

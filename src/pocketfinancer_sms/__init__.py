@@ -2,7 +2,13 @@
 
 from .analyzer import DeterministicSmsAnalyzer
 from .currency import CurrencyContext
+from .extractor import SourceSpan, build_extractor_input, parse_and_normalize_extraction
 from .persistence import evaluate_persistence, processing_result_payload
+from .processing_v3 import (
+    ExtractionCoordinator,
+    evaluate_persistence_v3,
+    processing_result_payload_v3,
+)
 from .selector import parse_and_reconstruct
 from .triage import evaluate_triage
 

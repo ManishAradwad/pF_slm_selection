@@ -9,6 +9,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
+from .extractor import SourceSpan
 from .types import EvidenceSpan
 
 
@@ -261,3 +262,141 @@ def _is_nonnegative_int(value: int | None) -> bool:
 
 def _is_positive_int(value: int | None) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+FEEDBACK_V3_CONTRACT = "pocketfinancer.user-feedback/3"
+
+
+class FieldRevisionProvenance(StrEnum):
+    SOURCE_SPAN_SELECTION = "source_span_selection"
+    USER_DIRECTION_CONTROL = "user_direction_control"
+
+
+@dataclass(frozen=True, slots=True)
+class FieldRevisionV3:
+    field: str
+    value: Any
+    provenance: FieldRevisionProvenance
+    span: SourceSpan | None = None
+    existing_account_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.field not in {"amount", "direction", "account", "counterparty"}:
+            raise ValueError("feedback field is unsupported")
+        if self.provenance == FieldRevisionProvenance.USER_DIRECTION_CONTROL:
+            if self.field != "direction" or self.span is not None:
+                raise ValueError("direction control provenance is inconsistent")
+        elif self.span is None:
+            raise ValueError("source-span correction requires a selection")
+        if self.field == "account":
+            if self.span is None or not self.existing_account_id:
+                raise ValueError("account correction requires a span and existing account")
+        elif self.existing_account_id is not None:
+            raise ValueError("only account corrections can select an account")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "field": self.field,
+            "value": self.value,
+            "provenance": self.provenance.value,
+            "span": self.span.to_dict() if self.span else None,
+            "existing_account_id": self.existing_account_id,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class UserFeedbackEventV3:
+    action_id: str
+    operation_id_hash: str
+    review_case_id_hash: str
+    expected_review_revision: int
+    resulting_review_revision: int
+    action: str
+    actor_id_hash: str
+    field_revisions: tuple[FieldRevisionV3, ...]
+    created_at_epoch_ms: int
+    previous_event_hash: str | None = None
+    canonical_label_id: str | None = None
+    canonical_label_revision: int | None = None
+    contract: str = FEEDBACK_V3_CONTRACT
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        action_id: str,
+        operation_id: str,
+        review_case_id: str,
+        expected_review_revision: int,
+        resulting_review_revision: int,
+        action: str,
+        actor_id: str,
+        field_revisions: tuple[FieldRevisionV3, ...] = (),
+        created_at_epoch_ms: int,
+        previous_event_hash: str | None = None,
+        canonical_label_id: str | None = None,
+        canonical_label_revision: int | None = None,
+    ) -> "UserFeedbackEventV3":
+        _require_uuid(action_id, "action")
+        _require_uuid(operation_id, "operation")
+        if not review_case_id or not actor_id:
+            raise ValueError("feedback review or actor identity is missing")
+        if (
+            not _is_nonnegative_int(expected_review_revision)
+            or resulting_review_revision != expected_review_revision + 1
+        ):
+            raise ValueError("feedback review revision transition is invalid")
+        if action not in {"confirm", "correct", "reject", "save_draft", "retry"}:
+            raise ValueError("feedback action is unsupported")
+        if action == "correct" and not field_revisions:
+            raise ValueError("correction feedback requires field revisions")
+        if action not in {"correct", "save_draft"} and field_revisions:
+            raise ValueError("feedback action cannot contain field revisions")
+        if not _is_nonnegative_int(created_at_epoch_ms):
+            raise ValueError("feedback timestamp is invalid")
+        if expected_review_revision == 0 and previous_event_hash is not None:
+            raise ValueError("first feedback event cannot reference a predecessor")
+        if expected_review_revision > 0 and not _is_sha256(previous_event_hash or ""):
+            raise ValueError("later feedback event requires a predecessor hash")
+        has_label_id = bool(canonical_label_id)
+        has_label_revision = _is_positive_int(canonical_label_revision)
+        if has_label_id != has_label_revision:
+            raise ValueError("feedback canonical label reference is incomplete")
+        return cls(
+            action_id=action_id,
+            operation_id_hash=hashlib.sha256(operation_id.encode()).hexdigest(),
+            review_case_id_hash=hashlib.sha256(review_case_id.encode()).hexdigest(),
+            expected_review_revision=expected_review_revision,
+            resulting_review_revision=resulting_review_revision,
+            action=action,
+            actor_id_hash=hashlib.sha256(actor_id.encode()).hexdigest(),
+            field_revisions=field_revisions,
+            created_at_epoch_ms=created_at_epoch_ms,
+            previous_event_hash=previous_event_hash,
+            canonical_label_id=canonical_label_id,
+            canonical_label_revision=canonical_label_revision,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "contract": self.contract,
+            "action_id": self.action_id,
+            "operation_id_hash": self.operation_id_hash,
+            "review_case_id_hash": self.review_case_id_hash,
+            "expected_review_revision": self.expected_review_revision,
+            "resulting_review_revision": self.resulting_review_revision,
+            "action": self.action,
+            "actor_id_hash": self.actor_id_hash,
+            "field_revisions": [revision.to_dict() for revision in self.field_revisions],
+            "created_at_epoch_ms": self.created_at_epoch_ms,
+            "previous_event_hash": self.previous_event_hash,
+            "canonical_label_id": self.canonical_label_id,
+            "canonical_label_revision": self.canonical_label_revision,
+        }
+
+    @property
+    def event_hash(self) -> str:
+        payload = json.dumps(
+            self.to_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        )
+        return hashlib.sha256(payload.encode()).hexdigest()
