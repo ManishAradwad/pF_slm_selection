@@ -28,8 +28,11 @@ Development workflow: [repository instructions](../AGENTS.md) and
    weak facets, human truth, and target projection.
 6. [Workbench Requirements and Data Flow](architecture/WORKBENCH_REQUIREMENTS_AND_DATA_FLOW.md) -
    the local corpus browser, blind review, revision, backup, and export design.
-7. [SMS Processing Execution Plan](plans/SMS_PROCESSING_EXECUTION_PLAN.md) - the
-   single active plan, gates, post-workbench phases, and next-session prompt.
+7. [Native SMS v3 App Implementation Plan](plans/NATIVE_SMS_V3_APP_IMPLEMENTATION_PLAN.md) -
+   the active executable Android/iOS extractor, review-screen, migration, test,
+   and rollout plan. The broader
+   [SMS Processing Execution Plan](plans/SMS_PROCESSING_EXECUTION_PLAN.md) records
+   completed foundation work and later model/evaluation phases.
 8. [SMS Processing Decision Log](architecture/SMS_PROCESSING_DECISION_LOG.md) -
    evidence, rejected alternatives, risks, and native responsibilities.
 9. [Unified command map](../scripts/README.md) - active SMS/workbench commands and

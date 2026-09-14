@@ -130,27 +130,16 @@ they never enter a commit.
 7. Do not materialize SFT data until the label and projection gates pass without
    fallback.
 
-## Native integration planning phase (next session)
+## Native v3 app implementation phase
 
-The next session begins in Plan mode and inspects Android/iOS before changing
-them. It must plan:
+The Android/iOS planning audit is complete. The executable implementation order,
+native work packages, review-screen behavior, migration requirements,
+verification matrix, commit sequence, and pause gates are recorded in the
+[native SMS v3 app implementation plan](NATIVE_SMS_V3_APP_IMPLEMENTATION_PLAN.md).
 
-- primary-currency onboarding/settings and per-operation snapshots;
-- advisory analyzer/profile parity without making candidates an answer allowlist;
-- a user review inbox for every retained v3 operation;
-- one-pass non-thinking direct extractor invocation and exact JSON visibility;
-- strict scalar grounding, normalization, account resolution, duplicate
-  assessment, and persistence gating without default-account fallback;
-- a truthful processing trace screen showing analyzer output, candidate IDs and
-  evidence, model JSON stream/raw output, validation, reconstruction, and
-  persistence reasons—never fabricated chain of thought;
-- native source selection, explicit debit/credit fallback, existing-account
-  choice, and append-only revision/hash feedback;
-- migration from Android's current editable result and hard OTP behavior;
-- how native feedback synchronizes into the same local workbench without hosted
-  APIs, telemetry, or raw-data logs.
-
-No native implementation begins until that plan is approved.
+No native implementation begins until that plan is approved. Automatic
+persistence remains outside its scope and requires a later versioned rollout
+decision.
 
 ## Later model/evaluation phases
 

@@ -1,5 +1,12 @@
 # PocketFinancer native SMS integration and local workbench plan
 
+> **Historical implementation plan.** This document records the completed native
+> v1/v2 candidate-selector foundation and deferred device evidence. The active
+> direct-extractor and source-span review work is in the
+> [native SMS v3 app implementation plan](NATIVE_SMS_V3_APP_IMPLEMENTATION_PLAN.md).
+> Do not use the candidate-selector implementation sections below for newly
+> admitted v3 operations.
+
 Status: Milestones A-D are implemented. Foundation, iOS, and Android automated suites are green;
 Android schema export, lint, and debug APK assembly also pass in Linux CI. Milestone E still needs
 the explicitly deferred physical-device and shadow-volume evidence. Automatic persistence remains

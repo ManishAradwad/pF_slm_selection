@@ -6,20 +6,16 @@
 
 This repository contains PocketFinancer's active platform-neutral SMS-processing
 foundation and the historical small-language-model research that led to it. The
-active path preserves source evidence, applies one deterministic analyzer, invokes
-one non-thinking Grounded Candidate Selector pass when appropriate, reconstructs
-the result on the host, and independently decides whether automatic persistence is
-safe.
+active v3 path preserves source evidence, exposes deterministic analysis as
+advisory context, invokes one direct non-thinking local extractor, strictly
+grounds its source spans, and independently resolves accounts, duplicates, review,
+and persistence.
 
-```json
-{"decision":"posted","amount":"amt_…","direction":"dir_…","account":"acc_…","counterparty":"cp_…"}
-```
-
-The model selects IDs only. Exact money, currencies, direction semantics, optional
-field state, dates, and UTF-8 spans remain host responsibilities. Android and iOS
-have not yet integrated the shared foundation. Their existing contracts remain
-historical/native-parity evidence until that separate integration is planned and
-implemented.
+The model may return none, abstain, or one posted transaction containing semantic
+values and exact Unicode-scalar source spans. The host owns strict parsing, money
+normalization, timestamps, account identity, duplicate assessment, and persistence.
+Android and iOS have not yet integrated v3; their candidate-selector contracts are
+frozen historical compatibility.
 
 ## Active status
 
@@ -38,8 +34,8 @@ selector invocations, 125 are assistive review invocations, and 16,252 skip the
 model. These are weak operational suggestions, not truth.
 
 Start with the [SMS Processing Architecture](docs/architecture/SMS_PROCESSING_ARCHITECTURE.md),
-[Grounded Candidate Selector Contract](docs/contracts/GROUNDED_CANDIDATE_SELECTOR_CONTRACT.md),
-and [active execution plan](docs/plans/SMS_PROCESSING_EXECUTION_PLAN.md).
+[Direct SMS Extractor Contract](docs/contracts/DIRECT_SMS_EXTRACTOR_CONTRACT.md),
+and [native SMS v3 app implementation plan](docs/plans/NATIVE_SMS_V3_APP_IMPLEMENTATION_PLAN.md).
 
 ## Historical model evidence
 
