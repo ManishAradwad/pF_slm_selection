@@ -12,6 +12,8 @@ contains the ignored private archive:
 | `python scripts/run_sms_processing.py serve-workbench` | Serve the token-protected workbench on `127.0.0.1` only. |
 | `python scripts/run_sms_processing.py evaluate-extractor --gguf <local.gguf> --suite synthetic --output-dir PRIVATE_DATA/sms_processing/evaluations/<run>` | Evaluate the direct extractor locally with aggregate console output and permission-restricted, ignored row-level artifacts. |
 | `python scripts/build_native_contract_release_v3.py` | Validate schemas/profiles/goldens and historical hashes, then print the deterministic frozen v3 manifest for exact comparison. |
+| `python scripts/package_native_contract_v3.py export --bundle-root <app-resource-root>` | Copy the exact frozen v3 manifest and all hash-bound artifacts into an app bundle root, preserving manifest-relative paths and refusing conflicting files. |
+| `python scripts/package_native_contract_v3.py check --bundle-root <app-resource-root>` | Verify the packaged v3 manifest and every referenced artifact; missing or altered files fail with the stable `configuration_integrity` reason. |
 | `python scripts/run_sms_processing.py backup-workbench` | Create a mode-0600 SQLite backup and SHA-256 manifest. |
 | `python scripts/run_sms_processing.py export-workbench` | Export submitted/adjudicated canonical labels into a reproducible hash-bound private directory. |
 
