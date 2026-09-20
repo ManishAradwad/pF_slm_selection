@@ -1,8 +1,20 @@
 # PocketFinancer native SMS v3 app implementation plan
 
-Status: **ready for approval; implementation has not started**
+Status: **mandatory execution steps 1–8 implemented; Android automated and
+emulator gates passed; Apple and physical-device acceptance remains pending**
 
 Prepared: 2026-09-14
+
+Execution update: 2026-09-16. The evidence-backed model-provenance decision
+required the additive `native-integration-v4` / `processing-config/4` successor;
+v1/v2/v3 remain frozen. New eligible Android work uses a real runtime-observed
+model-file SHA-256, while the Apple system-managed runtime records no file hash.
+See [NATIVE_SMS_V4_POST_STEP_5_REVIEW.md](NATIVE_SMS_V4_POST_STEP_5_REVIEW.md)
+for the preserved step-5 checkpoint and
+[NATIVE_SMS_V4_IMPLEMENTATION_REVIEW.md](NATIVE_SMS_V4_IMPLEMENTATION_REVIEW.md)
+for the continued steps 6–10 implementation, verification, and remaining-gap
+record. Android completed the synthetic local review-all trial. This host cannot
+run Xcode, an iOS simulator, or either platform's physical-device acceptance.
 
 This is the executable plan for integrating the frozen SLM-primary SMS
 extractor into the Android and iOS apps and building the source-span review

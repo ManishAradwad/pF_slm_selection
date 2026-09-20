@@ -1,21 +1,27 @@
 # Native SMS Integration Contract
 
-Status: **release v3 frozen; native implementation pending**
+Status: **release v4 frozen; native mandatory steps 3–5 implemented; review pending**
 
-Release manifest: `configs/sms_processing/contracts/releases/native-integration-v3.json`
+Release manifest: `configs/sms_processing/contracts/releases/native-integration-v4.json`
+
+Post-step-5 checkpoint:
+`docs/plans/NATIVE_SMS_V4_POST_STEP_5_REVIEW.md`
 
 ## Compatibility boundary
 
 Existing v1/v2 readers and stored artifacts remain supported byte for byte.
-Native integration v3 binds `sms-extractor-input/1`, `sms-extractor/1`,
+Native integration v4 succeeds v3 and binds `sms-extractor-input/1`, `sms-extractor/1`,
 `extractor-validation-profile/1`, `extractor-prompt/1`,
-`processing-config/3`, `processing-result/3`, `processing-trace/3`,
+`processing-config/4`, `processing-result/3`, `processing-trace/3`,
 `reason-code-registry/2`, `account-resolution-profile/1`,
 `review-case/1`, `user-feedback/3`, and `canonical-label/2`.
 
-Android and iOS do not yet implement v3. The shared Python package is the
-behavioral authority until both ports reproduce the manifest hashes, parser,
-Unicode-scalar conversion, and sanitized golden vectors. Changing any frozen
+Android and iOS now contain the step 3–5 v4 parser, Unicode-scalar, money,
+account-resolution, operation-routing, durable-state, migration, and recovery
+ports. Android automated and emulator recovery gates pass. The iOS XCTest and
+migration coverage is present but still requires execution on Xcode 26; review
+drafts, confirmation, and UI work from steps 6 onward remain unimplemented. The
+shared Python package remains the behavioral authority. Changing any frozen
 asset requires a new release manifest and golden bundle.
 
 ## Frozen behavior
@@ -46,7 +52,7 @@ Recognition and persistence are separate. The typed persistence gate requires a
 known frozen contract/configuration, exactly one posted event, exact money,
 currency, timestamp, a uniquely resolved existing account, consistent family and
 evidence, no blocking conflicts, and an enabled rollout mode. Automatic
-persistence is disabled in v3; native apps must operate in shadow/review-only mode
+persistence is disabled in v4; native apps must operate in shadow/review-only mode
 until a separately reviewed release enables it.
 
 ## Trace, feedback, and transfer
@@ -77,6 +83,13 @@ Both ports must pass the frozen emoji and combining-mark golden vectors.
 
 ## Historical releases
 
-Native releases v1/v2 and the candidate-selector assets are frozen historical
+Native releases v1/v2/v3 and the candidate-selector assets are frozen historical
 compatibility artifacts. They remain valid for their stored operations and
-reproducibility only. Release v3 is additive and changes no historical byte.
+reproducibility only. Release v4 is additive and changes no historical byte.
+
+
+## V4 model identity provenance
+
+V4 leaves every v3 byte unchanged. It adds model_identity_kind to the extractor configuration: An eligible file_sha256 runtime requires a real model_file_sha256. An ineligible file_sha256 runtime may use null when the file is unavailable or unreadable, or a real hash when observed; it must never fabricate one. system_managed_runtime always requires that field to be null. Both require a nonempty model_identifier when eligible. This supports Apple Foundation Models without inventing a file hash while preserving file-backed Android provenance.
+
+V4 exports made with manifest 293086a80b437dea7301ebfa218b537aa3d7b8c40ccea118f3091de1e7e264ed are obsolete. The only changed bundle paths are configs/sms_processing/contracts/releases/native-integration-v4.json and configs/sms_processing/contracts/v4/processing-config.schema.json. The package exporter intentionally refuses overwrites: before replacing those two paths, verify their old hashes (manifest 293086a80b437dea7301ebfa218b537aa3d7b8c40ccea118f3091de1e7e264ed; schema 20be50184176295446c627dbe9d36a86553e28d3f07dd687ae7dafabe252e9d3), replace only those verified files with the new exported bytes, then run package_native_contract_v4.py check. Any other mismatch fails closed and requires a clean export root.

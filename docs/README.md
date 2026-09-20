@@ -30,7 +30,10 @@ Development workflow: [repository instructions](../AGENTS.md) and
    the local corpus browser, blind review, revision, backup, and export design.
 7. [Native SMS v3 App Implementation Plan](plans/NATIVE_SMS_V3_APP_IMPLEMENTATION_PLAN.md) -
    the active executable Android/iOS extractor, review-screen, migration, test,
-   and rollout plan. The broader
+   and rollout plan. The
+   [Native SMS v4 Implementation Review](plans/NATIVE_SMS_V4_IMPLEMENTATION_REVIEW.md)
+   records the implemented source state, Android evidence, and remaining Apple
+   and physical-device acceptance gaps. The broader
    [SMS Processing Execution Plan](plans/SMS_PROCESSING_EXECUTION_PLAN.md) records
    completed foundation work and later model/evaluation phases.
 8. [SMS Processing Decision Log](architecture/SMS_PROCESSING_DECISION_LOG.md) -

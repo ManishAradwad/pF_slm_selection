@@ -181,3 +181,8 @@ Native release v3 freezes the new shared boundary, but Android and iOS have not
 integrated it. Automatic persistence remains disabled. This decision authorizes
 neither model deployment nor data publication; protected human-gold evaluation,
 runtime parity, privacy, license, and device review gates remain open.
+
+
+## 2026-09-15 — Successor release v4 for system-managed model provenance
+
+Evidence established that the frozen processing-config/3 requires a SHA-256 of a model file for every eligible runtime, while Apple Foundation Models exposes a system-managed model without an app-readable model artifact. A fabricated hash would falsely claim evidence that does not exist. Therefore native-integration-v4 and processing-config/4 are additive successors: eligible model_identity_kind=file_sha256 requires a real file SHA-256; an ineligible file-backed runtime may use null when no file can be read, while a supplied hash remains validated; model_identity_kind=system_managed_runtime always requires model_file_sha256=null and retains explicit model_identifier, runtime, OS, device, prompt, grammar, and validation provenance. Releases v1/v2/v3 remain frozen byte-for-byte. Automatic persistence remains disabled.
