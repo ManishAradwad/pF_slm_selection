@@ -1,14 +1,28 @@
 # SMS Processing Decision Log
 
 Status: **active**
-Date selected: 2026-09-01
+Current decision reconciled: 2026-09-22
 
-## Selected design
+## Current selected design
+
+PocketFinancer uses one local SLM as the central classifier and extractor. The
+deterministic analyzer supplies advisory evidence only. The host strictly parses
+and grounds Unicode-scalar spans, normalizes exact money, resolves accounts,
+assesses duplicates, owns persistence/recovery, and records local review feedback.
+
+The frozen v4 release remains review-only. The next additive release will make a
+complete valid uniquely resolved non-duplicate posted result a Transactions result
+and reserve Review for incomplete, invalid, ambiguous, abstained, interrupted,
+incompatible, or failed work. That routing is planned, not implemented in v4.
+
+## Historical design selected 2026-09-01
 
 PocketFinancer uses one shared deterministic analyzer, a high-recall triage policy,
 one non-thinking Grounded Candidate Selector pass, strict host reconstruction, a
 separate persistence gate, rich human labels, group-first corpus segregation, and
-one local SQLite review workbench.
+one local SQLite review workbench. The 2026-09-12 direct-extractor decision
+superseded the candidate selector for new product operations; the design remains
+here as historical rationale.
 
 ## Evidence
 
@@ -29,11 +43,13 @@ one local SQLite review workbench.
 
 ## Alternatives considered
 
-### Direct semantic generation
+### Direct semantic generation (historical decision, superseded)
 
-Rejected as the production route. It asks a small model to copy/normalize money,
-accounts, counterparties, currency, and dates, increasing hallucination and
-validation surface. It also makes exact grounding and correction provenance harder.
+The 2026-09-01 design rejected this as the production route because it expanded
+the validation surface. Evidence and contract work later showed that strict
+source-span grounding and host-owned normalization could contain that risk while
+avoiding deterministic candidate-coverage limits. The 2026-09-12 decision below
+therefore supersedes this rejection for new operations.
 
 ### Byte-offset Candidate output
 
@@ -186,3 +202,29 @@ runtime parity, privacy, license, and device review gates remain open.
 ## 2026-09-15 — Successor release v4 for system-managed model provenance
 
 Evidence established that the frozen processing-config/3 requires a SHA-256 of a model file for every eligible runtime, while Apple Foundation Models exposes a system-managed model without an app-readable model artifact. A fabricated hash would falsely claim evidence that does not exist. Therefore native-integration-v4 and processing-config/4 are additive successors: eligible model_identity_kind=file_sha256 requires a real file SHA-256; an ineligible file-backed runtime may use null when no file can be read, while a supplied hash remains validated; model_identity_kind=system_managed_runtime always requires model_file_sha256=null and retains explicit model_identifier, runtime, OS, device, prompt, grammar, and validation provenance. Releases v1/v2/v3 remain frozen byte-for-byte. Automatic persistence remains disabled.
+
+## 2026-09-21 — Make Review exception-only in a successor release
+
+Product routing should not force a complete, strictly valid, uniquely resolved,
+non-duplicate posted result through manual review. The target successor release
+will insert that result into Transactions atomically. Incomplete, invalid,
+ambiguous, abstained, interrupted, incompatible, and failed operations will retain
+their source evidence and enter Review. A valid `none` decision remains a
+separate terminal non-transaction outcome governed by the privacy policy.
+
+This decision does not alter v4. V4 is frozen and `review_only`, so both apps
+currently retain valid posted v4 results for review. Enabling the new route
+requires an additive processing configuration/reason-code release, parity vectors,
+migrations, recovery tests, native build/device evidence, protected quality
+evaluation, and explicit rollout approval.
+
+Review remains source-grounded: the full SMS, accessible per-field highlights,
+and exactly one active native selection. Confirmation writes one atomic local
+transaction; corrections append local revision-bound feedback and do not silently
+become training labels.
+
+Processing transparency must be real-time within each runtime's observable API.
+Android exposes decoded token deltas. Apple Foundation Models exposes cumulative
+structured-generation snapshots but not decoded token pieces or IDs, so iOS shows
+those snapshots and explicitly labels token-level data unavailable. Neither app
+may reconstruct or label hidden reasoning.

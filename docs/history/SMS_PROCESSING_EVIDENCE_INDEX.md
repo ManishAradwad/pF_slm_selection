@@ -13,6 +13,7 @@ They are not the active product architecture.
 | `configs/contracts/pocketfinancer-semantic-v2.schema.json` | Historical Semantic experiment contract; not an active label or runtime output. |
 | `lfm25/semantic_v2.py`, Candidate Protocol modules, Phase C/D modules | Compatibility/reproduction code for measured evidence. |
 | `docs/history/extraction_program/` and `configs/history/pocketfinancer-extraction-v2*.json` | Superseded plan/status and machine policy preserved outside the active path. |
+| `docs/history/native_sms/NATIVE_SMS_V4_IMPLEMENTATION_REVIEW.md` | 2026-09-20 source/Android evidence and explicitly unverified Apple/physical-device gates; not proof that emulator observations are fixed. |
 
 The path `configs/programs/pocketfinancer-extraction-v2-decision-policy.json` is a
 compatibility link to the historical frozen policy. It exists solely so the

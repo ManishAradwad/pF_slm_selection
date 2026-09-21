@@ -2,20 +2,20 @@
 
 [![CI](https://github.com/ManishAradwad/pF_slm_selection/actions/workflows/ci.yml/badge.svg)](https://github.com/ManishAradwad/pF_slm_selection/actions/workflows/ci.yml)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Runtime](https://img.shields.io/badge/target-Android%20on--device-3DDC84?logo=android&logoColor=white)](https://github.com/ManishAradwad/pocket-financer-android)
+[![Runtime](https://img.shields.io/badge/target-Android%20%2B%20iOS%20on--device-3DDC84)](docs/architecture/SMS_PROCESSING_ARCHITECTURE.md)
 
-This repository contains PocketFinancer's active platform-neutral SMS-processing
-foundation and the historical small-language-model research that led to it. The
-active v3 path preserves source evidence, exposes deterministic analysis as
-advisory context, invokes one direct non-thinking local extractor, strictly
-grounds its source spans, and independently resolves accounts, duplicates, review,
-and persistence.
+This repository owns PocketFinancer's active platform-neutral SMS-processing
+architecture, frozen contracts, sanitized parity vectors, evaluation authority,
+and historical small-language-model research. The local SLM is the central
+classifier and extractor. Deterministic analysis is advisory evidence; strict host
+validation, Unicode-scalar grounding, exact money, account resolution, duplicate
+assessment, persistence, and recovery remain deterministic safety boundaries.
 
-The model may return none, abstain, or one posted transaction containing semantic
-values and exact Unicode-scalar source spans. The host owns strict parsing, money
-normalization, timestamps, account identity, duplicate assessment, and persistence.
-Android and iOS have not yet integrated v3; their candidate-selector contracts are
-frozen historical compatibility.
+Android and iOS source now contain the additive v4 direct-extractor integration.
+V4 remains review-only and is not a deployment or full-verification claim. The
+next planned contract will route complete valid uniquely resolved results directly
+to Transactions and reserve Review for incomplete, invalid, ambiguous, abstained,
+interrupted, incompatible, or failed work.
 
 ## Active status
 
@@ -29,13 +29,15 @@ The complete private archive has been rebuilt into one ignored canonical manifes
 - the local SQLite workbench contains the complete manifest and has a verified
   hash-recorded backup.
 
-The current analyzer pass is deliberately conservative: 1,453 rows are normal
-selector invocations, 125 are assistive review invocations, and 16,252 skip the
-model. These are weak operational suggestions, not truth.
+The preserved corpus-triage snapshot is deliberately conservative: 1,453 rows
+were normal selector invocations, 125 were assistive review invocations, and
+16,252 skipped the then-current model path. Those counts are weak historical
+operational suggestions, not truth and not the current SLM-primary routing policy.
 
-Start with the [SMS Processing Architecture](docs/architecture/SMS_PROCESSING_ARCHITECTURE.md),
-[Direct SMS Extractor Contract](docs/contracts/DIRECT_SMS_EXTRACTOR_CONTRACT.md),
-and [native SMS v3 app implementation plan](docs/plans/NATIVE_SMS_V3_APP_IMPLEMENTATION_PLAN.md).
+Start with the [SMS processing architecture](docs/architecture/SMS_PROCESSING_ARCHITECTURE.md),
+[cross-platform roadmap](docs/plans/CROSS_PLATFORM_SMS_ROADMAP.md),
+[evaluation strategy](docs/plans/SMS_EVALUATION_STRATEGY.md), and
+[direct SMS extractor contract](docs/contracts/DIRECT_SMS_EXTRACTOR_CONTRACT.md).
 
 ## Historical model evidence
 
@@ -115,25 +117,21 @@ for the controlled comparisons and limitations.
 
 ```mermaid
 flowchart LR
-    A["Message + currency snapshot"] --> B["Deterministic analyzer"]
-    B --> C["Invoke / discard / retain review"]
-    C --> D["One-pass grounded ID selector"]
-    D --> E["Strict host reconstruction"]
-    E --> F["Independent persistence gate"]
-    C --> G["Local review workbench"]
-    F --> G
-    H["Canonical private manifest"] -. "local and ignored" .-> G
+    A["Immutable SMS + configuration"] --> B["Advisory deterministic analysis"]
+    B --> C["Local SLM classification + extraction"]
+    C --> D["Strict parse + Unicode-scalar grounding"]
+    D --> E["Exact money + account + duplicate checks"]
+    E --> F["Versioned routing"]
+    F -->|"complete valid successor result"| G["Transactions"]
+    F -->|"exception or current v4 review-only"| H["Review"]
 ```
 
-The architecture distinguishes three product facts:
-
-- the model recognized a posted event;
-- the host reconstructed a valid semantic result;
-- the result passed every automatic-persistence safety gate.
-
-The processing trace can expose real analyzer cues/candidates, compact JSON token
-decoding, raw model output, validation, reconstruction, and persistence reasons.
-It must not fabricate or expose chain of thought.
+The processing trace exposes real observable stages, not hidden reasoning.
+Android can show decoded token deltas during generation. Apple's public Foundation
+Models API does not expose decoded tokens, so iOS shows cumulative structured
+generation snapshots and labels token-level data unavailable. The v4 provenance
+contract likewise records a real file hash for file-backed runtimes and `null`
+for system-managed runtimes; it never fabricates a model-file SHA.
 
 ## Active local workflow
 
@@ -143,6 +141,7 @@ python scripts/run_sms_processing.py init-workbench
 python scripts/run_sms_processing.py serve-workbench
 python scripts/run_sms_processing.py backup-workbench
 python scripts/run_sms_processing.py export-workbench
+python scripts/run_sms_processing.py evaluate-extractor --help
 ```
 
 The workbench binds only to `127.0.0.1`, uses no remote assets/API/telemetry, and
@@ -236,10 +235,12 @@ configs/
   pipelines/       app-facing experiment declarations
   models/          candidate model records
 docs/
-  architecture/    stable boundaries and improvement roadmap
+  architecture/    canonical boundaries and dated decisions
+  plans/           active cross-platform roadmap and evaluation strategy
+  history/         dated implementation and experiment evidence
   experiments/     dated evidence and the canonical catalog
   guides/          fine-tuning and conceptual guides
-src/pocketfinancer_sms/ active analyzer, triage, selector, corpus, workbench
+src/pocketfinancer_sms/ active analyzer, extractor, contracts, corpus, workbench
 lfm25/              historical model-research and compatibility package
 scripts/            CLI entry points, safety checks, training and conversion
 tests/              lightweight unit, contract, provenance and safety tests
@@ -287,9 +288,14 @@ guard, not a substitute for reviewing content and diffs.
 - [Contribution and pull-request workflow](CONTRIBUTING.md)
 - [Command map](scripts/README.md)
 - [SMS Processing Architecture](docs/architecture/SMS_PROCESSING_ARCHITECTURE.md)
-- [Grounded Candidate Selector Contract](docs/contracts/GROUNDED_CANDIDATE_SELECTOR_CONTRACT.md)
+- [Cross-platform SMS roadmap](docs/plans/CROSS_PLATFORM_SMS_ROADMAP.md)
+- [SMS evaluation strategy](docs/plans/SMS_EVALUATION_STRATEGY.md)
+- [Direct SMS extractor contract](docs/contracts/DIRECT_SMS_EXTRACTOR_CONTRACT.md)
+- [Native SMS integration contract](docs/contracts/NATIVE_SMS_INTEGRATION_CONTRACT.md)
 - [Workbench Requirements and Data Flow](docs/architecture/WORKBENCH_REQUIREMENTS_AND_DATA_FLOW.md)
 - [SMS Processing Decision Log](docs/architecture/SMS_PROCESSING_DECISION_LOG.md)
+- [Historical evidence index](docs/history/SMS_PROCESSING_EVIDENCE_INDEX.md)
+- [Historical Grounded Candidate Selector Contract](docs/contracts/GROUNDED_CANDIDATE_SELECTOR_CONTRACT.md)
 - [Candidate Protocol V1 controlled run](docs/experiments/POCKETFINANCER_LFM25_350M_CANDIDATE_PROTOCOL_V1.md)
 - [Completed 2.6B diagnostic report](docs/experiments/POCKETFINANCER_LFM25_2_6B_R16_S17.md)
 - [Historical 350M Android-aligned run](docs/experiments/POCKETFINANCER_A9_LORA_R16_S17.md)
@@ -300,14 +306,13 @@ guard, not a substitute for reviewing content and diffs.
 
 ## Next decision gates
 
-1. Use the workbench to rebuild operational segregation and canonical human truth
-   from the annotation-training/development pools.
-2. Measure candidate-oracle failures and reduce retain-review through reviewed,
-   provenance-bound analyzer/profile changes.
-3. Plan Android/iOS integration for currency snapshots, retain-review assistance,
-   grounded selector decoding, processing traces, feedback, and safe persistence.
-4. Freeze the pipeline before blind protected-test/later-time evaluation.
-5. Only then build training targets, select a model, and run native-device gates.
+The [cross-platform roadmap](docs/plans/CROSS_PLATFORM_SMS_ROADMAP.md) is the only
+active implementation sequence. Its next contract decision is exception-only
+review routing: complete valid uniquely resolved non-duplicate posted results to
+Transactions; incomplete, invalid, ambiguous, abstained, interrupted,
+incompatible, or failed work to Review. The
+[evaluation strategy](docs/plans/SMS_EVALUATION_STRATEGY.md) defines parity,
+human-gold, runtime, privacy, recovery, and physical-device acceptance gates.
 
 ## Contributing
 

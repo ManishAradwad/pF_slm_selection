@@ -1,11 +1,12 @@
 # Native SMS Integration Contract
 
-Status: **release v4 frozen; native mandatory steps 3–5 implemented; review pending**
+Status: **release v4 frozen; native source implemented; cross-platform acceptance pending**
 
 Release manifest: `configs/sms_processing/contracts/releases/native-integration-v4.json`
 
-Post-step-5 checkpoint:
-`docs/plans/NATIVE_SMS_V4_POST_STEP_5_REVIEW.md`
+Historical implementation evidence is indexed in
+`docs/history/SMS_PROCESSING_EVIDENCE_INDEX.md`. The active work is defined by
+`docs/plans/CROSS_PLATFORM_SMS_ROADMAP.md`.
 
 ## Compatibility boundary
 
@@ -16,13 +17,13 @@ Native integration v4 succeeds v3 and binds `sms-extractor-input/1`, `sms-extrac
 `reason-code-registry/2`, `account-resolution-profile/1`,
 `review-case/1`, `user-feedback/3`, and `canonical-label/2`.
 
-Android and iOS now contain the step 3–5 v4 parser, Unicode-scalar, money,
-account-resolution, operation-routing, durable-state, migration, and recovery
-ports. Android automated and emulator recovery gates pass. The iOS XCTest and
-migration coverage is present but still requires execution on Xcode 26; review
-drafts, confirmation, and UI work from steps 6 onward remain unimplemented. The
-shared Python package remains the behavioral authority. Changing any frozen
-asset requires a new release manifest and golden bundle.
+Android and iOS contain the v4 parser, Unicode-scalar, money, account-resolution,
+operation-routing, durable-state, migration, recovery, review-draft, atomic
+confirmation, and native review UI ports. Recorded Android automated/emulator
+evidence is historical and does not prove physical-device readiness. The iOS
+source and XCTest coverage still require execution on the Mac/Xcode lane. The
+shared Python package remains the behavioral authority. Changing any frozen asset
+requires a new release manifest and golden bundle.
 
 ## Frozen behavior
 
@@ -51,9 +52,14 @@ scalar spans, and inconsistent selections are invalid.
 Recognition and persistence are separate. The typed persistence gate requires a
 known frozen contract/configuration, exactly one posted event, exact money,
 currency, timestamp, a uniquely resolved existing account, consistent family and
-evidence, no blocking conflicts, and an enabled rollout mode. Automatic
-persistence is disabled in v4; native apps must operate in shadow/review-only mode
-until a separately reviewed release enables it.
+evidence, no blocking conflicts, and an enabled rollout mode. V4 is fixed in
+`review_only`, so all valid posted v4 results remain review cases.
+
+The planned successor release will send a complete valid uniquely resolved
+non-duplicate result to Transactions and route only incomplete, invalid,
+ambiguous, abstained, interrupted, incompatible, or failed work to Review. This
+policy must be versioned; it must not be retrofitted into v4 or applied silently to
+stored v1-v4 operations.
 
 ## Trace, feedback, and transfer
 

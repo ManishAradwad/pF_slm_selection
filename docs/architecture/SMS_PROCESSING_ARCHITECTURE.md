@@ -1,200 +1,139 @@
-# SMS Processing Architecture
+# PocketFinancer SMS processing architecture
 
-Status: **active architecture and implementation authority**
-Executable package: `src/pocketfinancer_sms`
-Private corpus configuration: `configs/sms_processing/archive-india-inr.json`
+Status: **canonical cross-platform architecture**
+Last reconciled: 2026-09-22
 
-## Active v3 outcome
+This document defines the product boundary shared by Android and iOS. Executable
+shared behavior, schemas, frozen releases, parity vectors, and evaluators live in
+this repository. The native repositories implement that boundary with their own
+runtime, storage, and UI frameworks.
 
-The production-intended shared foundation is SLM-primary. Android and iOS have
-not integrated it. The frozen shared contracts and Python implementation are the
-authority and parity oracle for future native ports.
+## Product invariant
 
-For each incoming message:
+The local small language model is the central classifier and extractor. It decides
+`none`, `abstain`, or one `posted` event and, for a posted event, proposes the
+transaction fields and exact source spans.
 
-1. The coordinator creates an immutable processing-config/3 snapshot with
-   operation identity, platform receipt time, primary currency, runtime hashes,
-   and automatic persistence disabled.
-2. The deterministic analyzer produces advisory candidates and cues. Advisory
-   evidence is visible to the extractor but is never an answer allowlist.
-3. The host builds sms-extractor-input/1 from the unchanged message and makes one
-   greedy, non-thinking local GGUF attempt.
-4. The extractor returns only none, abstain, or one posted extraction containing
-   semantic values and exact Unicode-scalar source evidence.
-5. The host strictly parses and grounds the output, normalizes exact money, and
-   resolves the account reference against existing accounts.
-6. The coordinator performs duplicate assessment and the typed persistence gate.
-   Recognition and persistence remain separate.
-7. Invalid, interrupted, abstained, unresolved, ambiguous, or blocked operations
-   become revisioned local review cases. Receipt time is read-only.
+The deterministic analyzer is advisory evidence. Its cues and candidate spans may
+help the model and the reviewer, but they are not an allowlist, cannot suppress a
+model call by themselves, and cannot override the unchanged source SMS.
 
-```text
-platform message + immutable configuration
-                 |
-                 +--> advisory deterministic analysis
-                 |
-                 v
-        one direct local SLM extraction
-             /          |          \
-          none       abstain       posted values + scalar spans
-             \          |          /
-                 strict host validation
-                          |
-               normalization + account resolution
-                          |
-               duplicate + persistence gates
-                    /             \
-             typed result      local review
-```
+The host remains authoritative for safety:
 
-### Active executable boundaries
-
-| Concern | Authority |
-|---|---|
-| Advisory analysis and source preservation | `analyzer.py`, `structural_text.py`, `types.py` |
-| Extractor input, parsing, grounding, normalization | `extractor.py` |
-| Runtime/configuration eligibility | `configuration_v3.py` |
-| Account resolution | `account_resolution.py` |
-| Operation coordination and typed result | `processing_v3.py` |
-| V3 persistence safety | `processing_v3.py` |
-| Rich human truth and direct target projection | `labels.py` |
-| Trace, review, and feedback | `trace.py`, `feedback.py` |
-| Offline GGUF evaluation | `evaluation.py` |
-
-The model cannot set receipt time, reason codes, operation identity, normalized
-account identity, duplicate status, or persistence. No taxonomy regex or second
-classifier model independently decides semantic truth.
-
-## Historical candidate-selector architecture (native v1/v2)
-
-The following flow remains documented to reproduce stored candidate-selector
-operations and native releases v1/v2. It is not the model contract for newly
-created shared operations. Historical assets remain byte-for-byte frozen.
-
-For one incoming message, the intended runtime sequence is:
-
-1. The host snapshots operation configuration: primary ISO-4217 currency, enabled
-   locale profiles, message timestamp and provenance, direction metadata, and an
-   operation identifier.
-2. `DeterministicSmsAnalyzer` preserves the source text and enumerates clauses,
-   exact host spans, money, direction, account, counterparty, state cues, and
-   aggregate-safe reasons.
-3. `evaluate_triage` applies policy to that same analysis. It returns both a
-   storage disposition (`invoke`, `discard`, or `retain_review`) and an orthogonal
-   selector action (`run_normal`, `run_assistive`, or `skip`).
-4. When the selector action permits it, the host packages the message and its
-   source-backed candidates for one greedy, non-thinking SLM pass.
-5. The SLM emits only `none`, `abstain`, or one `posted` object selecting four
-   candidate IDs. It never emits offsets or canonical values.
-6. The host strictly validates every ID and reconstructs a rich semantic result.
-7. The persistence gate independently decides whether the reconstructed result is
-   safe to save automatically. Recognition does not imply persistence.
-8. Anything unresolved is retained for local/user review. A processing trace can
-   show deterministic analysis, the compact model stream and raw output,
-   validation, reconstruction, and persistence decision without inventing chain
-   of thought.
+- strict JSON parsing with duplicate-key, unknown-field, coercion, and trailing-data
+  rejection;
+- zero-based, half-open Unicode scalar spans grounded against the unchanged SMS;
+- exact decimal-to-minor-unit normalization without floating point;
+- account resolution against versioned local aliases, with missing or ambiguous
+  matches failing closed;
+- receipt time, operation ownership, duplicate assessment, persistence, and
+  recovery; and
+- durable traces, review revisions, and local feedback.
 
 ```text
-platform message + configuration snapshot
-                 │
-                 ▼
-      deterministic structural analyzer
-                 │
-                 ├── terminal certainty ───────────────► discard (offline row retained)
-                 │
-                 ├── incomplete/ambiguous ─────────────► retain_review
-                 │                                      ├── run_assistive when grounded
-                 │                                      └── skip when not representable
-                 │
-                 └── one grounded event candidate ─────► invoke / one SLM pass
-                                                          │
-                                    none ◄────────────────┼──────────────► abstain
-                                                          │
-                                                          ▼
-                                               posted candidate IDs
-                                                          │
-                                             strict host reconstruction
-                                                          │
-                                  ┌───────────────────────┴──────────────────────┐
-                                  ▼                                              ▼
-                           auto persistence                               retained review
-                         (all safety gates)                           (any unresolved gate)
+immutable source SMS + receipt time + configuration
+                         |
+             advisory deterministic analysis
+                         |
+              one local SLM classification/extraction
+             /                 |                 \
+          none              abstain          posted + scalar spans
+             \                 |                 /
+               strict host validation and grounding
+                         |
+        exact money + account resolution + duplicate assessment
+                         |
+             versioned routing and durable local state
 ```
 
-### Historical executable boundaries
+## Routing policy: implemented and planned
 
-| Concern | Authority |
-|---|---|
-| Analyzer and host evidence | `analyzer.py`, `structural_text.py`, `types.py` |
-| Currency snapshot and exact money | `currency.py`, `profiles.py` |
-| Pre-filter policy | `triage.py` |
-| Compact model contract and reconstruction | `selector.py` |
-| Automatic persistence | `persistence.py` |
-| Human truth and target projection | `labels.py` |
-| Observability and user feedback | `trace.py`, `feedback.py` |
-| Canonical private corpus and pools | `corpus/` |
-| Local review UI and durable state | `workbench/` |
+The frozen `native-integration-v4` release is implemented in both native source
+trees in `review_only` mode. Under that release, even a complete, valid posted
+result is retained for owner review. Android automated/emulator evidence and iOS
+source/XCTest coverage are recorded in the historical implementation reviews;
+they do not prove physical-device release readiness, and iOS execution still
+requires the Mac/Xcode lane.
 
-No taxonomy regex independently decides truth, and no second classifier model is
-part of the production path.
+The intended successor routing policy is:
 
-### Historical analyzer output
+| Result | Intended destination |
+| --- | --- |
+| Complete, strictly valid, uniquely resolved, non-duplicate posted result | `Transactions` |
+| Incomplete or invalid result | `Review` |
+| Missing or ambiguous account resolution | `Review` |
+| `abstain`, runtime failure, interruption, or incompatible provenance | `Review` |
+| `none` with a valid terminal classification | No transaction; retain only the evidence required by the active privacy policy |
 
-The versioned analysis object contains:
+This table is a planned correction, not a description of current v4 routing. It
+must be introduced by an additive contract/configuration release with migration,
+recovery, parity, and device evidence. Frozen v1-v4 bytes must not be edited.
 
-- a message- and configuration-bound `analysis_id`;
-- an NFKC/casefold/whitespace structural view used only for matching, with a
-  fingerprint recorded while all returned evidence remains unchanged source text;
-- unchanged source-backed clause spans in character and UTF-8 coordinates;
-- amount candidates with exact minor units, currency, and provenance;
-- completed direction evidence candidates;
-- account/card/VPA and counterparty candidates;
-- explicit absent account and counterparty candidates;
-- failure, negation, pending, due, request, balance, promotional,
-  administrative, credential, and payment-rail cues;
-- source-safe reason codes and input/direction metadata.
+## Review and correction
 
-UTF-8 offsets are host metadata and human truth. They are never model output.
+Review is for exceptions, not the normal destination for a complete valid result.
+A review case must show the complete immutable source SMS, receipt time, stable
+reason codes, advisory analyzer evidence, and the model proposal. Amount,
+direction, account, and counterparty use accessible field-specific highlights.
+Exactly one native text selection is active at a time so selection handles,
+screen-reader focus, and field assignment remain unambiguous.
 
-### Historical state transitions
+A reviewer may select exact source evidence, choose debit or credit when the
+direction cannot be selected, and choose an existing account. Confirmation is one
+atomic local transaction. Corrections append revision-bound `UserFeedbackEvent`
+records. They remain local label evidence until explicit export and adjudication;
+only source-grounded, split-safe approved labels may enter SLM fine-tuning or
+deterministic-component improvement datasets.
 
-```text
-received
-  → analyzed
-  → discarded_terminal | retained_review | selector_pending
-selector_pending
-  → selector_none | selector_abstain | selector_posted | selector_invalid
-selector_posted
-  → reconstructed | reconstruction_failed
-reconstructed
-  → persisted_automatically | retained_review
-retained_review
-  → draft → submitted → revealed (protected only, explicit) → revised/adjudicated
-```
+## Processing transparency
 
-Malformed, unknown, ambiguous, inconsistent, unsupported, cross-message, or
-cross-clause core selections fail closed to review. They never become negative
-truth and never silently persist.
+Owner-visible processing must distinguish source evidence, advisory analysis,
+model input, observable generation, raw output, strict parsing, grounding,
+normalization, routing, persistence, and later owner correction. It must never
+present fabricated chain of thought.
 
-## Historical measured candidate baseline
+Real-time decoding transparency is required where the runtime exposes it. Android
+can display decoded token deltas and cumulative structured output while generation
+is active. Apple Foundation Models does not expose decoded token pieces or IDs via
+the public API used by the iOS app; iOS must instead display each observable
+cumulative structured-generation snapshot in real time and label token-level data
+as unavailable. Reconstructed text must not be called token decoding.
 
-The current configured private rebuild represents all 17,830 archive rows exactly
-once. It is intentionally conservative: 1,453 rows currently receive normal
-selector invocation, 125 may receive assistive invocation, and 16,252 skip the
-model. This is a starting diagnostic, not a claim that
-the deterministic analyzer is complete. Human segregation work will measure and
-improve those boundaries without using weak outputs as ground truth.
+## Model identity and the v3 incompatibility
 
-## Frozen native release v3
+`processing-config/3` requires a SHA-256 for a readable model file. That is valid
+for Android GGUF files but impossible for Apple's system-managed model, which has
+no app-readable model artifact. The evidence-backed decision is the additive
+`processing-config/4` contract:
 
-`configs/sms_processing/contracts/releases/native-integration-v3.json` binds the
-direct extractor schemas, profile, prompt, grammar, reason registry, algorithms,
-and sanitized goldens by SHA-256. Native ports reproduce those bytes and
-decisions rather than reinterpret prose. Releases v1/v2 and every selector asset
-remain immutable historical compatibility. V3 adds direct semantic extraction,
-Unicode-scalar grounding, versioned review cases, explicit account resolution,
-hash-chained traces, revision-bound feedback, and rich canonical-label/2 truth.
+- `file_sha256` requires a real observed SHA-256 when the runtime is eligible;
+- `system_managed_runtime` requires `model_file_sha256: null`; and
+- runtime, OS, device, model identifier, prompt, grammar, validation, and release
+  provenance remain explicit.
 
-Automatic persistence is deliberately disabled. Android and iOS remain
-unintegrated until their review-only ports reproduce the frozen hashes, scalar
-conversion rules, and golden cases.
+No platform may fabricate a hash. Releases v1-v3 remain byte-for-byte frozen.
+
+## Ownership and operating model
+
+| Repository/lane | Responsibility |
+| --- | --- |
+| `pF_slm_selection` on WSL | Architecture, frozen contracts, schemas, sanitized vectors, Python parity oracle, host GGUF evaluation, native-trace import, future Android/iOS native scorers, corpus/workbench, and aggregate model evidence |
+| `pocket-financer-android` on Windows | Kotlin/JNI/Room/Compose implementation, Gradle verification, emulator evidence, and Android physical-device acceptance |
+| `pocket-financer-ios` on macOS | Swift/Foundation Models/SwiftData/SwiftUI implementation, Xcode build/XCTest/simulator evidence, and iPhone acceptance |
+
+Cross-platform changes start with a versioned shared contract and sanitized
+vectors, then land independently in the native repositories. A pass in one lane
+does not stand in for another. Private SMS and per-row outputs remain local.
+
+## Compatibility and evidence
+
+Stored v1/v2 candidate-selector operations and v3/v4 direct-extractor operations
+must continue to load under their original release. New work must not silently
+upgrade a stored operation or rewrite historical traces. Dated checkpoint and
+implementation reports are indexed under `docs/history`; they are evidence, not
+the current plan.
+
+Continue with the [cross-platform roadmap](../plans/CROSS_PLATFORM_SMS_ROADMAP.md),
+[evaluation strategy](../plans/SMS_EVALUATION_STRATEGY.md),
+[direct extractor contract](../contracts/DIRECT_SMS_EXTRACTOR_CONTRACT.md), and
+[native integration contract](../contracts/NATIVE_SMS_INTEGRATION_CONTRACT.md).

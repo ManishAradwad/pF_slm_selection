@@ -32,8 +32,9 @@ record any deliberate override in the task handoff.
 The active production-intended SMS architecture is the shared foundation in
 `src/pocketfinancer_sms`, its schemas under `configs/sms_processing`, and the
 descriptive documents indexed by
-`docs/architecture/SMS_PROCESSING_ARCHITECTURE.md`. Android and iOS have not yet
-integrated it. The locked Android profile at
+`docs/architecture/SMS_PROCESSING_ARCHITECTURE.md`. Android and iOS contain the
+frozen v4 direct-extractor source integration, but v4 remains review-only and the
+successor exception-only routing/evaluation work is not implemented. The locked Android profile at
 `configs/contracts/pocketfinancer-android-current.json` remains the authority for
 reproducing the currently deployed/historical native path and measured experiments;
 it is not the intended future shared contract.
@@ -41,8 +42,8 @@ it is not the intended future shared contract.
 Use this precedence when sources disagree:
 
 1. Executable shared SMS code, schemas, tests, and corpus-run configuration here.
-2. The active SMS architecture, selector contract, taxonomy, workbench, execution
-   plan, and decision log.
+2. The active SMS architecture, direct-extractor/native contracts, taxonomy,
+   workbench, cross-platform roadmap, evaluation strategy, and decision log.
 3. For legacy/native parity only, committed app source at the profile's pinned
    revision and `lfm25/android_contract.py`.
 4. The experiment catalog and dated historical run reports.

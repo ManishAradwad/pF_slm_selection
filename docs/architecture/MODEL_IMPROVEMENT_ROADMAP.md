@@ -1,5 +1,12 @@
 # PocketFinancer small-model improvement roadmap
 
+Status: **historical model-research roadmap**
+
+This document preserves the model-research sequence that produced earlier
+evidence. It is not the active product implementation plan. Use the
+[cross-platform SMS roadmap](../plans/CROSS_PLATFORM_SMS_ROADMAP.md) and
+[SMS evaluation strategy](../plans/SMS_EVALUATION_STRATEGY.md) for current work.
+
 ## Product objective
 
 The objective is not to prove that one named language model is good. It is to ship

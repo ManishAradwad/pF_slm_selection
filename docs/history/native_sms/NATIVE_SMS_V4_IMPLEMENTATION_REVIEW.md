@@ -1,5 +1,8 @@
 # Native SMS v4 implementation review
 
+> Historical evidence recorded on 2026-09-20. It is not the current plan and does
+> not prove that previously observed emulator issues are fixed.
+
 Date: 2026-09-20
 
 Status: **app source implementation complete through mandatory step 8; Android
