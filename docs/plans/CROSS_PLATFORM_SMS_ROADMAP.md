@@ -77,6 +77,15 @@ checks. This is local shared-contract verification only: Android Gradle, emulato
 and physical-device lanes remain unverified. The next implementation start is the
 Android release binding, Room migration/atomic route, and focused routing tests.
 
+Checkpoint handoff (2026-09-22): commit `ba90c01` completes the shared successor
+release, partial Review contract, frozen bundle, vectors, and compatibility tests.
+The exact verification lane was WSL lightweight CI using the commands above; no
+emulator or physical device was used. Remaining work is Android asset binding,
+version-aware routing, atomic persistence, Review projection/navigation, and live
+token presentation. Start with `configuration_v5.py`, `processing_v3.py`,
+`test_successor_routing.py`, the v5 manifest, and Android's existing
+`DefaultSmsV4ProcessingCoordinator`/`SmsProcessingStore` tests.
+
 ## Workstream 2 — restore processing transparency
 
 1. Trace the Android generation callback from llama.cpp/JNI through the runtime,
