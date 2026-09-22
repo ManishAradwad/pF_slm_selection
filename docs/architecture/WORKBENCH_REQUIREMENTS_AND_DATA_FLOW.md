@@ -1,6 +1,6 @@
 # Workbench Requirements and Data Flow
 
-Status: **active and implemented**
+Status: **implemented v1 foundation; canonical-label/2 focused mode planned**
 Entry point: `python scripts/run_sms_processing.py serve-workbench`
 
 ## Private layout
@@ -59,6 +59,54 @@ Weak corrections are append-only records separate from source and human truth.
 Validation errors identify the missing or inconsistent field and do not change a
 label into `none`.
 
+## Current implementation boundary
+
+The current browser form writes `pocketfinancer.canonical-label/1`, exposes the
+older five-way decision UI, and previews compact Candidate Selector targets.
+Those behaviors are historical implementation facts, not the target annotation
+contract for the SLM-primary direct extractor.
+
+The secure store, canonical corpus import, pool and category navigation,
+blind-first controls, source-span selection, append-only revisions,
+adjudication, backup, restore, and encrypted export remain reusable. The focused
+mode must add a versioned `canonical-label/2` path, preserve v1 revisions
+read-only, and project approved v2 truth directly to the extractor without
+requiring analyzer candidate IDs.
+
+## Focused personal-corpus annotation mode
+
+The existing unified workbench proves the storage, privacy, queue, revision, and
+labeling foundations. The planned focused mode optimizes repeated annotation of
+the owner's personal SMS corpus without creating a second database or label
+format.
+
+The focused mode must provide:
+
+- a visible annotation-contract identity and an explicit v2 editing path; legacy
+  v1 revisions remain readable but cannot be silently edited as v2;
+- queue entry from pool, weak category, family, rail, sender/template group,
+  review state, disagreement, candidate coverage, or imported-feedback views;
+- one complete immutable SMS at a time, with clear position and remaining count;
+- keyboard-first `posted`, `none`, and `abstain` actions;
+- direct Amount, Direction, Account, and optional Counterparty span selection on
+  the source, with accessible field colors and exactly one active selection;
+- clearly marked analyzer/native-feedback suggestions in non-protected pools,
+  with one action to accept a correct suggestion and ordinary controls to replace
+  it;
+- continuous draft preservation, save-and-next, skip, previous, and deterministic
+  resume at the last unfinished item;
+- compact validation messages that keep the current annotation intact;
+- progress and coverage summaries without exposing protected-pool hidden facets;
+  and
+- append-only correction, adjudication, backup, restore, and explicit export
+  through the existing secure workbench boundaries.
+
+Pool assignment and weak segregation serve different purposes. Pools preserve
+split/leakage boundaries and do not change when a human label changes. Weak
+operational class, event state, family, and rail are browsing suggestions; they
+remain separate from submitted canonical labels. Protected pools keep the
+blind-first behavior below even when the fast workflow is used.
+
 ## Blind-first protected review
 
 For `protected_test` and `later_time_holdout`:
@@ -93,23 +141,25 @@ Adjudication requires two submitted labels whose canonical content disagrees. Th
 resolution stores both source revision hashes and creates a new append-only
 adjudicated revision rather than overwriting either review.
 
-## Candidate-oracle feedback
+## Historical Candidate Selector preview
 
-Target preview revalidates the submitted rich label against the source and active
-analysis. A valid single event displays only the compact ID target. Missing or
-mismatched fields return one aggregate-safe projection reason, allowing the
-reviewer to distinguish annotation error from analyzer candidate-coverage error.
+The implemented v1 target preview revalidates a submitted legacy label against
+the active analysis and displays a compact Candidate Selector target. Keep it
+available only for reproducing historical experiments. The focused v2 path
+instead validates exact source-grounded fields and previews the direct-extractor
+target independently of analyzer candidate coverage.
 
 The workbench currently holds the complete 17,830-row canonical run and has a
-verified initial backup. No final train/dev/test SFT target exists.
+verified initial backup. The focused annotation mode above remains planned. No
+training-ready train/dev/test SFT target exists.
 
-## Future native v3 review screen
+## Native Review remains separate
 
 The local browser workbench remains the implemented corpus-labeling tool. The
-native review screen is a separate, not-yet-integrated product surface governed
-by `review-case/1` and `user-feedback/3`.
+native review screen is a separate product surface governed by its versioned
+review and feedback contracts.
 
-For every retained v3 operation, Android and iOS must show:
+For every retained review operation, Android and iOS must show:
 
 - the complete immutable source message and read-only receipt time;
 - separate amount, direction, account, and counterparty highlights;

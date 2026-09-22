@@ -148,6 +148,14 @@ The workbench binds only to `127.0.0.1`, uses no remote assets/API/telemetry, an
 stores all state below ignored `PRIVATE_DATA/sms_processing`. Do not tunnel or
 screen-share private review rows.
 
+The current workbench already contains the complete private corpus, leakage-safe
+pools, weak category views, annotation queues, legacy canonical-label/1
+revisions, adjudication, backups, and exports. The
+[cross-platform roadmap](docs/plans/CROSS_PLATFORM_SMS_ROADMAP.md) adds a focused
+keyboard-first canonical-label/2 mode for rapidly labeling one personal SMS at a
+time while preserving blind protected pools, legacy readability, and append-only
+provenance.
+
 ## Historical model-research workflow
 
 Development happens in the native WSL2 checkout, not in a duplicated NTFS clone:

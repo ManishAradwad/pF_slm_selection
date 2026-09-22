@@ -103,7 +103,51 @@ unverified until the Mac/Xcode lane runs it.
 5. Only approved, source-grounded, split-safe labels may enter fine-tuning or
    component-improvement datasets. Keep a fresh sender/template-held-out test set.
 
-## Workstream 5 — build both native evaluation lanes in `pF_slm_selection`
+## Workstream 5 — make personal-corpus annotation fast
+
+The shared repository already contains the private canonical corpus, leakage-safe
+pool assignments, weak operational segregation, annotation queues, and a local
+SQLite workbench. Preserve that foundation and add a focused annotation mode for
+quickly labeling the owner's personal SMS dataset.
+
+1. Version the workbench annotation contract from its implemented
+   `canonical-label/1`/Candidate Selector form to `canonical-label/2` and
+   direct-extractor target projection. Preserve old revisions as readable
+   historical evidence; never rewrite them in place or silently reinterpret an
+   old decision.
+2. Let the owner enter a queue and annotate one complete SMS at a time with a
+   keyboard-first save-and-next workflow. Persist drafts continuously and resume
+   at the last unfinished item without losing selection state.
+3. Make the existing segregation useful for navigation: pool, weak operational
+   class, event state, financial family, payment rail, sender/template group,
+   review state, disagreement, and candidate-coverage filters. Weak categories
+   remain browsing aids and never become human truth automatically.
+4. For `posted`, support exact source selection for Amount, Direction, Account,
+   and optional Counterparty on the unchanged SMS. Support quick `none` and
+   `abstain` decisions, explicit uncertainty, notes, family, and rail without
+   forcing irrelevant fields.
+5. Offer analyzer candidates and imported native corrections as clearly labeled
+   suggestions in ordinary annotation pools. Never constrain the human label to
+   those suggestions.
+6. Preserve blind-first review for `protected_test` and
+   `later_time_holdout`: hide weak categories, analyzer hints, queue rationale,
+   prior labels, and model output until the initial label is submitted and the
+   owner explicitly reveals them.
+7. Show progress, remaining counts, category/pool coverage, validation failures,
+   disagreements, and annotation throughput. Provide safe undo through a new
+   append-only revision, never destructive mutation of an earlier label.
+8. Keep the service localhost-only, encrypted, ignored by Git, free of remote
+   assets/telemetry, and backed up with corpus/run/hash binding. Export only
+   explicitly selected, revision-bound labels for adjudication or downstream
+   dataset construction.
+
+Acceptance requires a private end-to-end trial covering queue selection, rapid
+labeling, legacy-revision readability, direct-extractor projection,
+interruption/resume, conflicting revisions, blind reveal, backup, restore, and
+consent-bound export. Annotation speed must not weaken grounding, privacy,
+provenance, or protected-pool isolation.
+
+## Workstream 6 — build both native evaluation lanes in `pF_slm_selection`
 
 The shared repository already has the local GGUF direct-extractor evaluator and
 encrypted native-trace import. It does not yet have complete native Android and
@@ -134,8 +178,11 @@ iOS scoring pipelines.
    Android; then run the Android native evaluation lane.
 5. Implement and verify the equivalent iOS behavior on the Mac, respecting the
    Foundation Models observability limits; then run the iOS evaluation lane.
-6. Exercise correction export, adjudication, and error attribution end to end.
-7. Run physical Android and iPhone acceptance, compare aggregate evidence, and
+6. Exercise the fast personal-corpus annotation flow, including blind review,
+   interruption/resume, backup/restore, adjudication, and governed export.
+7. Exercise native correction export, adjudication, and component error
+   attribution end to end.
+8. Run physical Android and iPhone acceptance, compare aggregate evidence, and
    make a separate owner-controlled rollout decision.
 
 Do not enable rollout, publish data, or describe the SMS product as complete until

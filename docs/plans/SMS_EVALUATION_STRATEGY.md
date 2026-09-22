@@ -67,6 +67,18 @@ resolve, abandoned reviews, and correction causes. Confirm that feedback remains
 revision-bound and local, requires adjudication before becoming canonical truth,
 and can be attributed to the responsible SLM/analyzer/host/UI component.
 
+Evaluate the personal-corpus workbench separately from native Review. Measure
+time and actions per annotation, save-and-next reliability, draft recovery,
+validation-error recovery, skip/resume behavior, category and pool coverage,
+disagreement handling, and backup/restore/export integrity. Verify that quick
+actions never convert weak segregation into truth, alter pool assignment, reveal
+protected hints early, or bypass grounding and revision checks.
+
+Verify annotation-contract migration explicitly: v1 revisions remain readable
+and hash-valid, new edits declare v2, v2 `posted` labels require all grounded
+mandatory fields, `none` and `abstain` contain no event, and target preview
+projects directly to the extractor without requiring analyzer candidate IDs.
+
 ## 5. Transparency
 
 Verify that source, advisory analysis, request, observable generation, raw output,
