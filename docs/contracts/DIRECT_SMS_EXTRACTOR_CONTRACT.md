@@ -95,10 +95,18 @@ Recognition does not authorize storage. Native integration v4 is frozen in
 for review after account, duplicate, receipt-time, operation-ownership, grounding,
 and money checks.
 
-The intended successor contract will route a complete, strictly valid, uniquely
-resolved, non-duplicate posted result directly to Transactions and reserve Review
-for incomplete, invalid, ambiguous, abstained, interrupted, incompatible, or
-failed work. That is a planned additive release, not current v4 behavior.
+The additive `native-integration-v5` shared release routes a complete, strictly
+valid, uniquely resolved, non-duplicate posted result to Transactions and reserves
+Review for incomplete, invalid, ambiguous, duplicate, abstained, interrupted,
+incompatible, or failed work. Valid `none` settles without a transaction or
+Review case. Android adoption and emulator/device verification remain pending;
+current v4 operations retain their frozen review-only behavior.
+
+`review-case/2` adds field evidence for independently grounded extractor fields.
+Every entry records field identity, exact source span, safely available normalized
+value, validation state, originating stage, and whether it came from the SLM or
+the advisory analyzer. Analyzer suggestions remain explicitly advisory and are
+never serialized as extractor output.
 
 The native review screen must show the complete original message; separate
 amount, direction, account, and counterparty highlights; analyzer suggestions
@@ -118,8 +126,9 @@ Both ports must run the sanitized emoji and combining-mark vectors.
 
 The candidate-selector contracts and native releases v1/v2 remain byte-for-byte
 historical compatibility artifacts. V3 is the frozen first direct-extractor
-release and v4 is its additive provenance successor. They are not rewritten, and
-stored operations continue to be read with their original contract versions.
+release, v4 is its additive provenance successor, and v5 binds final automatic
+routing without changing any v1-v4 byte. Stored operations continue to be read
+with their original contract versions.
 
 Future supervised targets project rich `canonical-label/2` truth directly to
 `sms-extractor/1`. A posted target requires all mandatory grounded spans,

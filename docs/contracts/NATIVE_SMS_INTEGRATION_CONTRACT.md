@@ -1,8 +1,9 @@
 # Native SMS Integration Contract
 
-Status: **release v4 frozen; native source implemented; cross-platform acceptance pending**
+Status: **release v5 frozen in shared source; Android adoption in progress**
 
-Release manifest: `configs/sms_processing/contracts/releases/native-integration-v4.json`
+Release manifest: `configs/sms_processing/contracts/releases/native-integration-v5.json`
+Frozen manifest SHA-256: `971ac758729916e8dfdd8ea165d4e8344b5d3ab6e4d190473c8e91e2541c5f6d`
 
 Historical implementation evidence is indexed in
 `docs/history/SMS_PROCESSING_EVIDENCE_INDEX.md`. The active work is defined by
@@ -10,12 +11,12 @@ Historical implementation evidence is indexed in
 
 ## Compatibility boundary
 
-Existing v1/v2 readers and stored artifacts remain supported byte for byte.
-Native integration v4 succeeds v3 and binds `sms-extractor-input/1`, `sms-extractor/1`,
+Existing v1-v4 readers and stored artifacts remain supported byte for byte.
+Native integration v5 succeeds v4 and retains `sms-extractor-input/1`, `sms-extractor/1`,
 `extractor-validation-profile/1`, `extractor-prompt/1`,
-`processing-config/4`, `processing-result/3`, `processing-trace/3`,
-`reason-code-registry/2`, `account-resolution-profile/1`,
-`review-case/1`, `user-feedback/3`, and `canonical-label/2`.
+`processing-result/3`, `processing-trace/3`, `account-resolution-profile/1`,
+`user-feedback/3`, and `canonical-label/2`, while adding `processing-config/5`,
+`persistence-policy/2`, `reason-code-registry/3`, and `review-case/2`.
 
 Android and iOS contain the v4 parser, Unicode-scalar, money, account-resolution,
 operation-routing, durable-state, migration, recovery, review-draft, atomic
@@ -49,17 +50,18 @@ remain effective. It may return only `none`, `abstain`, or one source-grounded
 allowlist. Duplicate JSON keys, extra text, unknown fields, type coercion, invalid
 scalar spans, and inconsistent selections are invalid.
 
-Recognition and persistence are separate. The typed persistence gate requires a
+Recognition and persistence remain separate. The typed persistence gate requires a
 known frozen contract/configuration, exactly one posted event, exact money,
 currency, timestamp, a uniquely resolved existing account, consistent family and
-evidence, no blocking conflicts, and an enabled rollout mode. V4 is fixed in
+evidence, no blocking conflicts, and an enabled rollout mode. V4 remains fixed in
 `review_only`, so all valid posted v4 results remain review cases.
 
-The planned successor release will send a complete valid uniquely resolved
-non-duplicate result to Transactions and route only incomplete, invalid,
-ambiguous, abstained, interrupted, incompatible, or failed work to Review. This
-policy must be versioned; it must not be retrofitted into v4 or applied silently to
-stored v1-v4 operations.
+V5 binds `automatic`: a complete valid uniquely resolved non-duplicate result is
+eligible for one atomic Transactions write; incomplete, invalid, ambiguous,
+duplicate, abstained, interrupted, incompatible, and failed work goes to Review;
+valid `none` settles without a transaction. Stored operations keep their original
+release behavior. A retry is a new operation linked by `parent_operation_id` and
+never reinterprets the previous operation.
 
 ## Trace, feedback, and transfer
 
@@ -89,9 +91,9 @@ Both ports must pass the frozen emoji and combining-mark golden vectors.
 
 ## Historical releases
 
-Native releases v1/v2/v3 and the candidate-selector assets are frozen historical
+Native releases v1/v2/v3/v4 and the candidate-selector assets are frozen historical
 compatibility artifacts. They remain valid for their stored operations and
-reproducibility only. Release v4 is additive and changes no historical byte.
+reproducibility only. Release v5 is additive and changes no historical byte.
 
 
 ## V4 model identity provenance

@@ -10,10 +10,12 @@ deterministic analyzer supplies advisory evidence only. The host strictly parses
 and grounds Unicode-scalar spans, normalizes exact money, resolves accounts,
 assesses duplicates, owns persistence/recovery, and records local review feedback.
 
-The frozen v4 release remains review-only. The next additive release will make a
-complete valid uniquely resolved non-duplicate posted result a Transactions result
-and reserve Review for incomplete, invalid, ambiguous, abstained, interrupted,
-incompatible, or failed work. That routing is planned, not implemented in v4.
+The frozen v4 release remains review-only. Shared release v5 now binds the final
+automatic policy: a complete valid uniquely resolved non-duplicate posted result
+is eligible for Transactions; incomplete, invalid, ambiguous, duplicate,
+abstained, interrupted, incompatible, or failed work is Review; valid `none`
+settles without a transaction. Android adoption and runtime verification remain
+in progress.
 
 ## Historical design selected 2026-09-01
 
@@ -228,3 +230,19 @@ Android exposes decoded token deltas. Apple Foundation Models exposes cumulative
 structured-generation snapshots but not decoded token pieces or IDs, so iOS shows
 those snapshots and explicitly labels token-level data unavailable. Neither app
 may reconstruct or label hidden reasoning.
+
+## 2026-09-22 — Freeze the final automatic-routing shared release
+
+`native-integration-v5` implements the 2026-09-21 decision without changing any
+v1-v4 byte or adding another routing engine. `processing-config/5` binds
+`persistence-policy/2` in automatic mode. Complete valid uniquely resolved clear
+posted results are eligible for Transactions, exceptions and duplicates retain
+Review, and valid `none` creates neither a transaction nor a Review case.
+
+`review-case/2` adds independently grounded field evidence with exact spans,
+safe normalized values, validation state, originating stage, and explicit `slm`
+versus `advisory_analyzer` origin. Analyzer evidence remains a suggestion and is
+never represented as model output. Stored operations retain their original
+release semantics; retry creates a distinct operation with explicit parent
+lineage. The shared safety, Ruff, 820-test pytest, and diff gates pass locally;
+Android, emulator, and physical-device verification are separate pending gates.

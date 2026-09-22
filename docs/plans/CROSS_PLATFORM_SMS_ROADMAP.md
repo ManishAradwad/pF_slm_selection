@@ -35,12 +35,23 @@ automated checks did not settle:
   flow; and
 - the tested routing did not match the intended exception-only review policy.
 
-These are open observations, not fixed defects. The first implementation session
-must reproduce them on the current branch and trace the actual runtime/navigation
-path before changing code. iOS source exists, but its equivalent behavior remains
-unverified until the Mac/Xcode lane runs it.
+These remain open emulator observations. Source tracing and implementation may
+proceed on the current branches, but the claims stay unverified until a fresh
+emulator is available and exercises the actual runtime/navigation path. iOS source
+exists, but its equivalent behavior remains unverified until the Mac/Xcode lane
+runs it.
+
+The shared repository now contains frozen `native-integration-v5`,
+`processing-config/5`, `persistence-policy/2`, `reason-code-registry/3`, and
+`review-case/2`. The existing `ExtractionCoordinator` remains the routing oracle;
+the successor binding selects its automatic mode rather than introducing another
+routing engine. Targeted shared tests are verified locally. Android source,
+Gradle gates, emulator behavior, and device behavior are not yet verified for the
+successor release.
 
 ## Workstream 1 — freeze the successor behavior
+
+Status: **implemented and verified in the shared lightweight-CI lane**
 
 1. Add a new processing configuration, routing policy, and reason-code release.
    Do not edit v1-v4 assets or reinterpret stored operations.
@@ -53,6 +64,18 @@ unverified until the Mac/Xcode lane runs it.
    separately from Transactions and Review.
 5. Add migration, retry, and recovery vectors proving that old operations keep
    their original release and new-policy retries create explicit new operations.
+
+Implemented bindings include exception-only Review, terminal valid `none`, atomic
+transaction-settlement intent, original-release compatibility, explicit retry
+lineage, partial grounded field evidence, and sanitized routing vectors. Android
+migration and recovery execution remain planned in Workstreams 2 and 3.
+
+Shared verification on 2026-09-22 ran `python scripts/check_repo_safety.py`, both
+required Ruff commands, `pytest -q`, and `git diff --check` from the activated WSL
+environment. The result was 820 passing tests with clean safety, lint, and diff
+checks. This is local shared-contract verification only: Android Gradle, emulator,
+and physical-device lanes remain unverified. The next implementation start is the
+Android release binding, Room migration/atomic route, and focused routing tests.
 
 ## Workstream 2 — restore processing transparency
 

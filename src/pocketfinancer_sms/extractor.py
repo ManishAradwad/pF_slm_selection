@@ -125,6 +125,47 @@ class ExtractionResult:
             raise ValueError("extraction decision and transaction are inconsistent")
 
 
+@dataclass(frozen=True, slots=True)
+class ExtractorFieldEvidence:
+    """One independently grounded Review field with explicit provenance."""
+
+    field: str
+    source_span: SourceSpan
+    normalized_value: Any | None
+    validation_state: str
+    originating_stage: str
+    origin: str = "slm"
+
+    def __post_init__(self) -> None:
+        if self.field not in {"amount", "direction", "account", "counterparty"}:
+            raise ValueError("extractor field identity is unsupported")
+        if self.validation_state not in {"valid", "grounded_only", "suggestion"}:
+            raise ValueError("extractor field validation state is unsupported")
+        if self.originating_stage not in {
+            "analysis_advisory",
+            "extractor_validation",
+            "normalization",
+            "account_resolution",
+        }:
+            raise ValueError("extractor field stage is unsupported")
+        if self.origin not in {"slm", "advisory_analyzer"}:
+            raise ValueError("extractor field origin is unsupported")
+        if self.origin == "slm" and self.validation_state == "suggestion":
+            raise ValueError("SLM evidence cannot be labeled as an analyzer suggestion")
+        if self.origin == "advisory_analyzer" and self.validation_state != "suggestion":
+            raise ValueError("analyzer evidence must remain a labeled suggestion")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "field": self.field,
+            "source_span": self.source_span.to_dict(),
+            "normalized_value": self.normalized_value,
+            "validation_state": self.validation_state,
+            "originating_stage": self.originating_stage,
+            "origin": self.origin,
+        }
+
+
 def build_extractor_input(
     source: str,
     analysis: Analysis,
@@ -179,27 +220,7 @@ def parse_and_normalize_extraction(
 ) -> ExtractionResult:
     """Parse exactly one output document, validate spans, then normalize semantics."""
 
-    if not isinstance(raw_output, str):
-        raise ExtractionValidationError("extractor_malformed_json")
-    try:
-        raw_output_size = len(raw_output.encode("utf-8"))
-    except UnicodeEncodeError as exc:
-        raise ExtractionValidationError("extractor_malformed_json") from exc
-    if raw_output_size > RAW_OUTPUT_UTF8_BYTE_LIMIT:
-        raise ExtractionValidationError("runtime_output_truncated")
-    decoder = json.JSONDecoder(
-            object_pairs_hook=_reject_duplicate_json_keys,
-            parse_constant=_reject_json_constant,
-    )
-    document_start = len(raw_output) - len(raw_output.lstrip())
-    try:
-        payload, document_end = decoder.raw_decode(raw_output, document_start)
-    except _DuplicateJsonKeyError as exc:
-        raise ExtractionValidationError("extractor_duplicate_json_key") from exc
-    except (json.JSONDecodeError, ValueError) as exc:
-        raise ExtractionValidationError("extractor_malformed_json") from exc
-    if raw_output[document_end:].strip():
-        raise ExtractionValidationError("extractor_extra_content")
+    payload = _decode_single_extractor_document(raw_output)
     if not isinstance(payload, dict):
         raise ExtractionValidationError("extractor_output_not_object")
     decision = payload.get("decision")
@@ -270,6 +291,163 @@ def parse_and_normalize_extraction(
             counterparty_span=counterparty_span,
         ),
     )
+
+
+def collect_grounded_extractor_fields(
+    raw_output: str,
+    source: str,
+    *,
+    primary_currency: str,
+    enabled_profile_ids: tuple[str, ...] | list[str],
+) -> tuple[ExtractorFieldEvidence, ...]:
+    """Retain independently grounded fields without repairing an invalid result.
+
+    Only a strictly decoded single JSON document is inspected. The complete
+    extractor result remains invalid; later semantic failures are represented as
+    ``grounded_only`` and never promoted to normalized model output.
+    """
+
+    try:
+        payload = _decode_single_extractor_document(raw_output)
+    except ExtractionValidationError:
+        return ()
+    if not isinstance(payload, dict) or payload.get("decision") != "posted":
+        return ()
+
+    try:
+        profiles = resolve_profiles(tuple(enabled_profile_ids))
+    except ValueError:
+        profiles = None
+    fields: list[ExtractorFieldEvidence] = []
+
+    try:
+        amount_value, amount_span = _field(payload.get("amount"), "value", source, "amount")
+    except ExtractionValidationError:
+        pass
+    else:
+        normalized_amount: dict[str, Any] | None = None
+        try:
+            if profiles is None:
+                raise ExtractionValidationError("extractor_currency_invalid")
+            amount_currency = _required_string(
+                payload["amount"], "currency", "extractor_currency_invalid"
+            )
+            currency = amount_currency.upper()
+            if (
+                amount_currency != currency
+                or currency not in ISO_MINOR_UNITS
+                or primary_currency not in ISO_MINOR_UNITS
+            ):
+                raise ExtractionValidationError("extractor_currency_invalid")
+            _validate_currency_grounding(amount_span.text, currency, primary_currency, profiles)
+            normalized_amount = {
+                "minor_units": _normalize_money(amount_span.text, amount_value, currency),
+                "currency": currency,
+            }
+        except ExtractionValidationError:
+            pass
+        fields.append(
+            ExtractorFieldEvidence(
+                "amount",
+                amount_span,
+                normalized_amount,
+                "valid" if normalized_amount is not None else "grounded_only",
+                "normalization" if normalized_amount is not None else "extractor_validation",
+            )
+        )
+
+    try:
+        direction_value, direction_span = _field(
+            payload.get("direction"), "value", source, "direction"
+        )
+    except ExtractionValidationError:
+        pass
+    else:
+        normalized_direction: str | None = None
+        try:
+            direction = Direction(direction_value)
+            if not _direction_is_grounded(direction, direction_span.text):
+                raise ExtractionValidationError("extractor_direction_invalid")
+            normalized_direction = direction.value
+        except (ExtractionValidationError, ValueError):
+            pass
+        fields.append(
+            ExtractorFieldEvidence(
+                "direction",
+                direction_span,
+                normalized_direction,
+                "valid" if normalized_direction is not None else "grounded_only",
+                "normalization" if normalized_direction is not None else "extractor_validation",
+            )
+        )
+
+    try:
+        account_value, account_span = _field(
+            payload.get("account"), "reference", source, "account"
+        )
+    except ExtractionValidationError:
+        pass
+    else:
+        normalized_account = normalize_account_reference(account_span.text)
+        if normalize_account_reference(account_value) != normalized_account:
+            normalized_account = ""
+        fields.append(
+            ExtractorFieldEvidence(
+                "account",
+                account_span,
+                normalized_account or None,
+                "valid" if normalized_account else "grounded_only",
+                "normalization" if normalized_account else "extractor_validation",
+            )
+        )
+
+    try:
+        counterparty_value, counterparty_span = _nullable_counterparty(
+            payload.get("counterparty"), source
+        )
+    except ExtractionValidationError:
+        pass
+    else:
+        if counterparty_span is not None:
+            normalized_counterparty = normalize_counterparty(counterparty_span.text)
+            if normalize_counterparty(counterparty_value or "") != normalized_counterparty:
+                normalized_counterparty = ""
+            fields.append(
+                ExtractorFieldEvidence(
+                    "counterparty",
+                    counterparty_span,
+                    normalized_counterparty or None,
+                    "valid" if normalized_counterparty else "grounded_only",
+                    "normalization" if normalized_counterparty else "extractor_validation",
+                )
+            )
+
+    return tuple(fields)
+
+
+def _decode_single_extractor_document(raw_output: str) -> Any:
+    if not isinstance(raw_output, str):
+        raise ExtractionValidationError("extractor_malformed_json")
+    try:
+        raw_output_size = len(raw_output.encode("utf-8"))
+    except UnicodeEncodeError as exc:
+        raise ExtractionValidationError("extractor_malformed_json") from exc
+    if raw_output_size > RAW_OUTPUT_UTF8_BYTE_LIMIT:
+        raise ExtractionValidationError("runtime_output_truncated")
+    decoder = json.JSONDecoder(
+        object_pairs_hook=_reject_duplicate_json_keys,
+        parse_constant=_reject_json_constant,
+    )
+    document_start = len(raw_output) - len(raw_output.lstrip())
+    try:
+        payload, document_end = decoder.raw_decode(raw_output, document_start)
+    except _DuplicateJsonKeyError as exc:
+        raise ExtractionValidationError("extractor_duplicate_json_key") from exc
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ExtractionValidationError("extractor_malformed_json") from exc
+    if raw_output[document_end:].strip():
+        raise ExtractionValidationError("extractor_extra_content")
+    return payload
 
 
 def normalize_account_reference(value: str) -> str:

@@ -11,7 +11,7 @@ does not substitute for another.
 
 | Lane | Current state | What it proves |
 | --- | --- | --- |
-| Shared Python contracts and sanitized vectors | Implemented | Parser, grounding, normalization, configuration, compatibility, and deterministic policy behavior |
+| Shared Python contracts and sanitized vectors | Successor release implemented; shared lightweight-CI gate passes locally | Parser, grounding, normalization, configuration, compatibility, partial Review evidence, and deterministic policy behavior |
 | Android-target GGUF direct extractor (`evaluate-extractor`) | Implemented | Reproducible semantic quality for one exact local GGUF/configuration on the host; not Android device proof |
 | Encrypted native-trace import | Implemented | Consent-bound local ingestion of Android/iOS traces into the workbench with provenance and blind-pool protection |
 | Android app/device runner and scorer | Planned extension | Exact app/runtime/model behavior on emulator and physical Android hardware |

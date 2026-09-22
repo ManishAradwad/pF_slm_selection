@@ -46,7 +46,7 @@ immutable source SMS + receipt time + configuration
              versioned routing and durable local state
 ```
 
-## Routing policy: implemented and planned
+## Routing policy
 
 The frozen `native-integration-v4` release is implemented in both native source
 trees in `review_only` mode. Under that release, even a complete, valid posted
@@ -55,9 +55,11 @@ source/XCTest coverage are recorded in the historical implementation reviews;
 they do not prove physical-device release readiness, and iOS execution still
 requires the Mac/Xcode lane.
 
-The intended successor routing policy is:
+The shared `native-integration-v5` release now freezes the successor routing
+policy below. Android adoption is still in progress, so this describes executable
+shared behavior rather than current Android runtime verification:
 
-| Result | Intended destination |
+| Result | Destination |
 | --- | --- |
 | Complete, strictly valid, uniquely resolved, non-duplicate posted result | `Transactions` |
 | Incomplete or invalid result | `Review` |
@@ -65,9 +67,12 @@ The intended successor routing policy is:
 | `abstain`, runtime failure, interruption, or incompatible provenance | `Review` |
 | `none` with a valid terminal classification | No transaction; retain only the evidence required by the active privacy policy |
 
-This table is a planned correction, not a description of current v4 routing. It
-must be introduced by an additive contract/configuration release with migration,
-recovery, parity, and device evidence. Frozen v1-v4 bytes must not be edited.
+`processing-config/5` binds `pocketfinancer.persistence-policy/2` in `automatic`
+mode. `review-case/2` retains independently grounded fields with explicit `slm`
+or `advisory_analyzer` provenance. Stored v1-v4 operations remain bound to their
+original release and stored rollout behavior; v4 remains review-only. A retry
+creates a distinct operation with an explicit parent operation ID. Native
+migration, recovery, parity, and device evidence remain required.
 
 ## Review and correction
 

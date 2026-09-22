@@ -23,9 +23,11 @@ from .corpus.grouping import sender_family
 from .extractor import (
     ExtractionResult,
     ExtractionValidationError,
+    ExtractorFieldEvidence,
     NormalizedExtraction,
     SourceSpan,
     build_extractor_input,
+    collect_grounded_extractor_fields,
     parse_and_normalize_extraction,
 )
 from .feedback import FieldRevisionV3
@@ -34,6 +36,7 @@ from .types import GateCheck, GateResult, TimestampProvenance
 
 PROCESSING_RESULT_CONTRACT_V3 = "pocketfinancer.processing-result/3"
 REVIEW_CASE_CONTRACT = "pocketfinancer.review-case/1"
+REVIEW_CASE_CONTRACT_V2 = "pocketfinancer.review-case/2"
 
 
 class RuntimeUnavailableError(RuntimeError):
@@ -200,11 +203,32 @@ class ReviewCase:
 
 
 @dataclass(frozen=True, slots=True)
+class ReviewCaseV2(ReviewCase):
+    """Successor Review representation with independently grounded fields."""
+
+    field_evidence: tuple[ExtractorFieldEvidence, ...] = ()
+    contract: str = REVIEW_CASE_CONTRACT_V2
+
+    def __post_init__(self) -> None:
+        ReviewCase.__post_init__(self)
+        if self.contract != REVIEW_CASE_CONTRACT_V2:
+            raise ValueError("successor review contract is unsupported")
+        slm_fields = [item.field for item in self.field_evidence if item.origin == "slm"]
+        if len(slm_fields) != len(set(slm_fields)):
+            raise ValueError("successor review contains duplicate SLM field evidence")
+
+    def _payload_without_revision_hash(self) -> dict[str, Any]:
+        value = ReviewCase._payload_without_revision_hash(self)
+        value["field_evidence"] = [item.to_dict() for item in self.field_evidence]
+        return value
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessingOutcome:
     status: str
     result: ExtractionResult | None
     persistence: PersistenceDecisionV3 | None
-    review_case: ReviewCase | None
+    review_case: ReviewCase | ReviewCaseV2 | None
     reason_codes: tuple[str, ...]
     model_invoked: bool
     received_at_epoch_ms: int
@@ -361,17 +385,21 @@ class ExtractionCoordinator:
         enabled_profile_ids: tuple[str, ...],
         account_catalog: tuple[AccountCatalogEntry, ...] = (),
         rollout_mode: str = "shadow",
+        review_contract: str = REVIEW_CASE_CONTRACT,
     ) -> None:
         if rollout_mode not in {"shadow", "review_only", "automatic"}:
             raise ValueError("rollout mode is unsupported")
         if analyzer.analysis_contract != ANALYSIS_CONTRACT_V2:
             raise ValueError("extractor coordinator requires sms-analysis/2")
+        if review_contract not in {REVIEW_CASE_CONTRACT, REVIEW_CASE_CONTRACT_V2}:
+            raise ValueError("review contract is unsupported")
         self.analyzer = analyzer
         self.model_invoke = model_invoke
         self.primary_currency = primary_currency
         self.enabled_profile_ids = enabled_profile_ids
         self.account_catalog = account_catalog
         self.rollout_mode = rollout_mode
+        self.review_contract = review_contract
 
     def process(
         self,
@@ -534,6 +562,16 @@ class ExtractionCoordinator:
                 exc.reason_code,
                 "extractor_validation",
                 True,
+                partial_fields=(
+                    collect_grounded_extractor_fields(
+                        raw_output,
+                        source,
+                        primary_currency=self.primary_currency,
+                        enabled_profile_ids=self.enabled_profile_ids,
+                    )
+                    if self.review_contract == REVIEW_CASE_CONTRACT_V2
+                    else ()
+                ),
             )
         if result.decision == "none":
             empty_resolution = resolve_account(None, self.account_catalog)
@@ -630,6 +668,7 @@ class ExtractionCoordinator:
             "persistence_gate",
             result,
             resolution,
+            review_contract=self.review_contract,
         )
         return ProcessingOutcome(
             "blocked" if persistence.result == GateResult.BLOCKED_BY_MODE else "review",
@@ -664,8 +703,8 @@ class ExtractionCoordinator:
             provenance,
         )
 
-    @staticmethod
     def _review_failure(
+        self,
         source: str,
         raw_sender: str,
         operation_id: str,
@@ -678,6 +717,7 @@ class ExtractionCoordinator:
         *,
         status: str = "review",
         extractor_result: ExtractionResult | None = None,
+        partial_fields: tuple[ExtractorFieldEvidence, ...] = (),
     ) -> ProcessingOutcome:
         review = _review_case(
             source,
@@ -690,6 +730,8 @@ class ExtractionCoordinator:
             stage,
             extractor_result,
             None,
+            review_contract=self.review_contract,
+            partial_fields=partial_fields,
         )
         return ProcessingOutcome(
             status,
@@ -700,6 +742,29 @@ class ExtractionCoordinator:
             invoked,
             received_at_epoch_ms,
             provenance,
+        )
+
+
+class SuccessorExtractionCoordinator(ExtractionCoordinator):
+    """Automatic successor policy using the existing routing engine."""
+
+    def __init__(
+        self,
+        analyzer: DeterministicSmsAnalyzer,
+        model_invoke: Callable[[dict[str, Any], CancellationToken], str],
+        *,
+        primary_currency: str,
+        enabled_profile_ids: tuple[str, ...],
+        account_catalog: tuple[AccountCatalogEntry, ...] = (),
+    ) -> None:
+        super().__init__(
+            analyzer,
+            model_invoke,
+            primary_currency=primary_currency,
+            enabled_profile_ids=enabled_profile_ids,
+            account_catalog=account_catalog,
+            rollout_mode="automatic",
+            review_contract=REVIEW_CASE_CONTRACT_V2,
         )
 
 
@@ -714,7 +779,10 @@ def _review_case(
     stage: str,
     result: ExtractionResult | None,
     resolution: ExtractorAccountResolution | None,
-) -> ReviewCase:
+    *,
+    review_contract: str = REVIEW_CASE_CONTRACT,
+    partial_fields: tuple[ExtractorFieldEvidence, ...] = (),
+) -> ReviewCase | ReviewCaseV2:
     review_id = hashlib.sha256(
         f"{operation_id}\0{hashlib.sha256(source.encode()).hexdigest()}".encode()
     ).hexdigest()[:24]
@@ -761,20 +829,47 @@ def _review_case(
         for cue in analysis.cues
     )
     analyzer_suggestions = candidate_suggestions + cue_suggestions
-    return ReviewCase(
-        review_id,
-        hashlib.sha256(operation_id.encode()).hexdigest(),
-        raw_sender,
-        source,
-        received_at_epoch_ms,
-        reasons[0],
-        reasons,
-        stage,
-        analyzer_suggestions,
-        _semantic_payload(result.transaction if result else None),
-        resolution,
-        received_timestamp_provenance,
+    values: dict[str, Any] = {
+        "review_case_id": review_id,
+        "operation_id_hash": hashlib.sha256(operation_id.encode()).hexdigest(),
+        "raw_sender": raw_sender,
+        "source": source,
+        "received_at_epoch_ms": received_at_epoch_ms,
+        "primary_reason": reasons[0],
+        "reason_codes": reasons,
+        "furthest_stage": stage,
+        "analyzer_suggestions": analyzer_suggestions,
+        "extractor_suggestion": _semantic_payload(result.transaction if result else None),
+        "account_resolution": resolution,
+        "received_timestamp_provenance": received_timestamp_provenance,
+    }
+    if review_contract == REVIEW_CASE_CONTRACT:
+        return ReviewCase(**values)
+    if review_contract != REVIEW_CASE_CONTRACT_V2:
+        raise ValueError("review contract is unsupported")
+    slm_fields = (
+        partial_fields
+        if partial_fields
+        else _normalized_field_evidence(result.transaction if result else None)
     )
+    analyzer_fields = tuple(
+        ExtractorFieldEvidence(
+            field=candidate.kind.value,
+            source_span=SourceSpan(
+                candidate.evidence.start_char,
+                candidate.evidence.end_char,
+                candidate.evidence.text,
+            ),
+            normalized_value=candidate.value,
+            validation_state="suggestion",
+            originating_stage="analysis_advisory",
+            origin="advisory_analyzer",
+        )
+        for candidate in analysis.candidates
+        if candidate.kind.value in {"amount", "direction", "account", "counterparty"}
+        and candidate.evidence is not None
+    )
+    return ReviewCaseV2(**values, field_evidence=slm_fields + analyzer_fields)
 
 
 def _semantic_payload(transaction: NormalizedExtraction | None) -> dict[str, Any] | None:
@@ -795,6 +890,47 @@ def _semantic_payload(transaction: NormalizedExtraction | None) -> dict[str, Any
             "counterparty": _source_span_payload(transaction.counterparty_span),
         },
     }
+
+
+def _normalized_field_evidence(
+    transaction: NormalizedExtraction | None,
+) -> tuple[ExtractorFieldEvidence, ...]:
+    if transaction is None:
+        return ()
+    fields = [
+        ExtractorFieldEvidence(
+            "amount",
+            transaction.amount_span,
+            {"minor_units": transaction.minor_units, "currency": transaction.currency},
+            "valid",
+            "normalization",
+        ),
+        ExtractorFieldEvidence(
+            "direction",
+            transaction.direction_span,
+            transaction.direction.value,
+            "valid",
+            "normalization",
+        ),
+        ExtractorFieldEvidence(
+            "account",
+            transaction.account_span,
+            transaction.account_reference,
+            "valid",
+            "normalization",
+        ),
+    ]
+    if transaction.counterparty_span is not None:
+        fields.append(
+            ExtractorFieldEvidence(
+                "counterparty",
+                transaction.counterparty_span,
+                transaction.counterparty,
+                "valid",
+                "normalization",
+            )
+        )
+    return tuple(fields)
 
 
 def _source_span_payload(span: SourceSpan | None) -> dict[str, Any] | None:
