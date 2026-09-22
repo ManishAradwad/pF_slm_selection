@@ -12,13 +12,40 @@ does not substitute for another.
 | Lane | Current state | What it proves |
 | --- | --- | --- |
 | Shared Python contracts and sanitized vectors | Implemented | Parser, grounding, normalization, configuration, compatibility, and deterministic policy behavior |
-| Local GGUF direct extractor (`evaluate-extractor`) | Implemented | Reproducible semantic quality for one exact local GGUF/configuration on the host |
+| Android-target GGUF direct extractor (`evaluate-extractor`) | Implemented | Reproducible semantic quality for one exact local GGUF/configuration on the host; not Android device proof |
 | Encrypted native-trace import | Implemented | Consent-bound local ingestion of Android/iOS traces into the workbench with provenance and blind-pool protection |
-| Android native evaluator and scorer | Planned | Exact app/runtime/model behavior on emulator and physical Android hardware |
-| iOS native evaluator and scorer | Planned | Exact Foundation Models behavior on simulator-supported paths and physical iPhone hardware |
+| Android app/device runner and scorer | Planned extension | Exact app/runtime/model behavior on emulator and physical Android hardware |
+| Apple Foundation Models evaluator and scorer | Missing; planned in the active roadmap | Exact iOS contract behavior through macOS/Xcode and supported physical iPhone hardware |
 
 Host GGUF results are not Android measurements. Android results are not iOS
 results. Simulator/emulator evidence is not physical-device evidence.
+
+## Apple Foundation Models pipeline implementation
+
+The Apple lane is a required deliverable, not merely a future comparison idea. It
+has two cooperating parts:
+
+1. A macOS/Xcode runner executes the exact iOS Foundation Models contract locally:
+   instructions, guided schema, explicit model-processing locale check, observable
+   cumulative snapshots, mapped draft, strict source grounding, validation, and
+   terminal disposition.
+2. `pF_slm_selection` owns the versioned suite manifest, protected package
+   identity, encrypted result import, canonical-label comparison, aggregate
+   scorer, and evidence report.
+
+Each run is bound to suite, contract, prompt, schema, runner, OS, hardware, locale,
+and observable system-runtime identity. The runner must support fresh execution,
+resume by completed case ID, interruption, retry, partial-result quarantine, and
+configuration-mismatch rejection. It records decoded tokens, token throughput,
+logits, confidence, context size, and model-file hash as unavailable when Apple
+does not expose them.
+
+Start with sanitized synthetic fixtures on the Mac. Private-suite execution
+requires explicit local packaging and encrypted return; no raw row or per-row
+prediction may enter Git, CI, telemetry, or a hosted service. Product claims then
+require the supported physical iPhone matrix. The same declared semantic cohort
+may be compared with the Android-target GGUF lane, but runtime measurements and
+model identity remain platform-specific.
 
 ## 1. Contract parity
 

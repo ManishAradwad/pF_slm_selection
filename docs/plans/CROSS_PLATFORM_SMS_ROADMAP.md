@@ -147,26 +147,50 @@ interruption/resume, conflicting revisions, blind reveal, backup, restore, and
 consent-bound export. Annotation speed must not weaken grounding, privacy,
 provenance, or protected-pool isolation.
 
-## Workstream 6 — build both native evaluation lanes in `pF_slm_selection`
+## Workstream 6 — add the Apple Foundation Models evaluation pipeline
 
-The shared repository already has the local GGUF direct-extractor evaluator and
-encrypted native-trace import. It does not yet have complete native Android and
-iOS scoring pipelines.
+The shared repository already has the Android-target local GGUF
+direct-extractor evaluator and encrypted native-trace import. That provides the
+SLM evaluation baseline used for Android-oriented model work, although an
+emulator/device run remains a separate runtime gate. The missing evaluation
+implementation is the Apple Foundation Models lane.
 
-1. Keep `evaluate-extractor` as the reproducible GPU/GGUF semantic evaluator. It
-   is the closest desktop analogue to Android, not Android runtime proof.
-2. Add an Android evaluation lane that packages a hash-bound sanitized/private
-   suite, runs the exact app contract/model on emulator or device, exports an
-   encrypted native trace bundle, and scores aggregate results in the shared repo.
-3. Add an iOS evaluation lane with the same suite identity and scoring contract,
-   executed from macOS/Xcode against Foundation Models and imported through the
-   same protected boundary.
-4. Keep platform-specific facts—model identity, token/snapshot availability,
-   latency, memory, OS/device, interruption, and background behavior—rather than
-   forcing false runtime parity.
-5. Report classification, exact fields, grounding, account resolution,
-   duplicates, routing, review rate, correction burden, recovery, and privacy-safe
-   latency/resource aggregates on identical declared cohorts.
+1. Preserve `evaluate-extractor` as the reproducible Android-target GPU/GGUF
+   semantic evaluator. Do not describe host results as Android device results.
+2. Define one hash-bound evaluation-suite manifest in `pF_slm_selection` with
+   cohort identity, contract/prompt/schema hashes, protected-pool policy, expected
+   canonical labels, and aggregate scoring rules. The Apple and Android-target
+   lanes must consume the same declared semantic cohort when comparison is
+   intended.
+3. Add a macOS/Xcode Foundation Models runner that invokes the exact iOS
+   instructions, guided-generation schema, locale check, parser, grounding, and
+   validation path. It must run locally against sanitized fixtures or an
+   explicitly packaged private suite and never send SMS data to a hosted service.
+4. Capture one provenance-bound result per case: suite/case identity, contract
+   and prompt hashes, observable system-managed model identifier, macOS/iOS
+   version, hardware, locale support, cumulative structured-generation snapshots,
+   mapped draft, validation stages, disposition, safe error category, and timing.
+   Record decoded tokens, logits, confidence, model-file hash, and token
+   throughput as unavailable rather than inventing them.
+5. Make the Apple runner resumable and deterministic around completed case IDs.
+   Define fresh run, interruption, retry, partial output, duplicate case,
+   configuration mismatch, and incompatible result-bundle behavior.
+6. Export Apple results through an explicit encrypted local bundle and import them
+   into `pF_slm_selection` using the existing protected trace boundary. Raw
+   messages, prompts, snapshots, and per-row predictions remain private; checked-in
+   reports contain sanitized fixtures or aggregates only.
+7. Add shared scoring and report generation for classification, exact fields,
+   Unicode-scalar grounding, account resolution, abstention, false/missed
+   transactions, routing, review rate, correction burden, failures, latency, and
+   recovery. Keep Foundation Models system-runtime facts separate from GGUF facts.
+8. Run the pipeline first on macOS with synthetic/sanitized cases, then on the
+   supported physical iPhone matrix for device claims. Simulator-only execution
+   cannot establish Foundation Models inference parity.
+
+Acceptance requires a repeatable suite package, successful Xcode runner execution,
+encrypted import, deterministic aggregate scoring, interruption/resume coverage,
+privacy review, and an evidence report that states every unavailable or unverified
+runtime fact.
 
 ## Delivery order
 
@@ -177,7 +201,8 @@ iOS scoring pipelines.
 4. Implement exception-only routing and partial-field review projection on
    Android; then run the Android native evaluation lane.
 5. Implement and verify the equivalent iOS behavior on the Mac, respecting the
-   Foundation Models observability limits; then run the iOS evaluation lane.
+   Foundation Models observability limits; then implement and run the Apple
+   Foundation Models evaluation pipeline above.
 6. Exercise the fast personal-corpus annotation flow, including blind review,
    interruption/resume, backup/restore, adjudication, and governed export.
 7. Exercise native correction export, adjudication, and component error
