@@ -1,7 +1,7 @@
 # SMS evaluation strategy
 
 Status: **canonical evaluation plan**  
-Last reconciled: 2026-09-22
+Last reconciled: 2026-09-23
 
 Evaluation separates contract correctness, model quality, product routing,
 review usefulness, runtime behavior, and release acceptance. Passing one category
@@ -12,6 +12,7 @@ does not substitute for another.
 | Lane | Current state | What it proves |
 | --- | --- | --- |
 | Shared Python contracts and sanitized vectors | Successor release implemented; shared lightweight-CI gate passes locally | Parser, grounding, normalization, configuration, compatibility, partial Review evidence, and deterministic policy behavior |
+| Android app integration | Automatic routing, partial Review, and live output implemented; debug unit, lint, and build gates pass locally; Pixel_9 confirms live decoded/cumulative display and exception Review for synthetic model failures | Local source behavior plus limited emulator runtime; complete-valid automatic persistence, duplicate fencing, visual partial highlights, recovery, accessibility, and physical device remain unverified |
 | Android-target GGUF direct extractor (`evaluate-extractor`) | Implemented | Reproducible semantic quality for one exact local GGUF/configuration on the host; not Android device proof |
 | Encrypted native-trace import | Implemented | Consent-bound local ingestion of Android/iOS traces into the workbench with provenance and blind-pool protection |
 | Android app/device runner and scorer | Planned extension | Exact app/runtime/model behavior on emulator and physical Android hardware |

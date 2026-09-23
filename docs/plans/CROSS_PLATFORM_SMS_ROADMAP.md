@@ -1,7 +1,7 @@
 # Cross-platform SMS roadmap
 
 Status: **canonical active roadmap**  
-Last reconciled: 2026-09-22
+Last reconciled: 2026-09-23
 
 This is the only forward-looking SMS implementation plan. Frozen contracts and
 dated evidence remain authoritative for the versions they describe, but they do
@@ -24,8 +24,8 @@ operation ownership, and recovery.
 
 The frozen `native-integration-v4` source is present in both apps. It includes
 direct extraction, strict validation, durable review state, review drafts, atomic
-confirmation, and native span-selection UI. V4 is deliberately `review_only`, so
-even a complete valid result is currently retained for review.
+confirmation, and native span-selection UI. Stored v4 operations remain
+`review_only`; the additive Android release now uses the final automatic policy.
 
 The latest Android emulator trial exposed product gaps that source-level and
 automated checks did not settle:
@@ -35,19 +35,20 @@ automated checks did not settle:
   flow; and
 - the tested routing did not match the intended exception-only review policy.
 
-These remain open emulator observations. Source tracing and implementation may
-proceed on the current branches, but the claims stay unverified until a fresh
-emulator is available and exercises the actual runtime/navigation path. iOS source
-exists, but its equivalent behavior remains unverified until the Mac/Xcode lane
-runs it.
+The original Pixel_9 emulator now exercises the Android runtime and navigation
+path. Direct Review-card navigation, explicit direction fallback, existing-account
+selection, and live decoded/cumulative output are verified there. Complete-valid
+automatic saving remains unverified there because sampled local models returned
+invalid extractor output. iOS behavior remains unverified on the Mac/Xcode lane.
 
 The shared repository now contains frozen `native-integration-v5`,
 `processing-config/5`, `persistence-policy/2`, `reason-code-registry/3`, and
 `review-case/2`. The existing `ExtractionCoordinator` remains the routing oracle;
 the successor binding selects its automatic mode rather than introducing another
-routing engine. Targeted shared tests are verified locally. Android source,
-Gradle gates, emulator behavior, and device behavior are not yet verified for the
-successor release.
+routing engine. Shared tests and Android debug unit, lint, and build gates pass
+locally. Pixel_9 verifies exception Review and part of the UI/runtime path, not
+successful model-driven automatic persistence. Physical-device behavior remains
+unverified.
 
 ## Workstream 1 — freeze the successor behavior
 
@@ -68,7 +69,8 @@ Status: **implemented and verified in the shared lightweight-CI lane**
 Implemented bindings include exception-only Review, terminal valid `none`, atomic
 transaction-settlement intent, original-release compatibility, explicit retry
 lineage, partial grounded field evidence, and sanitized routing vectors. Android
-migration and recovery execution remain planned in Workstreams 2 and 3.
+migration, atomic routing, and recovery paths now have local automated coverage;
+emulator and device execution remain open in Workstreams 2 and 3.
 
 Shared verification on 2026-09-22 ran `python scripts/check_repo_safety.py`, both
 required Ruff commands, `pytest -q`, and `git diff --check` from the activated WSL
@@ -86,7 +88,38 @@ token presentation. Start with `configuration_v5.py`, `processing_v3.py`,
 `test_successor_routing.py`, the v5 manifest, and Android's existing
 `DefaultSmsV4ProcessingCoordinator`/`SmsProcessingStore` tests.
 
+Checkpoint handoff (2026-09-23): Android commits `fcf6614`, `f6079ff`, and
+`01f3861` implement automatic routing, partial Review in the existing UI, direct
+case navigation, and live decoded/cumulative output; `fd8b8b0` corrects the
+legacy migration test fixture. Focused Android tests and
+`./gradlew.bat testDebugUnitTest lintDebug assembleDebug --no-daemon` passed
+locally. Pixel_9 then passed 15 Compose and 4 encrypted-recovery instrumentation
+tests. Its synthetic runtime audit observed 7 operations (5 realtime, 2 manual),
+6 invalid selector completions, 7 Review cases, and no transactions; one
+operation was interrupted by an audit foreground switch. Both Qwen3-0.6B Q8_0
+and debug-upgraded Qwen3-1.7B Q4_K_M returned invalid output in this small
+sample. Review extensions retained 2 valid SLM amount fields and 1 valid
+direction field. Decoded-token deltas and growing cumulative output were
+observed during active inference without recording their text. On-emulator
+complete-valid automatic saving, duplicates, visual partial highlights, retry,
+and controlled process-death recovery remain open; physical-device testing is
+not started. The opt-in aggregate audit compiled and passed manually; full
+Gradle gates must be rerun after Android audit commit `0f61438`. Start with one partial
+Review case and then final Android gates. Relevant Android sources are
+`DefaultSmsV4ProcessingCoordinator`, `SmsProcessingStore`,
+`GroundedReviewContent`, `ReviewDetailScreen`, `TransactionsScreen`, and
+`SmsTelemetryViewer` and `SmsSyntheticRuntimeAuditTest`; the platform handoff is
+`docs/sms-processing-next-steps.md` in the Android repository.
+
 ## Workstream 2 — restore processing transparency
+
+Android status: **implemented; verified by local tests and Pixel_9 live output**. The
+decoded-token callback reaches the existing processing surface, where the latest
+delta and cumulative structured output are distinct and lifecycle/owner cleanup
+is covered by local tests. During active emulator inference, both output panes
+were non-placeholder and cumulative output grew. Physical-device behavior and
+full lifecycle cleanup on-device remain unverified. iOS work is
+unchanged and outside the current Android task.
 
 1. Trace the Android generation callback from llama.cpp/JNI through the runtime,
    durable attempt state, presentation model, and visible processing surface.
@@ -103,6 +136,14 @@ token presentation. Start with `configuration_v5.py`, `processing_v3.py`,
    reports, screenshots, and checked-in fixtures.
 
 ## Workstream 3 — make Review a source-labeling interaction
+
+Android status: **implemented; partially verified on Pixel_9**. The
+existing Review UI projects partial grounded fields, labels analyzer suggestions,
+requires valid mandatory fields and deliberate account choice, and opens a
+selected card directly. Direct navigation, direction fallback, account selection,
+and disabled confirmation with a missing amount were exercised on the emulator.
+Visual partial-field highlighting, accessibility, and process recovery remain
+unverified there.
 
 1. Put Processing and Needs Review above the confirmed ledger on Transactions;
    do not create a disconnected manual-entry form as the main workflow.
@@ -226,20 +267,21 @@ runtime fact.
 
 ## Delivery order
 
-1. Reproduce the Android observations and audit both native paths against v4.
-2. Freeze the additive successor routing/feedback/evaluation contracts and
-   sanitized vectors in the shared repository.
-3. Restore Android transparency and prove it on a fresh emulator state.
-4. Implement exception-only routing and partial-field review projection on
-   Android; then run the Android native evaluation lane.
-5. Implement and verify the equivalent iOS behavior on the Mac, respecting the
+1. Completed locally: freeze the additive shared routing and partial Review
+   contracts; implement Android exception-only routing, Review projection, and
+   transparent live output. Preserve the v1-v4 compatibility paths.
+2. Next: inspect retained partial fields in Review on Pixel_9; obtain a valid
+   complete local-model result to prove automatic persistence and duplicate
+   fencing there, and test retry/recovery; then implement and run the Android
+   native evaluation lane. Keep JVM and emulator evidence separate.
+3. Implement and verify the equivalent iOS behavior on the Mac, respecting the
    Foundation Models observability limits; then implement and run the Apple
    Foundation Models evaluation pipeline above.
-6. Exercise the fast personal-corpus annotation flow, including blind review,
+4. Exercise the fast personal-corpus annotation flow, including blind review,
    interruption/resume, backup/restore, adjudication, and governed export.
-7. Exercise native correction export, adjudication, and component error
+5. Exercise native correction export, adjudication, and component error
    attribution end to end.
-8. Run physical Android and iPhone acceptance, compare aggregate evidence, and
+6. Run physical Android and iPhone acceptance, compare aggregate evidence, and
    make a separate owner-controlled rollout decision.
 
 Do not enable rollout, publish data, or describe the SMS product as complete until
