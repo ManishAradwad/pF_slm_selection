@@ -1,7 +1,7 @@
 # Cross-platform SMS roadmap
 
 Status: **canonical active roadmap**  
-Last reconciled: 2026-09-23
+Last reconciled: 2026-09-24
 
 This is the only forward-looking SMS implementation plan. Frozen contracts and
 dated evidence remain authoritative for the versions they describe, but they do
@@ -50,6 +50,42 @@ locally. Pixel_9 verifies exception Review and part of the UI/runtime path, not
 successful model-driven automatic persistence. Physical-device behavior remains
 unverified.
 
+## 2026-09-24 Android Review and settings correction
+
+The owner tested the Android PR on the emulator. The visible grammar toggle is
+off by default, but v5 inference always uses grammar; this is a real settings
+disconnect. The separate latest-token-delta card is unwanted. The desired
+observable output is one live, growing model-output view. A future operation
+must capture grammar on/off in a new versioned configuration; stored v5 behavior
+and original-configuration retries remain frozen.
+
+The Review interaction should be selection-first: select exact source wording,
+then tap a field to assign it. Offer short, source-backed one-tap choices for
+missing fields so precise drag selection is optional. The native selection should
+clear after assignment or dismissal. A field-specific, accessible evidence cue
+must remain visible.
+Distinct colored source highlights are preferred if they work with touch
+selection; colored chips plus a source excerpt or tap-to-focus preview are
+acceptable when they give a clearer interaction. Avoid text-entry forms for
+ordinary correction. Resolve Direction once, do not repeat analyzer "Paid" as a
+competing main-flow suggestion, and move raw analyzer suggestions out of the
+primary confirmation area.
+
+A grounded account reference may create a new local account during owner
+confirmation when no unique existing account matches. That account and the
+transaction must commit atomically and remain idempotent under retry/replay.
+The current automatic-save rule still requires unique existing-account
+resolution; the owner-confirmed Review creation path is a separate decision.
+Amount remains required. Render it in major units (INR 125.00 for 12,500 minor
+units) and keep exact minor-unit storage. A disabled Confirm action must reveal
+the missing or invalid field. Remove the unnecessary receipt-time explanation
+while preserving the immutable timestamp.
+
+Acceptance is an emulator interaction using invented SMS: source selection and
+dismissal, each field assignment, readable evidence, no pre-existing account,
+correct amount, successful confirmation, duplicate replay, and grammar off/on
+diagnostics. Follow with accessibility and physical-device checks. The Android
+implementation checklist lives in docs/sms-processing-next-steps.md.
 ## Workstream 1 — freeze the successor behavior
 
 Status: **implemented and verified in the shared lightweight-CI lane**
