@@ -100,12 +100,31 @@ operation was interrupted by an audit foreground switch. Both Qwen3-0.6B Q8_0
 and debug-upgraded Qwen3-1.7B Q4_K_M returned invalid output in this small
 sample. Review extensions retained 2 valid SLM amount fields and 1 valid
 direction field. Decoded-token deltas and growing cumulative output were
-observed during active inference without recording their text. On-emulator
-complete-valid automatic saving, duplicates, visual partial highlights, retry,
-and controlled process-death recovery remain open; physical-device testing is
-not started. The opt-in aggregate audit compiled and passed manually; full
-Gradle gates must be rerun after Android audit commit `0f61438`. Start with one partial
-Review case and then final Android gates. Relevant Android sources are
+observed during active inference without recording their text. A later Pixel_9
+Review inspection confirmed separate retained SLM amount and direction
+highlights while the account remained unassigned. An
+additional synthetic prompt-example alert entered Review with malformed JSON.
+The aggregate-only audit found six short open JSON fragments and four readable
+posted objects with strict grounding failures; it recorded no SMS or output
+text. The frozen Android runtime uses grammar-constrained greedy decoding and
+a 512-token answer limit, but its stored evidence does not identify the stop
+condition for each open fragment. Strict grounding was not relaxed.
+
+An existing Review Retry created a parent-linked operation and reused its case
+on Pixel_9. A controlled process kill during synthetic inference exposed
+duplicate Review cases for one source after WorkManager replay. Android now
+reuses an unedited open v5 same-source Review case and preserves a newer case
+when an older claim recovers. Encrypted connected tests covered both replay orders and protected an
+owner-edited draft. After installing the fix, another controlled kill and replay added two
+operations but only one Review case; the earlier duplicate synthetic cases
+remain in emulator data. A separate connected SQLCipher fixture passed atomic
+automatic-save rollback, persistence, encrypted reopen, and retry duplicate
+fencing. The complete Android debug unit/lint/build gate, 15 app UI tests,
+8 encrypted data tests, and 2 pipeline connected tests passed; the opt-in audit
+passed separately and skipped the ordinary suite. This is deterministic device
+store evidence, not a successful model-driven save. Complete-valid model-driven
+saving, runtime duplicate fencing after such a save, full accessibility, and
+physical-device behavior remain open. Relevant Android sources are
 `DefaultSmsV4ProcessingCoordinator`, `SmsProcessingStore`,
 `GroundedReviewContent`, `ReviewDetailScreen`, `TransactionsScreen`, and
 `SmsTelemetryViewer` and `SmsSyntheticRuntimeAuditTest`; the platform handoff is
@@ -142,7 +161,9 @@ existing Review UI projects partial grounded fields, labels analyzer suggestions
 requires valid mandatory fields and deliberate account choice, and opens a
 selected card directly. Direct navigation, direction fallback, account selection,
 and disabled confirmation with a missing amount were exercised on the emulator.
-Visual partial-field highlighting, accessibility, and process recovery remain
+One retained amount/direction highlight pair is visually verified on
+Pixel_9. Synthetic Review retry and controlled process recovery were exercised,
+including one fixed same-source replay duplication. Full accessibility remains
 unverified there.
 
 1. Put Processing and Needs Review above the confirmed ledger on Transactions;
