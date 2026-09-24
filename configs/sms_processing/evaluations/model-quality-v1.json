@@ -1,0 +1,56 @@
+{
+  "contract": "pocketfinancer.sms-model-quality-suite/1",
+  "evaluation_version": "pocketfinancer.sms-extractor-evaluation/2",
+  "scoring_version": "pocketfinancer.sms-model-quality-scoring/2",
+  "semantic_contract": "pocketfinancer.sms-extractor/1",
+  "cohorts": {
+    "synthetic": {
+      "version": "pocketfinancer.synthetic-sms-extractor-cohort/1",
+      "path": "tests/sms_processing/fixtures/extractor/synthetic-suite.jsonl",
+      "sha256": "b032be67e1ed5692cc2b200a8eea2c326e785ecf6bc9b8c4e33440a5053d9ed2",
+      "expected_labels": "gold field in every declared JSONL case",
+      "protected_pool_policy": "invented fixtures only; no private messages"
+    },
+    "grandfathered": {
+      "version": "pocketfinancer.grandfathered-sms-regression/1",
+      "path": "DATA/extraction_ds.jsonl",
+      "sha256": "fec483b11cf458212b6a636f508632649790beacc91050efdd52abb2b590d44e",
+      "expected_labels": "legacy expected field; regression only, never fresh test",
+      "protected_pool_policy": "local regression only; never production evidence"
+    },
+    "private-canonical": {
+      "version": "pocketfinancer.private-canonical-revision-bound/1",
+      "path": "PRIVATE_DATA/sms_processing",
+      "sha256": null,
+      "expected_labels": "revision-bound submitted or adjudicated canonical labels",
+      "protected_pool_policy": "local secure workbench only; no Git, CI, telemetry, or hosted services"
+    }
+  },
+  "shared_scoring": {
+    "classification": "exact none/abstain/posted among labelled cases; malformed and runtime_failure are distinct outcomes",
+    "transaction": "posted precision and recall; false posted and missed posted counts",
+    "fields": "exact normalized amount minor units and currency, direction, account reference, and available counterparty",
+    "source_grounding": "strict host parser validates Unicode-scalar half-open source spans; report rejection reasons and exact gold spans where available",
+    "abstention": "predicted abstain rate and gold-abstain correctness",
+    "failure": "malformed and runtime failure counts with sanitized reason codes",
+    "latency": "host elapsed milliseconds per completed case; cross-device latency is not a parity claim"
+  },
+  "lanes": {
+    "android_target_gguf": {
+      "prompt_version": "pocketfinancer.extractor-prompt/1",
+      "schema_version": "pocketfinancer.sms-extractor/1",
+      "prompt": "configs/sms_processing/prompts/sms-extractor-v1.txt",
+      "schema": "configs/sms_processing/contracts/v3/sms-extractor.schema.json",
+      "output_contract": "direct strict extractor JSON",
+      "runtime": "llama-cpp-python on WSL host with GGUF embedded chat template and GBNF grammar"
+    },
+    "apple_fm_python": {
+      "prompt_version": "pocketfinancer.apple-fm-extractor-prompt/1",
+      "schema_version": "pocketfinancer.apple-fm-flat-guided/1",
+      "prompt": "configs/sms_processing/prompts/apple-fm-sms-extractor-v1.txt",
+      "schema": "configs/sms_processing/evaluations/apple-fm-flat-v1.schema.json",
+      "output_contract": "guided flat response mapped without repair to direct strict extractor JSON",
+      "runtime": "apple-fm-sdk on compatible macOS Apple Silicon, system-managed on-device model"
+    }
+  }
+}

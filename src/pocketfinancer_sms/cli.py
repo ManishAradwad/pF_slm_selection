@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from typing import Sequence
 
+from .apple_evaluation import evaluate_apple_foundation_models
 from .corpus import build_private_corpus
 from .evaluation import EvaluationInterrupted, evaluate_extractor
 from .provenance import PrivateArtifactError, file_sha256, require_private_output
@@ -78,6 +79,16 @@ def build_parser() -> argparse.ArgumentParser:
     evaluation.add_argument("--n-gpu-layers", type=int, default=-1)
     evaluation.add_argument("--seed", type=int, default=0)
     evaluation.add_argument("--max-tokens", type=int, default=512)
+    apple = subparsers.add_parser(
+        "evaluate-apple-fm",
+        help="evaluate synthetic SMS locally with Apple's macOS Foundation Models SDK",
+    )
+    apple.add_argument("--suite", choices=("synthetic",), default="synthetic")
+    apple.add_argument("--output-dir", type=Path, required=True)
+    apple.add_argument("--locale", default="en_US")
+    apple.add_argument("--primary-currency", default="INR")
+    apple.add_argument("--profile", action="append", dest="profiles")
+    apple.add_argument("--max-tokens", type=int, default=512)
     return parser
 
 
@@ -101,6 +112,31 @@ def main(argv: Sequence[str] | None = None) -> int:
                     n_ctx=args.n_ctx,
                     n_gpu_layers=args.n_gpu_layers,
                     seed=args.seed,
+                    max_tokens=args.max_tokens,
+                )
+            except EvaluationInterrupted as exc:
+                print(
+                    json.dumps(
+                        {
+                            "status": "interrupted",
+                            "completed_rows": exc.completed_rows,
+                            "total_rows": exc.total_rows,
+                        },
+                        sort_keys=True,
+                    )
+                )
+                return 130
+            print(json.dumps(summary, sort_keys=True))
+            return 0
+        if args.command == "evaluate-apple-fm":
+            try:
+                summary = evaluate_apple_foundation_models(
+                    args.repo_root,
+                    suite=args.suite,
+                    output_dir=args.output_dir,
+                    locale=args.locale,
+                    primary_currency=args.primary_currency,
+                    enabled_profile_ids=tuple(args.profiles or ("core-en", "india")),
                     max_tokens=args.max_tokens,
                 )
             except EvaluationInterrupted as exc:
@@ -259,9 +295,7 @@ def _require_secure_store(store: WorkbenchStore) -> None:
 
 def _private_root(repo_root: Path) -> Path:
     resolved = repo_root.resolve()
-    return require_private_output(
-        resolved, resolved / "PRIVATE_DATA" / "sms_processing"
-    )
+    return require_private_output(resolved, resolved / "PRIVATE_DATA" / "sms_processing")
 
 
 def _release_manifest_sha256(repo_root: Path) -> str:

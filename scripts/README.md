@@ -11,6 +11,7 @@ contains the ignored private archive:
 | `python scripts/run_sms_processing.py init-workbench` | Import the current canonical manifest into the crash-safe local SQLite workbench. |
 | `python scripts/run_sms_processing.py serve-workbench` | Serve the token-protected workbench on `127.0.0.1` only. |
 | `python scripts/run_sms_processing.py evaluate-extractor --gguf <local.gguf> --suite synthetic --output-dir PRIVATE_DATA/sms_processing/evaluations/<run>` | Evaluate the direct extractor locally with aggregate console output and permission-restricted, ignored row-level artifacts. |
+| `python scripts/run_sms_processing.py evaluate-apple-fm --suite synthetic --output-dir PRIVATE_DATA/sms_processing/evaluations/<run>` | Evaluate the same synthetic cohort on a compatible Mac with Apple's local Python SDK; WSL live invocation fails clearly. |
 | `python scripts/build_native_contract_release_v3.py` | Validate schemas/profiles/goldens and historical hashes, then print the deterministic frozen v3 manifest for exact comparison. |
 | `python scripts/package_native_contract_v3.py export --bundle-root <app-resource-root>` | Copy the exact frozen v3 manifest and all hash-bound artifacts into an app bundle root, preserving manifest-relative paths and refusing conflicting files. |
 | `python scripts/package_native_contract_v3.py check --bundle-root <app-resource-root>` | Verify the packaged v3 manifest and every referenced artifact; missing or altered files fail with the stable `configuration_integrity` reason. |
@@ -21,6 +22,9 @@ The corpus command prints aggregate counts only. The UI and all generated state
 remain below ignored `PRIVATE_DATA/sms_processing`. Never tunnel, screen-share, or
 open private rows in browser developer tools intended for capture. Synthetic HTTP
 tests are the only supported UI smoke evidence in Git/CI.
+
+For exact Mac setup, local run, resume, provenance, and comparison limits, see
+[Local SMS model-quality evaluation](../docs/guides/SMS_MODEL_QUALITY_EVALUATION.md).
 
 
 The grandfathered regression remains explicitly non-production:

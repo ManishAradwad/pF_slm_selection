@@ -13,10 +13,11 @@ does not substitute for another.
 | --- | --- | --- |
 | Shared Python contracts and sanitized vectors | Successor release implemented; shared lightweight-CI gate passes locally | Parser, grounding, normalization, configuration, compatibility, partial Review evidence, and deterministic policy behavior |
 | Android app integration | Automatic routing, partial Review, and live output implemented; complete debug unit/lint/build and Pixel_9 connected gates pass; Pixel_9 confirms decoded/cumulative display, a retained partial-highlight pair, exception Review, retry lineage, and controlled process replay with one Review case after the fix | Deterministic connected SQLCipher tests prove save/rollback/reopen/duplicate fencing, both Review replay orders, and edited-draft protection; sampled models did not produce a complete valid posted result, so model-driven automatic persistence and runtime duplicate fencing remain unverified; full accessibility and physical device remain open |
-| Android-target GGUF direct extractor (`evaluate-extractor`) | Implemented | Reproducible semantic quality for one exact local GGUF/configuration on the host; not Android device proof |
+| Android-target GGUF direct extractor (`evaluate-extractor`) | Implemented; now shares the versioned synthetic suite/scorer with the Apple Python lane | Reproducible semantic quality for one exact local GGUF/configuration on the WSL host; not Android device proof |
 | Encrypted native-trace import | Implemented | Consent-bound local ingestion of Android/iOS traces into the workbench with provenance and blind-pool protection |
 | Android app/device runner and scorer | Planned extension | Exact app/runtime/model behavior on emulator and physical Android hardware |
-| Apple Foundation Models evaluator and scorer | Missing; planned in the active roadmap | Exact iOS contract behavior through macOS/Xcode and supported physical iPhone hardware |
+| Apple Foundation Models Python SDK evaluator | Implemented in WSL with fake-provider tests; live Mac inference unverified | After a Mac run, on-device macOS synthetic semantic quality under the declared guided contract; not exact Swift app or iPhone proof |
+| Exact Swift/iOS Foundation Models app and device scorer | Missing; planned in the active roadmap | Exact app contract and supported physical iPhone behavior |
 
 Host GGUF results are not Android measurements. Android results are not iOS
 results. Simulator/emulator evidence is not physical-device evidence.
@@ -40,6 +41,17 @@ resume by completed case ID, interruption, retry, partial-result quarantine, and
 configuration-mismatch rejection. It records decoded tokens, token throughput,
 logits, confidence, context size, and model-file hash as unavailable when Apple
 does not expose them.
+
+The first Python SDK lane now executes the declared synthetic cohort using local
+guided generation and maps its flat result to the same strict extractor parser
+and deterministic scorer as the WSL GGUF lane. Its reports identify both output
+contracts and prompt/schema hashes. The SDK's documented Python guided-response
+API does not currently yield cumulative guided snapshots, and the runner records
+that fact rather than inventing them. Live Mac inference, exact Swift app
+instructions/schema parity, protected-suite packaging and encrypted import, and
+physical iPhone evidence remain unverified or unimplemented. Follow the
+[Mac run guide](../guides/SMS_MODEL_QUALITY_EVALUATION.md) for the synthetic
+first pass.
 
 Start with sanitized synthetic fixtures on the Mac. Private-suite execution
 requires explicit local packaging and encrypted return; no raw row or per-row

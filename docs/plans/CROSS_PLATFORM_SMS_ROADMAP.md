@@ -337,6 +337,26 @@ SLM evaluation baseline used for Android-oriented model work, although an
 emulator/device run remains a separate runtime gate. The missing evaluation
 implementation is the Apple Foundation Models lane.
 
+Checkpoint (2026-09-24): The first shared model-quality workflow is implemented
+in this WSL repository for the hash-bound synthetic cohort. `evaluate-extractor`
+remains the GGUF lane; the new `evaluate-apple-fm` lane calls Apple's official
+Python SDK on compatible macOS and shares the source cases, gold labels, strict
+host parser, and deterministic scorer. WSL fake-provider tests cover Apple result
+mapping, failures, privacy, interruption/resume, duplicate IDs, configuration
+mismatch, and platform refusal. The Mac live run and its results remain
+unverified. The Python SDK's guided response path currently does not expose
+guided streaming snapshots or an explicit locale preflight, so these are reported
+as unavailable; a Mac SDK run is not exact Swift app or iPhone parity. See the
+[run guide](../guides/SMS_MODEL_QUALITY_EVALUATION.md). Protected private-suite
+packaging, encrypted result transfer/import, Swift contract parity, and the
+physical iPhone matrix remain open in this workstream.
+
+The WSL host GGUF lane also completed a real 9-case synthetic run with local
+Qwen3-0.6B Q8_0 on this branch, and a same-configuration rerun reused all nine
+checkpointed cases. This checks evaluator execution and resume on the host; the
+small synthetic quality scores are neither Android device evidence nor a product
+quality claim.
+
 1. Preserve `evaluate-extractor` as the reproducible Android-target GPU/GGUF
    semantic evaluator. Do not describe host results as Android device results.
 2. Define one hash-bound evaluation-suite manifest in `pF_slm_selection` with
