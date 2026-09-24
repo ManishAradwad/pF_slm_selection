@@ -324,6 +324,11 @@ automation remains unavailable because its local sandbox setup fails, so no
 visual click-through was observed by the agent. Private corpus metrics and
 trial records stay outside version control.
 
+Checkpoint 7 (2026-09-25): Group navigation now retains the previous queue
+view in the browser session. A Back to previous list control restores its
+filters, page, and selected message; Clear group filter still opens the broad
+queue from page one. Human click-through remains an acceptance checkpoint.
+
 ## Workstream 6 — add the Apple Foundation Models evaluation pipeline
 
 The shared repository already has the Android-target local GGUF

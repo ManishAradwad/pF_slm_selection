@@ -1,6 +1,6 @@
 # SMS Workbench Labeling Guide
 
-Status: **focused canonical-label/2 editor available for synthetic verification; private corpus trial pending**
+Status: **focused canonical-label/2 editor available for local labeling; human acceptance ongoing**
 
 The local workbench now writes `pocketfinancer.canonical-label/2` for new
 annotations. It keeps earlier `canonical-label/1` revisions in the same
@@ -34,7 +34,11 @@ the ignored private-data tree.
    `annotation_training`. The middle column is the current queue; its
    ordering, position, and remaining count appear beside the editor.
    Disagreement, candidate coverage, and imported feedback filters are
-   available outside blind protected pools.
+   available outside blind protected pools. Use **Show this template family**,
+   **Show this sender family**, or **Show this sender-template group** to inspect
+   related messages. **Back to previous list** restores the earlier filters,
+   page, and selected message. **Clear group filter** returns to page one of
+   the broader list.
 2. Read the complete, unchanged SMS before opening machine suggestions.
    Choose **Posted** (`Alt+1`), **None** (`Alt+2`), or **Abstain** (`Alt+3`).
 3. Verify operational class, event state, family, and payment rail. The
