@@ -92,3 +92,14 @@ h3 { margin-bottom: 8px; font-size: 14px; }
   .workspace { grid-template-columns: 210px 290px minmax(460px, 1fr); }
   .form-grid { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
 }
+
+.field-mark { color: #16251c; border-radius: 2px; padding: 1px 0; text-decoration: underline 2px; text-underline-offset: 3px; }
+.field-mark.amount_span { background: #ffe2a8; text-decoration-color: #8c5100; }
+.field-mark.direction_span { background: #c7ecff; text-decoration-color: #075a86; }
+.field-mark.account_span { background: #d9cef9; text-decoration-color: #563995; }
+.field-mark.counterparty_span { background: #d3efcf; text-decoration-color: #286b30; }
+.field-mark.overlap { background: #f4d3e3; text-decoration-color: #8d315d; }
+.field-mark.active-field { outline: 2px solid #17221d; outline-offset: 2px; }
+#focusSpanSummary > div { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+button.compact { padding: 2px 6px; font-size: 11px; }
+#focusedEditor > .action-row + .action-row { margin-top: 8px; }

@@ -1,6 +1,6 @@
 # Workbench Requirements and Data Flow
 
-Status: **implemented v1 foundation; canonical-label/2 focused mode planned**
+Status: **v1 foundation and focused canonical-label/2 editor implemented; private end-to-end trial and durable resume pending**
 Entry point: `python scripts/run_sms_processing.py serve-workbench`
 
 ## Private layout
@@ -61,17 +61,19 @@ label into `none`.
 
 ## Current implementation boundary
 
-The current browser form writes `pocketfinancer.canonical-label/1`, exposes the
-older five-way decision UI, and previews compact Candidate Selector targets.
-Those behaviors are historical implementation facts, not the target annotation
-contract for the SLM-primary direct extractor.
+The browser now edits `pocketfinancer.canonical-label/2` explicitly. New
+submissions validate exact source spans and preview direct-extractor targets
+without analyzer candidate IDs. Older `canonical-label/1` revisions remain
+readable in history and use their historical Candidate Selector preview.
+The focused editor starts a new v2 revision explicitly when it encounters a
+legacy label. The v1 service path remains for historical compatibility.
 
 The secure store, canonical corpus import, pool and category navigation,
 blind-first controls, source-span selection, append-only revisions,
-adjudication, backup, restore, and encrypted export remain reusable. The focused
-mode must add a versioned `canonical-label/2` path, preserve v1 revisions
-read-only, and project approved v2 truth directly to the extractor without
-requiring analyzer candidate IDs.
+adjudication, backup, restore, and encrypted export remain reusable. The v2
+editor adds quick decisions, color-coded spans, drafts, queue movement, and
+direct target preview. Browser position currently lasts for the tab session;
+durable encrypted resume and the private acceptance trial remain open.
 
 ## Focused personal-corpus annotation mode
 
@@ -149,9 +151,10 @@ available only for reproducing historical experiments. The focused v2 path
 instead validates exact source-grounded fields and previews the direct-extractor
 target independently of analyzer candidate coverage.
 
-The workbench currently holds the complete 17,830-row canonical run and has a
-verified initial backup. The focused annotation mode above remains planned. No
-training-ready train/dev/test SFT target exists.
+The original private canonical run and initial backup are recorded in the
+historical handoff. This WSL checkout currently has no private canonical
+manifest, so the focused editor has only been exercised with synthetic rows
+here. No training-ready train/dev/test SFT target exists.
 
 ## Native Review remains separate
 

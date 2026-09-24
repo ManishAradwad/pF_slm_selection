@@ -11,6 +11,7 @@ import pytest
 from pocketfinancer_sms.analyzer import DeterministicSmsAnalyzer
 from pocketfinancer_sms.corpus.grouping import build_grouping
 from pocketfinancer_sms.currency import CurrencyContext
+from pocketfinancer_sms.extractor import SourceSpan
 from pocketfinancer_sms.provenance import PrivateArtifactError
 from pocketfinancer_sms.triage import evaluate_triage
 from pocketfinancer_sms.types import CandidateKind
@@ -408,3 +409,151 @@ def test_adjudication_requires_disagreement_and_binds_resolved_revision_hashes(
     assert set(latest["payload"]["adjudication_of"]) == {
         item["revision_hash"] for item in disagreement["annotations"]
     }
+
+
+def _posted_v2_payload(record: dict) -> dict:
+    source = record["source"]["body"]
+
+    def span(text: str) -> dict:
+        start = source.index(text)
+        return SourceSpan.from_source(source, start, start + len(text)).to_dict()
+
+    return {
+        "contract": "pocketfinancer.canonical-label/2",
+        "decision": "posted",
+        "operational_class": "posted_candidate",
+        "event_state": "posted",
+        "financial_family": "bank_transfer",
+        "payment_rail": "bank_internal",
+        "event": {
+            "amount_value": "42.50",
+            "currency": "INR",
+            "amount_span": span("INR 42.50"),
+            "direction": "credit",
+            "direction_span": span("credited"),
+            "account_reference": "**7788",
+            "account_span": span("**7788"),
+            "existing_account_id": None,
+            "counterparty": "FRIEND",
+            "counterparty_span": span("FRIEND"),
+        },
+        "uncertain": False,
+        "notes": "",
+    }
+
+
+def test_v2_submission_projects_direct_extractor_without_analyzer_candidates(tmp_path: Path) -> None:
+    store, record = _store(tmp_path, pool="annotation_training")
+    service = WorkbenchService(store)
+    source_id = record["source_id"]
+    payload = _posted_v2_payload(record)
+    saved = service.submit(
+        source_id=source_id,
+        reviewer_id="reviewer-one",
+        expected_revision=0,
+        payload=payload,
+    )
+    assert saved["revision"] == 1
+    assert store.latest_annotation(source_id, "reviewer-one")["canonical_label"]["contract"] == "pocketfinancer.canonical-label/2"
+    preview = service.target_preview(source_id, "reviewer-one")
+    assert preview["convertible"] is True
+    assert preview["target_contract"] == "pocketfinancer.sms-extractor/1"
+    assert preview["target"]["amount"]["value"] == "42.50"
+    assert preview["target"]["account"]["evidence"]["text"] == "**7788"
+    assert "candidate_id" not in json.dumps(preview)
+
+
+def test_v2_drafts_and_explicit_transition_preserve_legacy_revisions(tmp_path: Path) -> None:
+    store, record = _store(tmp_path, pool="annotation_training")
+    service = WorkbenchService(store)
+    source_id = record["source_id"]
+    legacy = service.submit(
+        source_id=source_id,
+        reviewer_id="reviewer-one",
+        expected_revision=0,
+        payload=_posted_payload(record),
+    )
+    assert legacy["revision"] == 1
+    assert store.latest_annotation(source_id, "reviewer-one")["canonical_label"]["contract"] == "pocketfinancer.canonical-label/1"
+    draft = service.save_draft(
+        source_id=source_id,
+        reviewer_id="reviewer-one",
+        expected_revision=1,
+        payload={"contract": "pocketfinancer.canonical-label/2", "decision": "posted"},
+    )
+    assert draft["revision"] == 2
+    latest_draft = store.latest_annotation(source_id, "reviewer-one")
+    assert latest_draft["canonical_label"] is None
+    assert latest_draft["payload"]["contract"] == "pocketfinancer.canonical-label/2"
+    with pytest.raises(WorkbenchValidationError, match="legacy v1"):
+        service.save_draft(
+            source_id=source_id,
+            reviewer_id="reviewer-one",
+            expected_revision=2,
+            payload={"decision": "posted"},
+        )
+    posted = service.submit(
+        source_id=source_id,
+        reviewer_id="reviewer-one",
+        expected_revision=2,
+        payload=_posted_v2_payload(record),
+    )
+    assert posted["revision"] == 3
+    history = service.view_row(source_id, "reviewer-one")["annotation_history"]
+    assert [item["revision"] for item in history] == [1, 2, 3]
+    assert history[0]["canonical_label"]["contract"] == "pocketfinancer.canonical-label/1"
+    assert service.target_preview(source_id, "reviewer-one")["target_contract"] == "pocketfinancer.sms-extractor/1"
+
+
+def test_v2_invalid_grounding_and_decision_do_not_append_revision(tmp_path: Path) -> None:
+    store, record = _store(tmp_path, pool="annotation_training")
+    service = WorkbenchService(store)
+    source_id = record["source_id"]
+    payload = _posted_v2_payload(record)
+    payload["event"]["account_span"]["text"] = "not in source"
+    with pytest.raises(WorkbenchValidationError, match="annotation source span is invalid"):
+        service.submit(
+            source_id=source_id,
+            reviewer_id="reviewer-one",
+            expected_revision=0,
+            payload=payload,
+        )
+    assert store.current_revision(source_id, "reviewer-one") == 0
+    payload = _posted_v2_payload(record)
+    payload["decision"] = "unknown"
+    payload["event"] = None
+    with pytest.raises(WorkbenchValidationError, match="label_decision_invalid"):
+        service.submit(
+            source_id=source_id,
+            reviewer_id="reviewer-one",
+            expected_revision=0,
+            payload=payload,
+        )
+    assert store.current_revision(source_id, "reviewer-one") == 0
+
+
+def test_v2_protected_review_keeps_direct_preview_blind_until_reveal(tmp_path: Path) -> None:
+    store, record = _store(tmp_path)
+    service = WorkbenchService(store)
+    source_id = record["source_id"]
+    service.submit(
+        source_id=source_id,
+        reviewer_id="reviewer-one",
+        expected_revision=0,
+        payload=_posted_v2_payload(record),
+    )
+    with pytest.raises(WorkbenchValidationError, match="preview remains hidden"):
+        service.target_preview(source_id, "reviewer-one")
+    service.reveal(source_id, "reviewer-one")
+    assert service.target_preview(source_id, "reviewer-one")["convertible"] is True
+
+
+def test_progress_does_not_expose_protected_weak_facets(tmp_path: Path) -> None:
+    store, _ = _store(tmp_path)
+    progress = store.progress()
+    assert progress["total"] == 1
+    assert progress["pools"]["protected_test"] == 1
+    assert progress["classes"] == {}
+    assert progress["families"] == {}
+    assert progress["rails"] == {}
+    assert progress["class_coverage"] == {}

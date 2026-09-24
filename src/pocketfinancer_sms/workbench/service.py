@@ -5,10 +5,13 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from ..extractor import SourceSpan
 from ..labels import (
     CanonicalDecision,
     CanonicalEvent,
     CanonicalLabel,
+    CanonicalLabelV2,
+    ExtractorCanonicalEvent,
     EventState,
     FINANCIAL_FAMILIES,
     LabelValidationError,
@@ -17,8 +20,11 @@ from ..labels import (
     PresenceState,
     ReviewStatus,
     canonical_label_to_dict,
+    canonical_label_v2_to_dict,
+    project_extractor_target,
     project_selector_target,
     validate_canonical_label,
+    validate_canonical_label_v2,
 )
 from ..provenance import object_sha256
 from ..types import Analysis, CurrencyProvenance, Direction, EvidenceSpan
@@ -27,6 +33,7 @@ from .store import WorkbenchStore
 
 
 PROTECTED_POOLS = frozenset({"protected_test", "later_time_holdout"})
+V2_CONTRACT = "pocketfinancer.canonical-label/2"
 
 
 class WorkbenchValidationError(ValueError):
@@ -151,6 +158,10 @@ class WorkbenchService:
         self._require_record_and_reviewer(source_id, reviewer_id)
         if not isinstance(payload, dict):
             raise WorkbenchValidationError("draft payload must be an object")
+        _validate_payload_contract(payload)
+        _prevent_contract_downgrade(
+            self.store.latest_annotation(source_id, reviewer_id), payload
+        )
         return self.store.append_annotation_revision(
             source_id=source_id,
             reviewer_id=reviewer_id,
@@ -171,6 +182,12 @@ class WorkbenchService:
         adjudicated: bool = False,
     ) -> dict[str, Any]:
         record = self._require_record_and_reviewer(source_id, reviewer_id)
+        if not isinstance(payload, dict):
+            raise WorkbenchValidationError("annotation payload must be an object")
+        contract = _validate_payload_contract(payload)
+        _prevent_contract_downgrade(
+            self.store.latest_annotation(source_id, reviewer_id), payload
+        )
         revision = expected_revision + 1
         status = ReviewStatus.ADJUDICATED if adjudicated else ReviewStatus.SUBMITTED
         stored_payload = payload
@@ -186,7 +203,8 @@ class WorkbenchService:
                     item["revision_hash"] for item in disagreement["annotations"]
                 ],
             }
-        label = _build_label(
+        builder = _build_label_v2 if contract == V2_CONTRACT else _build_label
+        label = builder(
             source_id=source_id,
             reviewer_id=reviewer_id,
             revision=revision,
@@ -194,7 +212,11 @@ class WorkbenchService:
             payload=payload,
             source=record["source"]["body"],
         )
-        canonical = canonical_label_to_dict(label)
+        canonical = (
+            canonical_label_v2_to_dict(label)
+            if isinstance(label, CanonicalLabelV2)
+            else canonical_label_to_dict(label)
+        )
         return self.store.append_annotation_revision(
             source_id=source_id,
             reviewer_id=reviewer_id,
@@ -248,18 +270,30 @@ class WorkbenchService:
                 "convertible": False,
                 "reason_code": "projection_submitted_canonical_label_missing",
             }
-        label = _label_from_dict(latest["canonical_label"], record["source"]["body"])
+        canonical = latest["canonical_label"]
+        source = record["source"]["body"]
+        if canonical.get("contract") == V2_CONTRACT:
+            try:
+                label_v2 = _label_v2_from_dict(canonical, source)
+                target = project_extractor_target(label_v2, source)
+            except (LabelValidationError, WorkbenchValidationError) as exc:
+                reason = exc.reason_code if isinstance(exc, LabelValidationError) else str(exc)
+                return {"convertible": False, "reason_code": reason}
+            return {
+                "convertible": True,
+                "target": target,
+                "target_contract": "pocketfinancer.sms-extractor/1",
+            }
+        label = _label_from_dict(canonical, source)
         try:
-            analysis = Analysis.from_dict(
-                record["analysis"], source=record["source"]["body"]
-            )
+            analysis = Analysis.from_dict(record["analysis"], source=source)
         except ValueError as exc:
             raise WorkbenchValidationError("stored analysis cannot be validated") from exc
         try:
-            target = project_selector_target(label, analysis, record["source"]["body"])
+            target = project_selector_target(label, analysis, source)
         except LabelValidationError as exc:
             return {"convertible": False, "reason_code": exc.reason_code}
-        return {"convertible": True, "target": target}
+        return {"convertible": True, "target": target, "target_contract": "historical-candidate-selector"}
 
     def disagreements(self, source_id: str, reviewer_id: str) -> dict[str, Any]:
         record = self._require_record_and_reviewer(source_id, reviewer_id)
@@ -294,6 +328,138 @@ class WorkbenchService:
         if record is None:
             raise WorkbenchValidationError("source row does not exist")
         return record
+
+
+
+def _validate_payload_contract(payload: dict[str, Any]) -> str:
+    contract = payload.get("contract", "pocketfinancer.canonical-label/1")
+    if contract not in {"pocketfinancer.canonical-label/1", V2_CONTRACT}:
+        raise WorkbenchValidationError("annotation contract is unsupported")
+    return contract
+
+
+def _prevent_contract_downgrade(latest: dict[str, Any] | None, payload: dict[str, Any]) -> None:
+    if latest is None:
+        return
+    previous = latest.get("canonical_label") or latest.get("payload") or {}
+    if previous.get("contract") == V2_CONTRACT and _validate_payload_contract(payload) != V2_CONTRACT:
+        raise WorkbenchValidationError("v2 annotation cannot be edited as legacy v1")
+
+
+def _source_span(value: Any, source: str) -> SourceSpan:
+    try:
+        return SourceSpan.from_payload(value, source)
+    except ValueError as exc:
+        raise WorkbenchValidationError("annotation source span is invalid") from exc
+
+
+def _build_v2_event(value: Any, source: str) -> ExtractorCanonicalEvent:
+    if not isinstance(value, dict):
+        raise WorkbenchValidationError("posted annotation requires one event")
+    required = {
+        "amount_value", "currency", "amount_span", "direction", "direction_span",
+        "account_reference", "account_span", "existing_account_id",
+        "counterparty", "counterparty_span",
+    }
+    if set(value) != required:
+        raise WorkbenchValidationError("posted event fields are incomplete or unsupported")
+    try:
+        return ExtractorCanonicalEvent(
+            amount_value=value["amount_value"],
+            currency=value["currency"],
+            amount_span=_source_span(value["amount_span"], source),
+            direction=Direction(value["direction"]),
+            direction_span=_source_span(value["direction_span"], source),
+            account_reference=value["account_reference"],
+            account_span=_source_span(value["account_span"], source),
+            existing_account_id=value["existing_account_id"],
+            counterparty=value["counterparty"],
+            counterparty_span=(
+                _source_span(value["counterparty_span"], source)
+                if value["counterparty_span"] is not None else None
+            ),
+        )
+    except WorkbenchValidationError:
+        raise
+    except (TypeError, ValueError) as exc:
+        raise WorkbenchValidationError("posted event value is invalid") from exc
+
+
+def _build_label_v2(
+    *,
+    source_id: str,
+    reviewer_id: str,
+    revision: int,
+    status: ReviewStatus,
+    payload: dict[str, Any],
+    source: str,
+) -> CanonicalLabelV2:
+    if payload.get("contract") != V2_CONTRACT:
+        raise WorkbenchValidationError("v2 annotation contract must be explicit")
+    try:
+        decision = payload["decision"]
+        operational = OperationalClass(payload["operational_class"])
+        event_state = EventState(payload["event_state"])
+        uncertain = payload["uncertain"]
+        notes = payload.get("notes", "")
+        event_value = payload.get("event")
+        event = _build_v2_event(event_value, source) if decision == "posted" else None
+        if decision != "posted" and event_value is not None:
+            raise WorkbenchValidationError("non-posted annotation cannot contain an event")
+    except WorkbenchValidationError:
+        raise
+    except (KeyError, TypeError, ValueError) as exc:
+        raise WorkbenchValidationError("annotation payload has invalid or missing fields") from exc
+    if not isinstance(uncertain, bool) or not isinstance(notes, str):
+        raise WorkbenchValidationError("annotation uncertainty or notes are invalid")
+    try:
+        label = CanonicalLabelV2(
+            label_id="lbl_" + object_sha256({
+                "source_id": source_id, "reviewer_id": reviewer_id,
+                "revision": revision, "payload": payload,
+            })[:24],
+            source_id=source_id,
+            revision=revision,
+            status=status,
+            decision=decision,
+            operational_class=operational,
+            event_state=event_state,
+            financial_family=payload.get("financial_family"),
+            payment_rail=payload.get("payment_rail"),
+            event=event,
+            uncertain=uncertain,
+            notes=notes,
+            reviewer_id=reviewer_id,
+            created_at_epoch_ms=_now_ms(),
+            supersedes_revision=revision - 1 if revision > 1 else None,
+        )
+        validate_canonical_label_v2(label, source)
+    except LabelValidationError as exc:
+        raise WorkbenchValidationError(exc.reason_code) from exc
+    return label
+
+
+def _label_v2_from_dict(value: dict[str, Any], source: str) -> CanonicalLabelV2:
+    event = value.get("event")
+    label = CanonicalLabelV2(
+        label_id=value["label_id"],
+        source_id=value["source_id"],
+        revision=value["revision"],
+        status=ReviewStatus(value["status"]),
+        decision=value["decision"],
+        operational_class=OperationalClass(value["operational_class"]),
+        event_state=EventState(value["event_state"]),
+        financial_family=value.get("financial_family"),
+        payment_rail=value.get("payment_rail"),
+        event=_build_v2_event(event, source) if event is not None else None,
+        uncertain=value["uncertain"],
+        notes=value["notes"],
+        reviewer_id=value["reviewer_id"],
+        created_at_epoch_ms=value["created_at_epoch_ms"],
+        supersedes_revision=value.get("supersedes_revision"),
+    )
+    validate_canonical_label_v2(label, source)
+    return label
 
 
 def _build_label(

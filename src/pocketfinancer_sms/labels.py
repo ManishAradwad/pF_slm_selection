@@ -414,13 +414,13 @@ class CanonicalLabelV2:
             },
             "abstain": {(OperationalClass.AMBIGUOUS, EventState.UNKNOWN)},
         }
+        if self.decision not in expected_axes:
+            raise LabelValidationError("label_decision_invalid")
         if (self.operational_class, self.event_state) not in expected_axes[self.decision]:
             raise LabelValidationError("label_taxonomy_axes_inconsistent")
         _validate_facets(self.financial_family, self.payment_rail)
         if self.revision > 1 and self.supersedes_revision != self.revision - 1:
             raise LabelValidationError("label_revision_chain_invalid")
-        if self.decision not in {"posted", "none", "abstain"}:
-            raise LabelValidationError("label_decision_invalid")
         if (self.decision == "posted") != (self.event is not None):
             raise LabelValidationError("label_event_count_inconsistent")
 

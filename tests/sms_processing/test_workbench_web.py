@@ -12,6 +12,7 @@ from pathlib import Path
 from pocketfinancer_sms.analyzer import DeterministicSmsAnalyzer
 from pocketfinancer_sms.corpus.grouping import build_grouping
 from pocketfinancer_sms.currency import CurrencyContext
+from pocketfinancer_sms.extractor import SourceSpan
 from pocketfinancer_sms.triage import evaluate_triage
 from pocketfinancer_sms.workbench.service import WorkbenchService
 from pocketfinancer_sms.workbench.store import WorkbenchStore
@@ -148,3 +149,91 @@ def test_non_loopback_bind_is_rejected(tmp_path: Path) -> None:
         raise AssertionError("non-loopback bind unexpectedly succeeded")
     except ValueError as exc:
         assert "127.0.0.1" in str(exc)
+
+
+def test_v2_http_annotation_and_blind_direct_preview(tmp_path: Path) -> None:
+    server, source_id = _server(tmp_path)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    body = "INR 15 was debited from account **1234 at SYNTH STORE."
+
+    def span(text: str) -> dict:
+        start = body.index(text)
+        return SourceSpan.from_source(body, start, start + len(text)).to_dict()
+
+    payload = {
+        "contract": "pocketfinancer.canonical-label/2",
+        "decision": "posted",
+        "operational_class": "posted_candidate",
+        "event_state": "posted",
+        "financial_family": "merchant_payment",
+        "payment_rail": "unknown",
+        "event": {
+            "amount_value": "15",
+            "currency": "INR",
+            "amount_span": span("INR 15"),
+            "direction": "debit",
+            "direction_span": span("debited"),
+            "account_reference": "**1234",
+            "account_span": span("**1234"),
+            "existing_account_id": None,
+            "counterparty": "SYNTH STORE",
+            "counterparty_span": span("SYNTH STORE"),
+        },
+        "uncertain": False,
+        "notes": "",
+    }
+    reviewer = "synthetic-reviewer"
+    try:
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{server.port}/?token={server.token}"
+        ) as response:
+            assert "canonical-label/2" in response.read().decode("utf-8")
+        with urllib.request.urlopen(
+            _request(
+                server,
+                "/api/draft",
+                payload={
+                    "source_id": source_id,
+                    "reviewer_id": reviewer,
+                    "expected_revision": 0,
+                    "payload": {"contract": "pocketfinancer.canonical-label/2", "decision": "posted"},
+                },
+            )
+        ) as response:
+            assert json.loads(response.read())["revision"] == 1
+        with urllib.request.urlopen(
+            _request(
+                server,
+                "/api/submit",
+                payload={
+                    "source_id": source_id,
+                    "reviewer_id": reviewer,
+                    "expected_revision": 1,
+                    "payload": payload,
+                },
+            )
+        ) as response:
+            assert json.loads(response.read())["revision"] == 2
+        preview_path = f"/api/preview?reviewer_id={reviewer}&source_id={source_id}"
+        try:
+            urllib.request.urlopen(_request(server, preview_path))
+            raise AssertionError("blind preview unexpectedly succeeded")
+        except urllib.error.HTTPError as exc:
+            assert exc.code == 400
+        with urllib.request.urlopen(
+            _request(
+                server,
+                "/api/reveal",
+                payload={"source_id": source_id, "reviewer_id": reviewer},
+            )
+        ) as response:
+            revealed = json.loads(response.read())
+            assert revealed["blind_locked"] is False
+        with urllib.request.urlopen(_request(server, preview_path)) as response:
+            preview = json.loads(response.read())
+            assert preview["target_contract"] == "pocketfinancer.sms-extractor/1"
+            assert preview["target"]["decision"] == "posted"
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)

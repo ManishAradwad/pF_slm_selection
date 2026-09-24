@@ -11,10 +11,13 @@ const state = {
   offset: 0,
   limit: 50,
   total: 0,
+  rowIds: [],
+  focusedSpans: {},
+  focusedDirty: false,
+  activeFocusedField: null,
   selectedId: null,
   selectedRecord: null,
-  spans: {},
-  events: [],
+  selectedReviewer: null,
   correctionRevision: 0,
   hasDisagreement: false,
   groupFilters: {
@@ -49,12 +52,6 @@ optionList(el("classFilter"), ["", ...classes], "All classes");
 optionList(el("eventStateFilter"), ["", ...eventStates], "All states");
 optionList(el("familyFilter"), families, "All families");
 optionList(el("railFilter"), rails, "All rails");
-optionList(el("operationalClass"), ["", ...classes], "Choose…");
-optionList(el("eventState"), ["", ...eventStates], "Choose…");
-optionList(el("financialFamily"), families, "None");
-optionList(el("paymentRail"), rails, "None");
-optionList(el("eventFinancialFamily"), families, "None");
-optionList(el("eventPaymentRail"), rails, "None");
 el("reviewerId").value = localStorage.getItem("workbenchReviewer") || "";
 
 async function api(path, options = {}) {
@@ -150,6 +147,8 @@ function filters() {
 async function loadRows() {
   const result = await api(`/api/rows?${queryString(filters())}`);
   state.total = result.total;
+  state.rowIds = result.rows.map((row) => row.source_id);
+  updateFocusedPosition();
   el("rowCount").textContent = `${result.total.toLocaleString()} rows`;
   el("pageLabel").textContent = `${Math.floor(state.offset / state.limit) + 1} / ${Math.max(1, Math.ceil(state.total / state.limit))}`;
   el("previousPage").disabled = state.offset === 0;
@@ -166,17 +165,17 @@ async function loadRows() {
     meta.className = "meta";
     meta.textContent = [row.pool, row.review_state, row.blind_locked ? "blind" : row.disposition].filter(Boolean).join(" · ");
     button.append(snippet, meta);
-    button.addEventListener("click", () => selectRow(row.source_id));
+    button.addEventListener("click", () => run(() => selectRow(row.source_id)));
     list.append(button);
   });
 }
 
 async function selectRow(sourceId) {
+  if (state.selectedId && state.selectedId !== sourceId) await flushFocusedDraft();
   const record = await api(`/api/row?${queryString({source_id: sourceId})}`);
   state.selectedId = sourceId;
   state.selectedRecord = record;
-  state.spans = {};
-  state.events = [];
+  state.selectedReviewer = reviewer();
   state.hasDisagreement = false;
   state.correctionRevision = record.latest_weak_correction ? record.latest_weak_correction.revision : 0;
   el("emptyDetail").hidden = true;
@@ -190,26 +189,15 @@ async function selectRow(sourceId) {
   el("revealButton").hidden = !record.can_reveal;
   el("analysisPanel").hidden = record.blind_locked;
   el("revisionLabel").textContent = record.latest_annotation ? `Revision ${record.latest_annotation.revision}` : "No revision";
-  populateAnnotation(record.latest_annotation);
-  resetEventEditor(record);
+  populateFocused(record);
   renderAnalysis(record);
   renderGroupNavigation(record);
-  renderSpans();
-  renderEvents();
+  renderFocusedEvidence();
   await loadDisagreements(record);
   await loadRows();
-}
-function populateAnnotation(latest) {
-  const payload = latest ? latest.payload : {};
-  el("decision").value = payload.decision || "";
-  el("operationalClass").value = payload.operational_class || "";
-  el("eventState").value = payload.event_state || "";
-  el("financialFamily").value = payload.financial_family || "";
-  el("paymentRail").value = payload.payment_rail || "";
-  el("uncertain").checked = Boolean(payload.uncertain);
-  el("notes").value = payload.notes || "";
-  state.events = Array.isArray(payload.events) ? structuredClone(payload.events) : [];
-  updateDecisionUi();
+  updateFocusedPosition();
+  sessionStorage.setItem("workbenchFocusedLastId:" + reviewer(), sourceId);
+  sessionStorage.setItem("workbenchFocusedOffset:" + reviewer(), String(state.offset));
 }
 function renderAnalysis(record) {
   const root = el("analysisContent");
@@ -229,7 +217,7 @@ function renderAnalysis(record) {
     summary.textContent = `Amount ${counts.amount} · direction ${counts.direction} · account ${counts.account} · counterparty ${counts.counterparty} · complete core clauses ${record.candidate_coverage.complete_core_clause_count}`;
     coverage.append(summary); root.append(coverage);
   }
-  const candidates = section("Grounded candidates");
+  const candidates = section("Analyzer suggestions");
   record.analysis.candidates.forEach((candidate) => {
     const item = document.createElement("div"); item.className = "candidate-item";
     const label = document.createElement("span");
@@ -237,8 +225,8 @@ function renderAnalysis(record) {
     const id = document.createElement("span"); id.className = "candidate-id"; id.textContent = candidate.candidate_id;
     item.append(label, id);
     if (candidate.evidence) {
-      const use = document.createElement("button"); use.className = "secondary"; use.textContent = "Use";
-      use.addEventListener("click", () => setSpan(`${candidate.kind}_span`, {start_char: candidate.evidence.start_char, end_char: candidate.evidence.end_char}));
+      const use = document.createElement("button"); use.className = "secondary"; use.textContent = "Use analyzer suggestion";
+      use.addEventListener("click", () => run(() => setFocusedSpan(`${candidate.kind}_span`, {start_char: candidate.evidence.start_char, end_char: candidate.evidence.end_char})));
       item.append(use);
     }
     candidates.append(item);
@@ -287,21 +275,21 @@ function renderGroupNavigation(record) {
   ];
   groups.forEach(([key, value, label]) => {
     const button = document.createElement("button"); button.className = "secondary"; button.textContent = label;
-    button.addEventListener("click", () => run(async () => { state.groupFilters = {normalized_template_group: null, sender_family_group: null, sender_template_group: null}; state.groupFilters[key] = value; state.offset = 0; await loadRows(); toast(`${label} filter applied.`); }));
+    button.addEventListener("click", () => run(async () => { state.groupFilters = {normalized_template_group: null, sender_family_group: null, sender_template_group: null}; state.groupFilters[key] = value; await showQueuePage(0); toast(`${label} filter applied.`); }));
     root.append(button);
   });
   const clear = document.createElement("button"); clear.className = "secondary"; clear.textContent = "Clear group filter";
-  clear.addEventListener("click", () => run(async () => { state.groupFilters = {normalized_template_group: null, sender_family_group: null, sender_template_group: null}; state.offset = 0; await loadRows(); }));
+  clear.addEventListener("click", () => run(async () => { state.groupFilters = {normalized_template_group: null, sender_family_group: null, sender_template_group: null}; await showQueuePage(0); }));
   root.append(clear);
 }
 
 async function loadDisagreements(record) {
   const root = el("disagreementContent"); root.textContent = "";
-  el("adjudicateButton").disabled = true;
+  el("focusAdjudicate").disabled = true;
   if (record.blind_locked) { root.textContent = "Agreement details remain hidden during blind review."; return; }
   const value = await api(`/api/disagreements?${queryString({source_id: record.source_id})}`);
   state.hasDisagreement = value.has_disagreement;
-  el("adjudicateButton").disabled = !value.has_disagreement;
+  el("focusAdjudicate").disabled = !value.has_disagreement;
   if (value.review_count === 0) { root.textContent = "No submitted reviews yet."; return; }
   value.annotations.forEach((annotation) => {
     const item = document.createElement("p");
@@ -309,16 +297,6 @@ async function loadDisagreements(record) {
     item.textContent = `${annotation.reviewer_id} · ${decision} · revision ${annotation.revision} · ${annotation.revision_hash}`;
     root.append(item);
   });
-}
-
-function resetEventEditor(record) {
-  el("currency").value = record.analysis ? record.analysis.primary_currency : "";
-  el("currencyProvenance").value = "";
-  el("direction").value = "";
-  el("accountState").value = "";
-  el("counterpartyState").value = "";
-  el("eventFinancialFamily").value = "";
-  el("eventPaymentRail").value = "";
 }
 
 function selectedSpan() {
@@ -334,101 +312,31 @@ function selectedSpan() {
   const end = start + Array.from(range.toString()).length;
   return {start_char: start, end_char: end};
 }
-function setSpan(field, value) { state.spans[field] = value; renderSpans(); toast(`${field.replace("_span", "")} evidence selected.`); }
-function spanText(span) { return span ? Array.from(state.selectedRecord.source.body).slice(span.start_char, span.end_char).join("") : "not selected"; }
-function renderSpans() {
-  const root = el("spanSummary"); root.textContent = "";
-  ["amount_span", "direction_span", "account_span", "counterparty_span"].forEach((field) => {
-    const node = document.createElement("span"); node.textContent = `${field.replace("_span", "")}: ${spanText(state.spans[field])}`; root.append(node);
-  });
-}
-function currentEvent() {
-  return {
-    amount_span: state.spans.amount_span || null,
-    currency: el("currency").value.trim().toUpperCase(),
-    currency_provenance: el("currencyProvenance").value,
-    direction: el("direction").value,
-    direction_span: state.spans.direction_span || null,
-    account_state: el("accountState").value,
-    account_span: el("accountState").value === "present" ? state.spans.account_span || null : null,
-    counterparty_state: el("counterpartyState").value,
-    counterparty_span: el("counterpartyState").value === "present" ? state.spans.counterparty_span || null : null,
-    financial_family: el("eventFinancialFamily").value || el("financialFamily").value || null,
-    payment_rail: el("eventPaymentRail").value || el("paymentRail").value || null,
-  };
-}
-function validateEventDraft(event) {
-  if (!event.amount_span) throw new Error("Select exact amount evidence.");
-  if (!event.direction_span) throw new Error("Select exact direction evidence.");
-  if (!/^[A-Z]{3}$/.test(event.currency)) throw new Error("Enter a three-letter ISO currency code.");
-  if (!event.currency_provenance) throw new Error("Choose how the currency was established.");
-  if (!event.direction) throw new Error("Choose debit or credit direction.");
-  if (!event.account_state) throw new Error("Mark the account present, absent, or unknown.");
-  if (!event.counterparty_state) throw new Error("Mark the counterparty present, absent, or unknown.");
-  if (event.account_state === "present" && !event.account_span) throw new Error("Select account evidence or mark it absent/unknown.");
-  if (event.counterparty_state === "present" && !event.counterparty_span) throw new Error("Select counterparty evidence or mark it absent/unknown.");
-}
-function addEvent() {
-  const event = currentEvent();
-  validateEventDraft(event);
-  state.events.push(event); state.spans = {}; renderSpans(); renderEvents();
-}
-function renderEvents() {
-  const root = el("eventList"); root.textContent = "";
-  state.events.forEach((event, index) => {
-    const node = document.createElement("div"); node.className = "event-item";
-    const text = document.createElement("span"); text.textContent = `Event ${index + 1}: ${event.currency} · ${event.direction} · ${spanText(event.amount_span)}`;
-    const remove = document.createElement("button"); remove.className = "secondary"; remove.textContent = "Remove";
-    remove.addEventListener("click", () => { state.events.splice(index, 1); renderEvents(); });
-    const load = document.createElement("button"); load.className = "secondary"; load.textContent = "Load to edit";
-    load.addEventListener("click", () => {
-      state.spans = {amount_span: event.amount_span, direction_span: event.direction_span, account_span: event.account_span, counterparty_span: event.counterparty_span};
-      el("currency").value = event.currency; el("currencyProvenance").value = event.currency_provenance; el("direction").value = event.direction;
-      el("accountState").value = event.account_state; el("counterpartyState").value = event.counterparty_state;
-      el("eventFinancialFamily").value = event.financial_family || ""; el("eventPaymentRail").value = event.payment_rail || ""; renderSpans();
-    });
-    node.append(text, load, remove); root.append(node);
-  });
-}
-function buildPayload() {
-  const decision = el("decision").value;
-  let events = structuredClone(state.events);
-  if ((decision === "posted" || decision === "multiple_event") && events.length === 0) {
-    const event = currentEvent(); validateEventDraft(event); events = [event];
-  }
-  if (decision === "multiple_event" && events.length < 2) throw new Error("Multiple-event labels require at least two events.");
-  return {
-    decision,
-    operational_class: el("operationalClass").value,
-    event_state: el("eventState").value,
-    financial_family: el("financialFamily").value || null,
-    payment_rail: el("paymentRail").value || null,
-    events,
-    uncertain: el("uncertain").checked,
-    notes: el("notes").value,
-  };
-}
-function currentRevision() { return state.selectedRecord.latest_annotation ? state.selectedRecord.latest_annotation.revision : 0; }
-async function save(path) {
-  if (!state.selectedId) throw new Error("Choose a message first.");
-  await post(path, {source_id: state.selectedId, reviewer_id: reviewer(), expected_revision: currentRevision(), payload: buildPayload()});
-  toast(path === "/api/draft" ? "Draft saved." : "Label saved.");
-  await selectRow(state.selectedId); await loadProgress();
+function currentRevision() {
+  return state.selectedRecord.latest_annotation ? state.selectedRecord.latest_annotation.revision : 0;
 }
 
-el("refreshButton").addEventListener("click", () => run(async () => { state.offset = 0; await loadRows(); }));
-el("previousPage").addEventListener("click", () => run(async () => { state.offset = Math.max(0, state.offset - state.limit); await loadRows(); }));
-el("nextPage").addEventListener("click", () => run(async () => { state.offset += state.limit; await loadRows(); }));
-document.querySelectorAll("[data-span-field]").forEach((button) => button.addEventListener("click", () => run(() => setSpan(button.dataset.spanField, selectedSpan()))));
-el("addEventButton").addEventListener("click", () => run(addEvent));
-el("saveDraftButton").addEventListener("click", () => run(() => save("/api/draft")));
-el("submitButton").addEventListener("click", () => run(() => save("/api/submit")));
-el("adjudicateButton").addEventListener("click", () => run(() => save("/api/adjudicate")));
-el("revealButton").addEventListener("click", () => run(async () => { await post("/api/reveal", {source_id: state.selectedId, reviewer_id: reviewer()}); await selectRow(state.selectedId); toast("Deterministic analysis revealed."); }));
-el("previewButton").addEventListener("click", () => run(async () => { const value = await api(`/api/preview?${queryString({source_id: state.selectedId})}`); el("preview").textContent = JSON.stringify(value, null, 2); }));
+async function showQueuePage(offset) {
+  await flushFocusedDraft();
+  state.offset = offset;
+  await loadRows();
+  if (state.rowIds[0]) {
+    await selectRow(state.rowIds[0]);
+  } else {
+    state.selectedId = null;
+    state.selectedRecord = null;
+    el("detailContent").hidden = true;
+    el("emptyDetail").hidden = false;
+    updateFocusedPosition();
+  }
+}
+el("refreshButton").addEventListener("click", () => run(() => showQueuePage(0)));
+el("previousPage").addEventListener("click", () => run(() => showQueuePage(Math.max(0, state.offset - state.limit))));
+el("nextPage").addEventListener("click", () => run(() => showQueuePage(state.offset + state.limit)));
+el("revealButton").addEventListener("click", () => run(async () => { await post("/api/reveal", {source_id: state.selectedId, reviewer_id: state.selectedReviewer}); await selectRow(state.selectedId); toast("Deterministic analysis revealed."); }));
 el("correctionButton").addEventListener("click", () => run(async () => {
-  const facets = {operational_class: el("operationalClass").value, event_state: el("eventState").value, financial_family: el("financialFamily").value || null, payment_rail: el("paymentRail").value || null, reason: el("correctionReason").value};
-  const value = await post("/api/correction", {source_id: state.selectedId, reviewer_id: reviewer(), expected_revision: state.correctionRevision, facets});
+  const facets = {operational_class: el("focusClass").value, event_state: el("focusState").value, financial_family: el("focusFamily").value || null, payment_rail: el("focusRail").value || null, reason: el("correctionReason").value};
+  const value = await post("/api/correction", {source_id: state.selectedId, reviewer_id: state.selectedReviewer, expected_revision: state.correctionRevision, facets});
   state.correctionRevision = value.revision; toast("Weak segregation correction saved separately.");
 }));
 el("backupButton").addEventListener("click", () => run(async () => { const value = await post("/api/backup", {}); toast(`Backup created: ${value.backup}`); }));
@@ -437,16 +345,359 @@ el("exportButton").addEventListener("click", () => run(async () => {
   const value = await post("/api/export", { explicit_consent: true });
   toast(`Encrypted export ${value.export_id} created with ${value.label_count} labels.`);
 }));
-function updateDecisionUi() {
-  const decision = el("decision").value;
-  const defaults = {posted: ["posted_candidate", "posted"], not_posted: ["financial_non_posted", "not_posted"], non_financial: ["non_financial", "no_event"], ambiguous: ["ambiguous", "unknown"], multiple_event: ["posted_candidate", "posted"]};
-  if (defaults[decision]) [el("operationalClass").value, el("eventState").value] = defaults[decision];
-  el("eventEditor").hidden = !["posted", "multiple_event"].includes(decision);
-}
-el("decision").addEventListener("change", updateDecisionUi);
 el("coveragePanel").addEventListener("toggle", () => {
   el("coverageToggleHint").textContent = el("coveragePanel").open ? "Hide breakdown" : "Show breakdown";
 });
 
 async function run(task) { try { await task(); } catch (error) { toast(error.message || "Operation failed.", true); } }
-run(async () => { await loadProgress(); await loadRows(); });
+
+
+const focusFields = ["amount_span", "direction_span", "account_span", "counterparty_span"];
+let focusedAutosaveTimer = null;
+let focusedSaveInFlight = Promise.resolve();
+
+optionList(el("focusClass"), ["", ...classes], "Choose…");
+optionList(el("focusState"), ["", ...eventStates], "Choose…");
+optionList(el("focusFamily"), families, "None");
+optionList(el("focusRail"), rails, "None");
+
+function populateFocused(record) {
+  clearTimeout(focusedAutosaveTimer);
+  state.focusedDirty = false;
+  state.focusedSpans = {};
+  state.activeFocusedField = null;
+  const latest = record.latest_annotation;
+  const payload = latest && latest.payload ? latest.payload : {};
+  const contract = payload.contract || (latest && latest.canonical_label && latest.canonical_label.contract);
+  const legacy = Boolean(latest) && contract !== "pocketfinancer.canonical-label/2";
+  el("legacyNotice").hidden = !legacy;
+  el("focusedEditor").hidden = legacy;
+  const historyPanel = el("legacyHistoryPanel");
+  const historyContent = el("legacyHistoryContent");
+  historyContent.textContent = "";
+  const oldRevisions = record.blind_locked ? [] : (record.annotation_history || []).filter((item) => {
+    const value = item.canonical_label || item.payload || {};
+    return value.contract !== "pocketfinancer.canonical-label/2";
+  });
+  historyPanel.hidden = oldRevisions.length === 0;
+  oldRevisions.forEach((item) => {
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = "Revision " + item.revision + " · " + item.status + " · canonical-label/1";
+    const content = document.createElement("pre");
+    content.textContent = JSON.stringify(item.canonical_label || item.payload, null, 2);
+    details.append(summary, content);
+    historyContent.append(details);
+  });
+  const event = !legacy && payload.event && typeof payload.event === "object" ? payload.event : {};
+  if (!legacy) {
+    focusFields.forEach((field) => {
+      if (event[field]) state.focusedSpans[field] = event[field];
+    });
+  }
+  el("focusDecision").value = legacy ? "" : payload.decision || "";
+  el("focusClass").value = legacy ? "" : payload.operational_class || "";
+  el("focusState").value = legacy ? "" : payload.event_state || "";
+  el("focusFamily").value = legacy ? "" : payload.financial_family || "";
+  el("focusRail").value = legacy ? "" : payload.payment_rail || "";
+  el("focusUncertain").checked = !legacy && Boolean(payload.uncertain);
+  el("focusNotes").value = legacy ? "" : payload.notes || "";
+  el("focusAmount").value = event.amount_value || "";
+  el("focusCurrency").value = event.currency || "";
+  el("focusDirection").value = event.direction || "";
+  el("focusAccount").value = event.account_reference || "";
+  el("focusAccountId").value = event.existing_account_id || "";
+  el("focusCounterparty").value = event.counterparty || "";
+  el("focusEvent").hidden = el("focusDecision").value !== "posted";
+  el("focusSaveState").textContent = legacy ? "Historical v1 revision remains read-only." : "";
+  el("focusPreviewOutput").textContent = "";
+  renderFocusedSpanSummary();
+}
+
+function updateFocusedPosition() {
+  const node = el("focusedPosition");
+  if (!node) return;
+  const index = state.rowIds.indexOf(state.selectedId);
+  if (index < 0) {
+    node.textContent = state.total ? String(state.total) + " messages in the current queue" : "No messages in this queue";
+    return;
+  }
+  const position = state.offset + index + 1;
+  node.textContent = "Message " + position + " of " + state.total + " in the current queue · " + Math.max(0, state.total - position) + " after this";
+}
+
+function scalarSpan(value) {
+  const source = Array.from(state.selectedRecord.source.body);
+  const start = value.start_char;
+  const end = value.end_char;
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start || end > source.length) {
+    throw new Error("Select exact message text.");
+  }
+  return {start_scalar: start, end_scalar: end, text: source.slice(start, end).join("")};
+}
+
+function setFocusedSpan(field, value) {
+  if (el("focusedEditor").hidden) throw new Error("Start a v2 revision before assigning evidence.");
+  if (el("focusDecision").value !== "posted") throw new Error("Choose Posted before assigning field evidence.");
+  if (!focusFields.includes(field)) throw new Error("Choose a supported field.");
+  const span = scalarSpan(value);
+  state.focusedSpans[field] = span;
+  state.activeFocusedField = field;
+  if (field === "account_span" && !el("focusAccount").value) el("focusAccount").value = span.text;
+  if (field === "counterparty_span" && !el("focusCounterparty").value) el("focusCounterparty").value = span.text;
+  renderFocusedSpanSummary();
+  renderFocusedEvidence();
+  scheduleFocusedDraft();
+}
+
+function renderFocusedSpanSummary() {
+  const root = el("focusSpanSummary");
+  root.textContent = "";
+  focusFields.forEach((field) => {
+    const span = state.focusedSpans[field];
+    const item = document.createElement("div");
+    const label = document.createElement("span");
+    label.textContent = field.replace("_span", "") + ": " + (span ? span.text : "unassigned");
+    item.append(label);
+    if (span) {
+      const clear = document.createElement("button");
+      clear.type = "button";
+      clear.className = "secondary compact";
+      clear.textContent = "Clear";
+      clear.addEventListener("click", () => {
+        delete state.focusedSpans[field];
+        state.activeFocusedField = field;
+        renderFocusedSpanSummary();
+        renderFocusedEvidence();
+        scheduleFocusedDraft();
+      });
+      item.append(clear);
+    }
+    root.append(item);
+  });
+}
+
+function renderFocusedEvidence() {
+  const record = state.selectedRecord;
+  if (!record) return;
+  const root = el("messageText");
+  const chars = Array.from(record.source.body);
+  root.textContent = "";
+  const boundaries = new Set([0, chars.length]);
+  focusFields.forEach((field) => {
+    const span = state.focusedSpans[field];
+    if (span) {
+      boundaries.add(span.start_scalar);
+      boundaries.add(span.end_scalar);
+    }
+  });
+  const points = [...boundaries].sort((a, b) => a - b);
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const start = points[index];
+    const end = points[index + 1];
+    const text = chars.slice(start, end).join("");
+    const covering = focusFields.filter((field) => {
+      const span = state.focusedSpans[field];
+      return span && span.start_scalar <= start && span.end_scalar >= end;
+    });
+    if (covering.length === 0) {
+      root.append(document.createTextNode(text));
+    } else {
+      const mark = document.createElement("mark");
+      mark.className = "field-mark " + (covering.length === 1 ? covering[0] : "overlap");
+      if (covering.includes(state.activeFocusedField)) mark.classList.add("active-field");
+      mark.title = covering.map((field) => field.replace("_span", "")).join(", ");
+      mark.textContent = text;
+      root.append(mark);
+    }
+  }
+}
+
+function focusedPayload() {
+  const decision = el("focusDecision").value;
+  const event = decision === "posted" ? {
+    amount_value: el("focusAmount").value.trim(),
+    currency: el("focusCurrency").value.trim().toUpperCase(),
+    amount_span: state.focusedSpans.amount_span || null,
+    direction: el("focusDirection").value,
+    direction_span: state.focusedSpans.direction_span || null,
+    account_reference: el("focusAccount").value.trim(),
+    account_span: state.focusedSpans.account_span || null,
+    existing_account_id: el("focusAccountId").value.trim() || null,
+    counterparty: el("focusCounterparty").value.trim() || null,
+    counterparty_span: state.focusedSpans.counterparty_span || null,
+  } : null;
+  return {
+    contract: "pocketfinancer.canonical-label/2",
+    decision,
+    operational_class: el("focusClass").value,
+    event_state: el("focusState").value,
+    financial_family: el("focusFamily").value || null,
+    payment_rail: el("focusRail").value || null,
+    event,
+    uncertain: el("focusUncertain").checked,
+    notes: el("focusNotes").value,
+  };
+}
+
+function scheduleFocusedDraft() {
+  if (!state.selectedId || el("focusedEditor").hidden) return;
+  state.focusedDirty = true;
+  el("focusSaveState").textContent = "Unsaved draft";
+  clearTimeout(focusedAutosaveTimer);
+  focusedAutosaveTimer = setTimeout(() => run(saveFocusedDraft), 1000);
+}
+
+async function saveFocusedDraft() {
+  clearTimeout(focusedAutosaveTimer);
+  await focusedSaveInFlight;
+  if (!state.focusedDirty || !state.selectedId || el("focusedEditor").hidden) return;
+  const sourceId = state.selectedId;
+  const payload = focusedPayload();
+  const revision = currentRevision();
+  state.focusedDirty = false;
+  const save = post("/api/draft", {
+    source_id: sourceId, reviewer_id: state.selectedReviewer,
+    expected_revision: revision, payload,
+  });
+  focusedSaveInFlight = save;
+  try {
+    const result = await save;
+    if (state.selectedId === sourceId) {
+      state.selectedRecord.latest_annotation = {
+        revision: result.revision, status: "draft", payload,
+        canonical_label: null,
+      };
+      el("revisionLabel").textContent = "Revision " + result.revision;
+      el("focusSaveState").textContent = "Draft saved locally";
+    }
+  } catch (error) {
+    state.focusedDirty = true;
+    throw error;
+  } finally {
+    focusedSaveInFlight = Promise.resolve();
+  }
+}
+
+async function flushFocusedDraft() {
+  clearTimeout(focusedAutosaveTimer);
+  await focusedSaveInFlight;
+  if (state.focusedDirty) await saveFocusedDraft();
+}
+
+async function submitFocused(adjudicated = false) {
+  if (!state.selectedId || el("focusedEditor").hidden) throw new Error("Choose a v2 annotation first.");
+  clearTimeout(focusedAutosaveTimer);
+  await focusedSaveInFlight;
+  const path = adjudicated ? "/api/adjudicate" : "/api/submit";
+  await post(path, {
+    source_id: state.selectedId, reviewer_id: state.selectedReviewer,
+    expected_revision: currentRevision(), payload: focusedPayload(),
+  });
+  state.focusedDirty = false;
+  const sourceId = state.selectedId;
+  await selectRow(sourceId);
+  await loadProgress();
+  toast(adjudicated ? "Adjudication saved." : "V2 label submitted.");
+}
+
+async function navigateFocused(direction) {
+  await flushFocusedDraft();
+  const index = state.rowIds.indexOf(state.selectedId);
+  let target = index + direction;
+  if (index < 0) target = direction > 0 ? 0 : state.rowIds.length - 1;
+  if (target >= 0 && target < state.rowIds.length) {
+    await selectRow(state.rowIds[target]);
+    return;
+  }
+  const nextOffset = state.offset + (direction > 0 ? state.limit : -state.limit);
+  if (nextOffset < 0 || nextOffset >= state.total) {
+    toast("End of the current queue.");
+    return;
+  }
+  state.offset = nextOffset;
+  await loadRows();
+  await selectRow(state.rowIds[direction > 0 ? 0 : state.rowIds.length - 1]);
+}
+
+el("startV2Button").addEventListener("click", () => {
+  el("legacyNotice").hidden = true;
+  el("focusedEditor").hidden = false;
+  el("focusSaveState").textContent = "New v2 revision ready";
+  el("focusDecision").focus();
+});
+el("focusDecision").addEventListener("change", () => {
+  const defaults = {
+    posted: ["posted_candidate", "posted"],
+    none: ["non_financial", "no_event"],
+    abstain: ["ambiguous", "unknown"],
+  };
+  const selected = defaults[el("focusDecision").value];
+  if (selected) [el("focusClass").value, el("focusState").value] = selected;
+  el("focusEvent").hidden = el("focusDecision").value !== "posted";
+  scheduleFocusedDraft();
+});
+document.querySelectorAll("[data-v2-span]").forEach((button) => {
+  button.addEventListener("click", () => run(() => setFocusedSpan(button.dataset.v2Span, selectedSpan())));
+});
+el("clearV2Span").addEventListener("click", () => run(() => {
+  const field = state.activeFocusedField;
+  if (!field || !state.focusedSpans[field]) throw new Error("Assign a field before clearing it.");
+  delete state.focusedSpans[field];
+  renderFocusedSpanSummary();
+  renderFocusedEvidence();
+  scheduleFocusedDraft();
+}));
+el("focusedEditor").querySelectorAll("input, select, textarea").forEach((control) => {
+  if (control.id !== "focusDecision") control.addEventListener("input", scheduleFocusedDraft);
+});
+el("focusSaveDraft").addEventListener("click", () => run(async () => {
+  if (!state.focusedDirty) scheduleFocusedDraft();
+  await saveFocusedDraft();
+}));
+el("focusSubmit").addEventListener("click", () => run(() => submitFocused()));
+el("focusAdjudicate").addEventListener("click", () => run(() => submitFocused(true)));
+el("focusPreview").addEventListener("click", () => run(async () => {
+  const value = await api("/api/preview?" + queryString({source_id: state.selectedId}));
+  el("focusPreviewOutput").textContent = JSON.stringify(value, null, 2);
+}));
+el("focusPrevious").addEventListener("click", () => run(() => navigateFocused(-1)));
+el("focusSkip").addEventListener("click", () => run(() => navigateFocused(1)));
+el("focusSaveNext").addEventListener("click", () => run(async () => {
+  await flushFocusedDraft();
+  await navigateFocused(1);
+}));
+el("focusSubmitNext").addEventListener("click", () => run(async () => {
+  await submitFocused();
+  await navigateFocused(1);
+}));
+document.addEventListener("keydown", (event) => {
+  if (!event.altKey || event.ctrlKey || event.metaKey || !state.selectedId || el("focusedEditor").hidden) return;
+  const decisions = {"1": "posted", "2": "none", "3": "abstain"};
+  if (!(event.key in decisions)) return;
+  event.preventDefault();
+  el("focusDecision").value = decisions[event.key];
+  el("focusDecision").dispatchEvent(new Event("change"));
+});
+el("reviewerId").addEventListener("change", () => run(async () => {
+  await flushFocusedDraft();
+  state.selectedId = null;
+  state.selectedRecord = null;
+  state.selectedReviewer = null;
+  await loadProgress();
+  await showQueuePage(0);
+}));
+run(async () => {
+  if (!el("reviewerId").value.trim()) return;
+  await loadProgress();
+  const savedOffset = Number(sessionStorage.getItem("workbenchFocusedOffset:" + reviewer()));
+  if (Number.isInteger(savedOffset) && savedOffset >= 0) state.offset = savedOffset;
+  await loadRows();
+  if (state.total && !state.rowIds.length) {
+    state.offset = 0;
+    await loadRows();
+  }
+  const savedId = sessionStorage.getItem("workbenchFocusedLastId:" + reviewer());
+  const first = state.rowIds.includes(savedId) ? savedId : state.rowIds[0];
+  if (first) await selectRow(first);
+});

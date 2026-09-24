@@ -484,7 +484,9 @@ class WorkbenchStore:
             )
             classes = dict(
                 connection.execute(
-                    "SELECT operational_class, COUNT(*) FROM corpus_rows GROUP BY operational_class"
+                    "SELECT operational_class, COUNT(*) FROM corpus_rows "
+                    "WHERE pool NOT IN ('protected_test', 'later_time_holdout') "
+                    "GROUP BY operational_class"
                 ).fetchall()
             )
             pool_coverage = _coverage_rows(
@@ -496,18 +498,21 @@ class WorkbenchStore:
             class_coverage = _coverage_rows(
                 connection.execute(
                     "SELECT operational_class, review_state, COUNT(*) FROM corpus_rows "
+                    "WHERE pool NOT IN ('protected_test', 'later_time_holdout') "
                     "GROUP BY operational_class, review_state"
                 ).fetchall()
             )
             families = dict(
                 connection.execute(
                     "SELECT COALESCE(financial_family, 'none'), COUNT(*) FROM corpus_rows "
+                    "WHERE pool NOT IN ('protected_test', 'later_time_holdout') "
                     "GROUP BY COALESCE(financial_family, 'none')"
                 ).fetchall()
             )
             rails = dict(
                 connection.execute(
                     "SELECT COALESCE(payment_rail, 'none'), COUNT(*) FROM corpus_rows "
+                    "WHERE pool NOT IN ('protected_test', 'later_time_holdout') "
                     "GROUP BY COALESCE(payment_rail, 'none')"
                 ).fetchall()
             )

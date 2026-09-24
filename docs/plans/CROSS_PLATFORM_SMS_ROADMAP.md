@@ -277,6 +277,15 @@ interruption/resume, conflicting revisions, blind reveal, backup, restore, and
 consent-bound export. Annotation speed must not weaken grounding, privacy,
 provenance, or protected-pool isolation.
 
+Checkpoint (2026-09-24): The existing local workbench has an explicit
+`canonical-label/2` editing and submission path, source-span highlights,
+local draft autosave, within-tab queue navigation, historical v1 readability,
+and direct-extractor preview. Synthetic service and HTTP tests cover grounding,
+revision transition, blind reveal, and protected aggregate visibility. Durable
+encrypted cross-session resume, a full private-corpus trial, and any
+training-data export gate remain open. This WSL checkout has no private
+canonical manifest; no private rows were used for this checkpoint.
+
 ## Workstream 6 — add the Apple Foundation Models evaluation pipeline
 
 The shared repository already has the Android-target local GGUF
