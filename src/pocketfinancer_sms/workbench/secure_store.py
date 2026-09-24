@@ -111,7 +111,7 @@ class SecureWorkbenchStore(WorkbenchStore):
             version = connection.execute("PRAGMA cipher_version").fetchone()
             if version is None or not version[0]:
                 raise PrivateArtifactError("database driver did not prove SQLCipher support")
-            connection.row_factory = sqlite3.Row
+            connection.row_factory = self._cipher.Row
             connection.create_function(
                 "source_ref_sha256", 1,
                 lambda value: hashlib.sha256(value.encode("utf-8")).hexdigest(),

@@ -315,6 +315,15 @@ manifest; no private rows were used for these checkpoints. The remaining
 acceptance work is a visual click-through and the private end-to-end trial
 using the manifest through the owner's normal local workflow.
 
+Checkpoint 6 (2026-09-25): WSL integration checks uncovered a SQLCipher
+row-factory mismatch and an empty optional-filter error in message-list
+requests. Both were fixed with synthetic regression tests. The full WSL gate
+passes 844 tests. Human acceptance of annotation, restart/resume, blind
+reveal, adjudication, restore, and selected export remains. In-app browser
+automation remains unavailable because its local sandbox setup fails, so no
+visual click-through was observed by the agent. Private corpus metrics and
+trial records stay outside version control.
+
 ## Workstream 6 — add the Apple Foundation Models evaluation pipeline
 
 The shared repository already has the Android-target local GGUF

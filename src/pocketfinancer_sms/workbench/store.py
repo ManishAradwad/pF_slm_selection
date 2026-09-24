@@ -193,6 +193,8 @@ class WorkbenchStore:
         values: list[Any] = []
         for name, value in filters.items():
             if name == "candidate_coverage":
+                if not value:
+                    continue
                 if value not in {"core_complete", "core_missing"}:
                     raise ValueError("candidate coverage filter is invalid")
                 complete = (
@@ -209,6 +211,8 @@ class WorkbenchStore:
                 clauses.append(complete if value == "core_complete" else "NOT " + complete)
                 continue
             if name == "disagreement":
+                if not value:
+                    continue
                 if value != "yes":
                     raise ValueError("disagreement filter is invalid")
                 clauses.append(
@@ -230,6 +234,8 @@ class WorkbenchStore:
                 )
                 continue
             if name == "imported_feedback":
+                if not value:
+                    continue
                 if value not in {"available", "correction"}:
                     raise ValueError("imported feedback filter is invalid")
                 correction = (

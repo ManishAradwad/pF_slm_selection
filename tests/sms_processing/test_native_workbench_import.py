@@ -214,6 +214,28 @@ def test_blind_pool_match_is_rejected_before_decryption(tmp_path: Path) -> None:
     assert decryptor.calls == 0
 
 
+def test_sqlcipher_store_imports_synthetic_manifest_when_driver_is_available(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("sqlcipher3")
+    _plain, source_id = _store(tmp_path, "annotation_training")
+
+    class SyntheticKeyProvider:
+        def get_or_create_key(self, _key_id: str) -> bytes:
+            return b"s" * 32
+
+    secure = SecureWorkbenchStore(
+        tmp_path / "encrypted" / "workbench.sqlite3",
+        key_provider=SyntheticKeyProvider(),
+        key_id="synthetic-workbench",
+    )
+    assert secure.import_manifest(
+        tmp_path / "manifest.jsonl", corpus_run_id="synthetic-native-run"
+    ) == 1
+    assert secure.get_record(source_id)["source_id"] == source_id
+    assert secure.database_path.read_bytes()[:16] != b"SQLite format 3"
+
+
 def test_secure_store_fails_closed_without_sqlcipher(monkeypatch, tmp_path: Path) -> None:
     import pocketfinancer_sms.workbench.secure_store as secure_store
 
