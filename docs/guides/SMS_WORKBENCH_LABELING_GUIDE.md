@@ -24,10 +24,9 @@ assets. Stop it with `Control-C`. Drafts and submitted labels remain in the
 encrypted local database. Never copy private SMS into issues, notes,
 screenshots, tests, or hosted tools.
 
-The current WSL checkout has no `PRIVATE_DATA/sms_processing/CURRENT.json`.
-A private trial therefore requires the corpus to be present in this checkout
-through the owner's normal local workflow; do not copy it from another
-checkout merely for a test.
+Start the local UI with `serve-workbench` above and open its freshly
+printed URL each time the server restarts. Keep corpus and backup files inside
+the ignored private-data tree.
 
 ## Focused annotation flow
 

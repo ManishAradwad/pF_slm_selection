@@ -115,6 +115,13 @@ def test_synthetic_ui_smoke_is_token_protected_local_and_blind_first(tmp_path: P
             assert exc.code == 401
 
         with urllib.request.urlopen(
+            _request(server, "/api/rows?reviewer_id=synthetic-reviewer")
+        ) as response:
+            queue = json.loads(response.read())
+            assert queue["total"] == 1
+            assert queue["rows"][0]["blind_locked"] is True
+
+        with urllib.request.urlopen(
             _request(
                 server,
                 f"/api/row?reviewer_id=synthetic-reviewer&source_id={source_id}",
