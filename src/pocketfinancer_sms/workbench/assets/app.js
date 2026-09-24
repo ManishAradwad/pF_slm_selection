@@ -20,6 +20,7 @@ const state = {
   selectedReviewer: null,
   correctionRevision: 0,
   hasDisagreement: false,
+  exportSelections: [],
   groupFilters: {
     normalized_template_group: null,
     sender_family_group: null,
@@ -81,6 +82,37 @@ function queryString(extra = {}) {
   return query.toString();
 }
 
+function exportIdentity(annotation, sourceId) {
+  if (!annotation || !["submitted", "adjudicated"].includes(annotation.status) ||
+      !annotation.canonical_label || !annotation.revision_hash) return null;
+  return {
+    source_id: sourceId, reviewer_id: annotation.reviewer_id || state.selectedReviewer,
+    revision: annotation.revision, revision_hash: annotation.revision_hash,
+  };
+}
+function sameExportRevision(first, second) {
+  return first.source_id === second.source_id &&
+    first.reviewer_id === second.reviewer_id && first.revision === second.revision;
+}
+function updateExportControls() {
+  el("exportButton").textContent = `Export selected (${state.exportSelections.length})`;
+  const current = state.selectedRecord && exportIdentity(
+    state.selectedRecord.latest_annotation, state.selectedId,
+  );
+  el("selectExportButton").disabled = !current;
+  el("selectExportButton").textContent = current && state.exportSelections.some(
+    (item) => sameExportRevision(item, current)
+  ) ? "Remove this revision from export" : "Select this revision for export";
+}
+function toggleExportRevision(annotation, sourceId) {
+  const selected = exportIdentity(annotation, sourceId);
+  if (!selected) throw new Error("Only submitted or adjudicated revisions can be exported.");
+  const index = state.exportSelections.findIndex((item) => sameExportRevision(item, selected));
+  if (index >= 0) state.exportSelections.splice(index, 1);
+  else state.exportSelections.push(selected);
+  updateExportControls();
+}
+
 async function loadProgress() {
   const coverage = el("coverageTables");
   coverage.textContent = "Loading coverage…";
@@ -97,6 +129,11 @@ async function loadProgress() {
     ["Submitted", value.review_states.submitted || 0],
     ["Adjudicated", value.review_states.adjudicated || 0],
     ["Drafts", value.review_states.draft || 0],
+    ["My remaining", value.my_remaining || 0],
+    ["Disagreements", value.disagreements || 0],
+    ["Validation failures", value.validation_failures || 0],
+    ["Submitted last hour", value.submitted_last_hour || 0],
+    ["Submitted last day", value.submitted_last_day || 0],
   ];
   items.forEach(([label, count]) => {
     const span = document.createElement("span");
@@ -133,6 +170,10 @@ function filters() {
     disposition: el("dispositionFilter").value,
     selector_action: el("selectorActionFilter").value,
     review_state: el("reviewFilter").value,
+    reviewer_state: el("reviewerStateFilter").value,
+    disagreement: el("disagreementFilter").value,
+    candidate_coverage: el("candidateCoverageFilter").value,
+    imported_feedback: el("importedFeedbackFilter").value,
     time_group: el("timeGroupFilter").value,
     time_from: el("timeFromFilter").value,
     time_to: el("timeToFilter").value,
@@ -170,6 +211,86 @@ async function loadRows() {
   });
 }
 
+const resumeControlIds = {
+  pool: "poolFilter", operational_class: "classFilter",
+  event_state: "eventStateFilter", financial_family: "familyFilter",
+  payment_rail: "railFilter", disposition: "dispositionFilter",
+  selector_action: "selectorActionFilter", review_state: "reviewFilter",
+  reviewer_state: "reviewerStateFilter",
+  disagreement: "disagreementFilter",
+  candidate_coverage: "candidateCoverageFilter",
+  imported_feedback: "importedFeedbackFilter",
+  time_group: "timeGroupFilter",
+  time_from: "timeFromFilter", time_to: "timeToFilter",
+};
+async function saveResume() {
+  const current = filters();
+  const savedFilters = {};
+  Object.keys(resumeControlIds).forEach((key) => { savedFilters[key] = current[key]; });
+  Object.assign(savedFilters, state.groupFilters);
+  await post("/api/resume", {
+    reviewer_id: state.selectedReviewer, source_id: state.selectedId,
+    offset: state.offset, filters: savedFilters, search: current.search,
+    sort: current.sort, descending: current.descending === "true",
+  });
+}
+async function resumeQueue() {
+  const saved = await api("/api/resume?" + queryString());
+  if (saved) {
+    Object.entries(resumeControlIds).forEach(([key, id]) => {
+      el(id).value = saved.filters[key] || "";
+    });
+    state.groupFilters = {
+      normalized_template_group: saved.filters.normalized_template_group || null,
+      sender_family_group: saved.filters.sender_family_group || null,
+      sender_template_group: saved.filters.sender_template_group || null,
+    };
+    el("search").value = saved.search || "";
+    el("sort").value = saved.sort || "timestamp";
+    el("descending").checked = Boolean(saved.descending);
+    state.offset = saved.offset;
+  } else {
+    Object.values(resumeControlIds).forEach((id) => { el(id).value = ""; });
+    state.groupFilters = {
+      normalized_template_group: null,
+      sender_family_group: null,
+      sender_template_group: null,
+    };
+    el("reviewerStateFilter").value = "unfinished";
+    el("search").value = "";
+    el("sort").value = "timestamp";
+    el("descending").checked = false;
+    state.offset = 0;
+  }
+  await loadRows();
+  if (state.total && !state.rowIds.length) {
+    state.offset = 0;
+    await loadRows();
+  }
+  let target = saved && state.rowIds.includes(saved.source_id) ? saved.source_id : null;
+  if (target) {
+    const record = await api("/api/row?" + queryString({source_id: target}));
+    const status = record.latest_annotation && record.latest_annotation.status;
+    if (status === "submitted" || status === "adjudicated") {
+      target = null;
+      el("reviewerStateFilter").value = "unfinished";
+      el("reviewFilter").value = "";
+      state.offset = 0;
+      await loadRows();
+    }
+  }
+  if (!target) target = state.rowIds[0];
+  if (target) {
+    await selectRow(target);
+  } else {
+    state.selectedId = null;
+    state.selectedRecord = null;
+    el("detailContent").hidden = true;
+    el("emptyDetail").hidden = false;
+    updateExportControls();
+  }
+}
+
 async function selectRow(sourceId) {
   if (state.selectedId && state.selectedId !== sourceId) await flushFocusedDraft();
   const record = await api(`/api/row?${queryString({source_id: sourceId})}`);
@@ -190,14 +311,14 @@ async function selectRow(sourceId) {
   el("analysisPanel").hidden = record.blind_locked;
   el("revisionLabel").textContent = record.latest_annotation ? `Revision ${record.latest_annotation.revision}` : "No revision";
   populateFocused(record);
+  updateExportControls();
   renderAnalysis(record);
   renderGroupNavigation(record);
   renderFocusedEvidence();
   await loadDisagreements(record);
   await loadRows();
   updateFocusedPosition();
-  sessionStorage.setItem("workbenchFocusedLastId:" + reviewer(), sourceId);
-  sessionStorage.setItem("workbenchFocusedOffset:" + reviewer(), String(state.offset));
+  await saveResume();
 }
 function renderAnalysis(record) {
   const root = el("analysisContent");
@@ -241,6 +362,21 @@ function renderAnalysis(record) {
     const trace = section("Processing trace");
     const pre = document.createElement("pre"); pre.textContent = JSON.stringify(record.processing_trace, null, 2); trace.append(pre); root.append(trace);
   }
+  if (Array.isArray(record.native_suggestions) && record.native_suggestions.length > 0) {
+    const suggestions = section("Imported native correction evidence (review before use)");
+    record.native_suggestions.forEach((suggestion) => {
+      const item = document.createElement("div"); item.className = "candidate-item";
+      const label = document.createElement("span");
+      label.textContent = `${suggestion.source_platform} correction · ${suggestion.field}: ${suggestion.evidence.text}`;
+      const use = document.createElement("button"); use.className = "secondary";
+      use.textContent = "Use native evidence";
+      use.addEventListener("click", () => run(() => setFocusedSpan(
+        `${suggestion.field}_span`, suggestion.evidence,
+      )));
+      item.append(label, use); suggestions.append(item);
+    });
+    root.append(suggestions);
+  }
   if (Array.isArray(record.native_traces) && record.native_traces.length > 0) {
     const traces = section("Imported native traces");
     record.native_traces.forEach((trace, index) => {
@@ -258,6 +394,13 @@ function renderAnalysis(record) {
     record.annotation_history.forEach((revision) => {
       const item = document.createElement("p");
       item.textContent = `Revision ${revision.revision} · ${revision.status} · ${revision.revision_hash}`;
+      if (exportIdentity(revision, record.source_id)) {
+        const button = document.createElement("button");
+        button.className = "secondary";
+        button.textContent = "Select this revision for export";
+        button.addEventListener("click", () => run(() => toggleExportRevision(revision, record.source_id)));
+        item.append(" ", button);
+      }
       history.append(item);
     });
     root.append(history);
@@ -341,9 +484,17 @@ el("correctionButton").addEventListener("click", () => run(async () => {
 }));
 el("backupButton").addEventListener("click", () => run(async () => { const value = await post("/api/backup", {}); toast(`Backup created: ${value.backup}`); }));
 el("exportButton").addEventListener("click", () => run(async () => {
-  if (!window.confirm("Create a local encrypted export of submitted labels?")) return;
-  const value = await post("/api/export", { explicit_consent: true });
+  if (!state.exportSelections.length) throw new Error("Select at least one submitted revision first.");
+  if (!window.confirm(`Create a local encrypted export of these ${state.exportSelections.length} selected revisions?`)) return;
+  const value = await post("/api/export", {
+    explicit_consent: true, selected_revisions: state.exportSelections,
+  });
+  state.exportSelections = [];
+  updateExportControls();
   toast(`Encrypted export ${value.export_id} created with ${value.label_count} labels.`);
+}));
+el("selectExportButton").addEventListener("click", () => run(() => {
+  toggleExportRevision(state.selectedRecord.latest_annotation, state.selectedId);
 }));
 el("coveragePanel").addEventListener("toggle", () => {
   el("coverageToggleHint").textContent = el("coveragePanel").open ? "Hide breakdown" : "Show breakdown";
@@ -410,6 +561,8 @@ function populateFocused(record) {
   el("focusCounterparty").value = event.counterparty || "";
   el("focusEvent").hidden = el("focusDecision").value !== "posted";
   el("focusSaveState").textContent = legacy ? "Historical v1 revision remains read-only." : "";
+  el("focusCorrection").disabled = legacy || !latest ||
+    !["submitted", "adjudicated"].includes(latest.status);
   el("focusPreviewOutput").textContent = "";
   renderFocusedSpanSummary();
 }
@@ -655,6 +808,16 @@ el("focusSaveDraft").addEventListener("click", () => run(async () => {
   if (!state.focusedDirty) scheduleFocusedDraft();
   await saveFocusedDraft();
 }));
+el("focusCorrection").addEventListener("click", () => run(async () => {
+  const latest = state.selectedRecord && state.selectedRecord.latest_annotation;
+  if (!latest || !["submitted", "adjudicated"].includes(latest.status)) {
+    throw new Error("Choose a submitted label to correct.");
+  }
+  scheduleFocusedDraft();
+  await saveFocusedDraft();
+  el("focusCorrection").disabled = true;
+  toast("New draft revision saved. The submitted revision remains in history.");
+}));
 el("focusSubmit").addEventListener("click", () => run(() => submitFocused()));
 el("focusAdjudicate").addEventListener("click", () => run(() => submitFocused(true)));
 el("focusPreview").addEventListener("click", () => run(async () => {
@@ -685,19 +848,10 @@ el("reviewerId").addEventListener("change", () => run(async () => {
   state.selectedRecord = null;
   state.selectedReviewer = null;
   await loadProgress();
-  await showQueuePage(0);
+  await resumeQueue();
 }));
 run(async () => {
   if (!el("reviewerId").value.trim()) return;
   await loadProgress();
-  const savedOffset = Number(sessionStorage.getItem("workbenchFocusedOffset:" + reviewer()));
-  if (Number.isInteger(savedOffset) && savedOffset >= 0) state.offset = savedOffset;
-  await loadRows();
-  if (state.total && !state.rowIds.length) {
-    state.offset = 0;
-    await loadRows();
-  }
-  const savedId = sessionStorage.getItem("workbenchFocusedLastId:" + reviewer());
-  const first = state.rowIds.includes(savedId) ? savedId : state.rowIds[0];
-  if (first) await selectRow(first);
+  await resumeQueue();
 });

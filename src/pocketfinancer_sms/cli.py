@@ -37,7 +37,13 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--port", type=int, default=8765)
     subparsers.add_parser("backup-workbench", help="create and verify a local SQLite backup")
     export = subparsers.add_parser(
-        "export-workbench", help="export submitted canonical labels as an encrypted bundle"
+        "export-workbench", help="export explicitly selected revisions as an encrypted bundle"
+    )
+    export.add_argument(
+        "--selection-manifest",
+        type=Path,
+        required=True,
+        help="private JSON list of exact source, reviewer, revision, and revision hash",
     )
     export.add_argument(
         "--consent-local-encrypted-export",
@@ -196,9 +202,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 0
         if args.command == "export-workbench":
+            selection_path = args.selection_manifest.resolve()
+            if not selection_path.is_relative_to(private_root.resolve()):
+                raise PrivateArtifactError("export selection must stay under PRIVATE_DATA")
+            try:
+                selected_revisions = json.loads(selection_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                raise PrivateArtifactError("export selection manifest is unreadable") from exc
             result = store.export_labels(
                 private_root / "workbench" / "exports",
                 explicit_consent=args.consent_local_encrypted_export,
+                selected_revisions=selected_revisions,
             )
             print(json.dumps(result, sort_keys=True))
             return 0

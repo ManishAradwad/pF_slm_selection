@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import time
+from dataclasses import asdict
 from typing import Any
 
 from ..extractor import SourceSpan
@@ -34,6 +36,17 @@ from .store import WorkbenchStore
 
 PROTECTED_POOLS = frozenset({"protected_test", "later_time_holdout"})
 V2_CONTRACT = "pocketfinancer.canonical-label/2"
+RESUME_FILTERS = frozenset({
+    "pool", "operational_class", "event_state", "financial_family",
+    "payment_rail", "normalized_template_group", "sender_family_group",
+    "sender_template_group", "time_group", "time_from", "time_to",
+    "disposition", "selector_action", "review_state", "reviewer_state",
+    "candidate_coverage", "disagreement", "imported_feedback",
+})
+RESUME_SORTS = frozenset({
+    "timestamp", "source_id", "pool", "review_state", "operational_class",
+    "payment_rail", "time_group", "sender_template_group",
+})
 
 
 class WorkbenchValidationError(ValueError):
@@ -72,6 +85,9 @@ class WorkbenchService:
             "disposition",
             "selector_action",
             "review_state",
+            "candidate_coverage",
+            "disagreement",
+            "imported_feedback",
             "normalized_template_group",
             "sender_family_group",
             "sender_template_group",
@@ -83,6 +99,8 @@ class WorkbenchService:
             )
         if pool is None and has_hidden_filter:
             filters = {**filters, "exclude_protected": "true"}
+        if filters.get("imported_feedback") and self.native_trace_importer is None:
+            raise WorkbenchValidationError("imported feedback view is unavailable")
         result = self.store.list_rows(
             filters=filters,
             search=search,
@@ -90,6 +108,7 @@ class WorkbenchService:
             descending=descending,
             limit=limit,
             offset=offset,
+            reviewer_id=reviewer_id,
         )
         for row in result["rows"]:
             if row["pool"] in PROTECTED_POOLS and not self._may_reveal(
@@ -101,6 +120,50 @@ class WorkbenchService:
             else:
                 row["blind_locked"] = False
         return result
+
+    def save_resume(
+        self,
+        *,
+        reviewer_id: str,
+        source_id: str,
+        offset: int,
+        filters: dict[str, str | None],
+        search: str = "",
+        sort: str = "timestamp",
+        descending: bool = False,
+    ) -> dict[str, Any]:
+        if not reviewer_id or len(reviewer_id) > 128:
+            raise WorkbenchValidationError("reviewer_id is invalid")
+        if self.store.get_record(source_id) is None:
+            raise WorkbenchValidationError("source row does not exist")
+        if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+            raise WorkbenchValidationError("resume offset is invalid")
+        if not isinstance(filters, dict) or any(
+            key not in RESUME_FILTERS or (
+                value is not None and (not isinstance(value, str) or len(value) > 256)
+            )
+            for key, value in filters.items()
+        ):
+            raise WorkbenchValidationError("resume filters are invalid")
+        if not isinstance(search, str) or len(search) > 256:
+            raise WorkbenchValidationError("resume search is invalid")
+        if sort not in RESUME_SORTS or not isinstance(descending, bool):
+            raise WorkbenchValidationError("resume sort is invalid")
+        self.list_rows(
+            reviewer_id=reviewer_id, filters=filters, search=search,
+            sort=sort, descending=descending, limit=1, offset=0,
+        )
+        state = {
+            "source_id": source_id, "offset": offset, "filters": filters,
+            "search": search, "sort": sort, "descending": descending,
+        }
+        self.store.save_resume(reviewer_id, state)
+        return state
+
+    def load_resume(self, reviewer_id: str) -> dict[str, Any] | None:
+        if not reviewer_id or len(reviewer_id) > 128:
+            raise WorkbenchValidationError("reviewer_id is invalid")
+        return self.store.load_resume(reviewer_id)
 
     def view_row(self, source_id: str, reviewer_id: str) -> dict[str, Any]:
         record = self.store.get_record(source_id)
@@ -130,6 +193,11 @@ class WorkbenchService:
             ),
         }
         if may_reveal:
+            native_traces = (
+                self.native_trace_importer.records_for_source(source_id)
+                if self.native_trace_importer is not None
+                else []
+            )
             result.update(
                 {
                     "analysis": record["analysis"],
@@ -138,10 +206,9 @@ class WorkbenchService:
                     "processing_trace": record.get("processing_trace"),
                     "latest_weak_correction": self.store.latest_weak_correction(source_id),
                     "candidate_coverage": _candidate_coverage(record["analysis"]),
-                    "native_traces": (
-                        self.native_trace_importer.records_for_source(source_id)
-                        if self.native_trace_importer is not None
-                        else []
+                    "native_traces": native_traces,
+                    "native_suggestions": _native_evidence_suggestions(
+                        native_traces, record["source"]["body"]
                     ),
                 }
             )
@@ -173,6 +240,27 @@ class WorkbenchService:
         )
 
     def submit(
+        self,
+        *,
+        source_id: str,
+        reviewer_id: str,
+        expected_revision: int,
+        payload: dict[str, Any],
+        adjudicated: bool = False,
+    ) -> dict[str, Any]:
+        try:
+            return self._submit_impl(
+                source_id=source_id,
+                reviewer_id=reviewer_id,
+                expected_revision=expected_revision,
+                payload=payload,
+                adjudicated=adjudicated,
+            )
+        except WorkbenchValidationError:
+            self.store.record_validation_failure()
+            raise
+
+    def _submit_impl(
         self,
         *,
         source_id: str,
@@ -304,14 +392,14 @@ class WorkbenchService:
                 "disagreement details remain hidden until protected review is revealed"
             )
         annotations = self.store.submitted_annotations(source_id)
-        decisions = {
-            item["canonical_label"]["decision"]
+        semantic_labels = {
+            object_sha256(_semantic_label(item["canonical_label"]))
             for item in annotations
             if item["canonical_label"] is not None
         }
         return {
             "source_id": source_id,
-            "has_disagreement": len(decisions) > 1,
+            "has_disagreement": len(semantic_labels) > 1,
             "review_count": len(annotations),
             "annotations": annotations,
         }
@@ -630,6 +718,74 @@ def _now_ms() -> int:
     return int(time.time() * 1000)
 
 
+SEMANTIC_METADATA = frozenset({
+    "label_id", "source_id", "reviewer_id", "revision", "status",
+    "created_at_epoch_ms", "supersedes_revision", "notes",
+})
+
+
+def _semantic_label(label: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in label.items() if key not in SEMANTIC_METADATA}
+
+
+def _native_evidence_suggestions(
+    traces: list[dict[str, Any]], source: str
+) -> list[dict[str, Any]]:
+    """Show only source-grounded native corrections as advisory span suggestions."""
+
+    suggestions: list[dict[str, Any]] = []
+    for trace in traces:
+        try:
+            record = json.loads(trace["record_json"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not isinstance(record, dict) or not isinstance(record.get("native_feedback"), list):
+            continue
+        for feedback in record["native_feedback"]:
+            if (
+                not isinstance(feedback, dict)
+                or feedback.get("contract") != "pocketfinancer.user-feedback/2"
+                or not isinstance(feedback.get("field_corrections"), list)
+            ):
+                continue
+            for correction in feedback["field_corrections"]:
+                if not isinstance(correction, dict):
+                    continue
+                field = correction.get("field")
+                evidence = correction.get("evidence")
+                if (
+                    field not in {"amount", "direction", "account", "counterparty"}
+                    or correction.get("classification")
+                    == "supplied_manual_ungrounded_value"
+                    or not isinstance(evidence, dict)
+                ):
+                    continue
+                if any(
+                    isinstance(evidence.get(key), bool)
+                    or not isinstance(evidence.get(key), int)
+                    for key in ("start_char", "end_char")
+                ):
+                    continue
+                try:
+                    expected = EvidenceSpan.from_source(
+                        source, evidence["start_char"], evidence["end_char"]
+                    )
+                except (KeyError, TypeError, ValueError):
+                    continue
+                if evidence != asdict(expected) or not expected.text:
+                    continue
+                suggestions.append({
+                    "provenance_class": "native_feedback_correction",
+                    "source_platform": trace["source_platform"],
+                    "field": field,
+                    "classification": correction.get("classification"),
+                    "evidence": asdict(expected),
+                })
+                if len(suggestions) >= 200:
+                    return suggestions
+    return suggestions
+
+
 def _candidate_coverage(analysis: dict[str, Any]) -> dict[str, Any]:
     counts = {kind: 0 for kind in ("amount", "direction", "account", "counterparty")}
     amount_clauses: set[str] = set()
@@ -639,6 +795,8 @@ def _candidate_coverage(analysis: dict[str, Any]) -> dict[str, Any]:
         if kind in counts and not candidate.get("explicit_absence"):
             counts[kind] += 1
         clause = candidate.get("clause_id")
+        if candidate.get("explicit_absence"):
+            continue
         if kind == "amount" and clause:
             amount_clauses.add(clause)
         elif kind == "direction" and clause:

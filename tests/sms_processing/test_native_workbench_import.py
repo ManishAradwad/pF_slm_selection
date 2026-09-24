@@ -18,6 +18,7 @@ from pocketfinancer_sms.corpus.grouping import build_grouping
 from pocketfinancer_sms.currency import CurrencyContext
 from pocketfinancer_sms.provenance import PrivateArtifactError
 from pocketfinancer_sms.triage import evaluate_triage
+from pocketfinancer_sms.types import EvidenceSpan
 from pocketfinancer_sms.workbench.native_import import NativeTraceImporter
 from pocketfinancer_sms.workbench.secure_store import SecureWorkbenchStore
 from pocketfinancer_sms.workbench.service import WorkbenchService
@@ -113,7 +114,29 @@ def _bundle(tmp_path: Path, source_id: str) -> tuple[Path, SyntheticDecryptor]:
                         "field": "counterparty",
                     }
                 ]
-            }
+            },
+            {
+                "contract": "pocketfinancer.user-feedback/2",
+                "field_corrections": [
+                    {
+                        "field": "amount",
+                        "classification": "selected_existing_candidate",
+                        "evidence": asdict(EvidenceSpan.from_source(
+                            "INR 25 was debited from account **1234 at SYNTH SHOP.", 0, 6
+                        )),
+                    },
+                    {
+                        "field": "account",
+                        "classification": "selected_existing_candidate",
+                        "evidence": {
+                            **asdict(EvidenceSpan.from_source(
+                                "INR 25 was debited from account **1234 at SYNTH SHOP.", 32, 38
+                            )),
+                            "text": "WRONG",
+                        },
+                    },
+                ],
+            },
         ],
     }
     plaintext = json.dumps(
@@ -169,6 +192,16 @@ def test_native_import_keeps_provenance_and_candidate_misses_separate(tmp_path: 
         "record_json"
     ]
     assert row["latest_annotation"] is None
+    assert len(row["native_suggestions"]) == 1
+    assert row["native_suggestions"][0]["field"] == "amount"
+    assert row["native_suggestions"][0]["evidence"]["text"] == "INR 25"
+    service = WorkbenchService(store, native_trace_importer=importer)
+    assert service.list_rows(
+        reviewer_id="synthetic-reviewer", filters={"imported_feedback": "available"},
+    )["total"] == 1
+    assert service.list_rows(
+        reviewer_id="synthetic-reviewer", filters={"imported_feedback": "correction"},
+    )["total"] == 1
 
 
 def test_blind_pool_match_is_rejected_before_decryption(tmp_path: Path) -> None:
@@ -245,7 +278,18 @@ def test_cli_refuses_legacy_plaintext_workbench(monkeypatch, tmp_path: Path) -> 
 def test_secure_export_requires_consent_and_writes_only_ciphertext(
     monkeypatch, tmp_path: Path
 ) -> None:
-    store, _source_id = _store(tmp_path, "annotation_training")
+    store, source_id = _store(tmp_path, "annotation_training")
+    revision = store.append_annotation_revision(
+        source_id=source_id, reviewer_id="synthetic-reviewer",
+        expected_revision=0, status="submitted",
+        payload={"decision": "none"},
+        canonical_label={"contract": "synthetic-test-label", "decision": "none"},
+        created_at_epoch_ms=1,
+    )
+    selection = [{
+        "source_id": source_id, "reviewer_id": "synthetic-reviewer",
+        "revision": revision["revision"], "revision_hash": revision["revision_hash"],
+    }]
     secure = object.__new__(SecureWorkbenchStore)
     secure.database_path = store.database_path
     secure._key_provider = type(
@@ -278,7 +322,8 @@ def test_secure_export_requires_consent_and_writes_only_ciphertext(
     with pytest.raises(PrivateArtifactError, match="explicit consent"):
         secure.export_labels(tmp_path / "exports")
     receipt = secure.export_labels(
-        tmp_path / "exports", explicit_consent=True
+        tmp_path / "exports", explicit_consent=True,
+        selected_revisions=selection,
     )
     envelope_path = tmp_path / "exports" / f"workbench-export-{receipt['export_id']}.json"
     envelope_text = envelope_path.read_text(encoding="utf-8")

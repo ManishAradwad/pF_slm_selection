@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from ..provenance import PrivateArtifactError
 from .service import WorkbenchService, WorkbenchValidationError
 from .store import WorkbenchConflict
 
@@ -94,7 +95,9 @@ class WorkbenchWebServer:
                     return
                 try:
                     payload = self._read_json()
-                    if parsed.path == "/api/draft":
+                    if parsed.path == "/api/resume":
+                        result = service.save_resume(**payload)
+                    elif parsed.path == "/api/draft":
                         result = service.save_draft(**payload)
                     elif parsed.path == "/api/submit":
                         result = service.submit(**payload)
@@ -110,6 +113,7 @@ class WorkbenchWebServer:
                         result = service.store.export_labels(
                             export_root,
                             explicit_consent=payload.get("explicit_consent") is True,
+                            selected_revisions=payload.get("selected_revisions"),
                         )
                     else:
                         self._json(HTTPStatus.NOT_FOUND, {"error": "endpoint not found"})
@@ -117,7 +121,7 @@ class WorkbenchWebServer:
                 except WorkbenchConflict as exc:
                     self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
                     return
-                except (WorkbenchValidationError, KeyError, TypeError, ValueError) as exc:
+                except (PrivateArtifactError, WorkbenchValidationError, KeyError, TypeError, ValueError) as exc:
                     self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                     return
                 except Exception:
@@ -132,7 +136,9 @@ class WorkbenchWebServer:
                 try:
                     reviewer = _one(query, "reviewer_id", required=True)
                     if path == "/api/progress":
-                        result = service.store.progress()
+                        result = service.store.progress(reviewer_id=reviewer)
+                    elif path == "/api/resume":
+                        result = service.load_resume(reviewer)
                     elif path == "/api/rows":
                         filters = {
                             name: _one(query, name)
@@ -151,6 +157,10 @@ class WorkbenchWebServer:
                                 "disposition",
                                 "selector_action",
                                 "review_state",
+                                "reviewer_state",
+                                "candidate_coverage",
+                                "disagreement",
+                                "imported_feedback",
                             )
                         }
                         result = service.list_rows(

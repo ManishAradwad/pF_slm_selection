@@ -277,14 +277,43 @@ interruption/resume, conflicting revisions, blind reveal, backup, restore, and
 consent-bound export. Annotation speed must not weaken grounding, privacy,
 provenance, or protected-pool isolation.
 
-Checkpoint (2026-09-24): The existing local workbench has an explicit
-`canonical-label/2` editing and submission path, source-span highlights,
-local draft autosave, within-tab queue navigation, historical v1 readability,
-and direct-extractor preview. Synthetic service and HTTP tests cover grounding,
-revision transition, blind reveal, and protected aggregate visibility. Durable
-encrypted cross-session resume, a full private-corpus trial, and any
-training-data export gate remain open. This WSL checkout has no private
-canonical manifest; no private rows were used for this checkpoint.
+Checkpoint 1 (2026-09-24): The focused `canonical-label/2` editor,
+source-span highlights, local draft autosave, queue navigation, historical v1
+readability, and direct-extractor preview are implemented. Synthetic tests
+cover grounding, revision transition, blind reveal, and protected aggregates.
+
+Checkpoint 2 (2026-09-24): Reviewer-specific queue position, filters, and search
+now persist in the local workbench database across browser sessions. A completed
+resume item redirects to the reviewer's unfinished queue. Synthetic store,
+service, and HTTP tests cover reopening, reviewer isolation, and completion.
+The production secure store encrypts this state with the workbench database.
+Remaining build work: disagreement/candidate/imported-feedback queue views,
+one-click imported native suggestions, richer progress/validation/throughput,
+and append-only label correction controls. Then run the full private acceptance
+trial.
+
+Checkpoint 3 (2026-09-24): Local encrypted export now requires a deliberate
+selection of submitted or adjudicated revisions with exact revision hashes.
+The UI can select the current or a historical submitted revision; the CLI
+requires a private selection manifest. Stale, duplicate, empty, or unconsented
+selections fail closed. Synthetic tests cover the selection gate.
+
+Checkpoint 4 (2026-09-24): Reviewer queues now filter by disagreement,
+candidate core coverage, and imported native feedback, with protected blind
+review exclusion. Imported v2 native correction spans are checked against the
+original source and offered as labeled, optional one-click evidence. The
+dashboard counts reviewer remaining work, non-protected disagreements,
+validation failures, and recent submissions. The editor offers an explicit
+append-only correction draft. Synthetic tests cover each boundary.
+
+Checkpoint 5 (2026-09-24): Full WSL gate passes: repository safety, both
+Ruff checks, 836 tests, and diff whitespace. The JavaScript syntax check also
+passes. Field-level canonical disagreements now enter the adjudication queue.
+The in-app browser connection failed at the local sandbox setup, so a visual
+click-through has not been verified. This WSL checkout has no private canonical
+manifest; no private rows were used for these checkpoints. The remaining
+acceptance work is a visual click-through and the private end-to-end trial
+using the manifest through the owner's normal local workflow.
 
 ## Workstream 6 — add the Apple Foundation Models evaluation pipeline
 

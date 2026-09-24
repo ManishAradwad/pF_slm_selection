@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -51,6 +52,11 @@ class WorkbenchStore:
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path, timeout=10)
         connection.row_factory = sqlite3.Row
+        connection.create_function(
+            "source_ref_sha256", 1,
+            lambda value: hashlib.sha256(value.encode("utf-8")).hexdigest(),
+            deterministic=True,
+        )
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute("PRAGMA journal_mode = WAL")
         connection.execute("PRAGMA synchronous = FULL")
@@ -128,6 +134,22 @@ class WorkbenchStore:
         os.chmod(self.database_path, 0o600)
         return len(rows)
 
+    def save_resume(self, reviewer_id: str, state: dict[str, Any]) -> None:
+        """Keep private queue position in the workbench database, not browser storage."""
+
+        key = "resume:" + object_sha256({"reviewer_id": reviewer_id})
+        with self.transaction() as connection:
+            connection.execute(
+                "INSERT OR REPLACE INTO meta(key, value) VALUES(?, ?)",
+                (key, _json(state)),
+            )
+
+    def load_resume(self, reviewer_id: str) -> dict[str, Any] | None:
+        key = "resume:" + object_sha256({"reviewer_id": reviewer_id})
+        with self.connect() as connection:
+            row = connection.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+        return json.loads(row[0]) if row is not None else None
+
     def get_record(self, source_id: str) -> dict[str, Any] | None:
         with self.connect() as connection:
             row = connection.execute(
@@ -149,6 +171,7 @@ class WorkbenchStore:
         descending: bool,
         limit: int,
         offset: int,
+        reviewer_id: str | None = None,
     ) -> dict[str, Any]:
         filter_expressions = {
             "pool": "pool",
@@ -169,6 +192,74 @@ class WorkbenchStore:
         clauses: list[str] = []
         values: list[Any] = []
         for name, value in filters.items():
+            if name == "candidate_coverage":
+                if value not in {"core_complete", "core_missing"}:
+                    raise ValueError("candidate coverage filter is invalid")
+                complete = (
+                    "EXISTS (SELECT 1 FROM json_each(record_json, '$.analysis.candidates') a "
+                    "JOIN json_each(record_json, '$.analysis.candidates') d "
+                    "ON json_extract(a.value, '$.clause_id') = "
+                    "json_extract(d.value, '$.clause_id') "
+                    "WHERE json_extract(a.value, '$.kind') = 'amount' "
+                    "AND json_extract(d.value, '$.kind') = 'direction' "
+                    "AND json_extract(a.value, '$.clause_id') IS NOT NULL "
+                    "AND COALESCE(json_extract(a.value, '$.explicit_absence'), 0) = 0 "
+                    "AND COALESCE(json_extract(d.value, '$.explicit_absence'), 0) = 0)"
+                )
+                clauses.append(complete if value == "core_complete" else "NOT " + complete)
+                continue
+            if name == "disagreement":
+                if value != "yes":
+                    raise ValueError("disagreement filter is invalid")
+                clauses.append(
+                    """(SELECT COUNT(DISTINCT json_remove(
+                        a.canonical_label_json,
+                        '$.label_id', '$.source_id', '$.reviewer_id', '$.revision',
+                        '$.status', '$.created_at_epoch_ms', '$.supersedes_revision',
+                        '$.notes'
+                    )) """
+                    "FROM annotation_revisions a JOIN ("
+                    "SELECT reviewer_id, MAX(revision) AS revision "
+                    "FROM annotation_revisions "
+                    "WHERE source_id = corpus_rows.source_id "
+                    "AND status IN ('submitted', 'adjudicated') "
+                    "GROUP BY reviewer_id) latest "
+                    "ON a.source_id = corpus_rows.source_id "
+                    "AND a.reviewer_id = latest.reviewer_id "
+                    "AND a.revision = latest.revision) > 1"
+                )
+                continue
+            if name == "imported_feedback":
+                if value not in {"available", "correction"}:
+                    raise ValueError("imported feedback filter is invalid")
+                correction = (
+                    " AND EXISTS (SELECT 1 FROM json_each(n.record_json, '$.native_feedback') f "
+                    "WHERE COALESCE(json_array_length(json_extract(f.value, '$.field_corrections')), "
+                    "json_array_length(json_extract(f.value, '$.corrections')), 0) > 0)"
+                    if value == "correction" else ""
+                )
+                clauses.append(
+                    "EXISTS (SELECT 1 FROM native_trace_records n "
+                    "WHERE n.source_ref_hash = source_ref_sha256(corpus_rows.source_id)"
+                    + correction + ")"
+                )
+                continue
+            if name == "reviewer_state":
+                if value:
+                    if not reviewer_id or value not in {"unfinished", "completed"}:
+                        raise ValueError("reviewer state filter is invalid")
+                    state_expression = (
+                        "COALESCE((SELECT status FROM annotation_revisions "
+                        "WHERE source_id = corpus_rows.source_id AND reviewer_id = ? "
+                        "ORDER BY revision DESC LIMIT 1), 'unreviewed')"
+                    )
+                    clauses.append(
+                        state_expression
+                        + (" IN ('unreviewed', 'draft')" if value == "unfinished"
+                           else " IN ('submitted', 'adjudicated')")
+                    )
+                    values.append(reviewer_id)
+                continue
             if name == "exclude_protected":
                 if value == "true":
                     clauses.append("pool NOT IN ('protected_test', 'later_time_holdout')")
@@ -469,7 +560,18 @@ class WorkbenchStore:
             "correction_hash": row["correction_hash"],
         }
 
-    def progress(self) -> dict[str, Any]:
+    def record_validation_failure(self) -> None:
+        """Count rejected submissions without storing private values or error text."""
+
+        with self.transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO meta(key, value) VALUES('metric:validation_failures', '1')
+                ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1
+                """
+            )
+
+    def progress(self, reviewer_id: str | None = None) -> dict[str, Any]:
         with self.connect() as connection:
             total = connection.execute("SELECT COUNT(*) FROM corpus_rows").fetchone()[0]
             states = dict(
@@ -516,6 +618,59 @@ class WorkbenchStore:
                     "GROUP BY COALESCE(payment_rail, 'none')"
                 ).fetchall()
             )
+            validation_row = connection.execute(
+                "SELECT value FROM meta WHERE key = 'metric:validation_failures'"
+            ).fetchone()
+            now_ms = time.time_ns() // 1_000_000
+            recent_submissions = connection.execute(
+                """
+                SELECT
+                    SUM(CASE WHEN created_at_epoch_ms >= ? THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN created_at_epoch_ms >= ? THEN 1 ELSE 0 END)
+                FROM annotation_revisions
+                WHERE status IN ('submitted', 'adjudicated')
+                """,
+                (now_ms - 3_600_000, now_ms - 86_400_000),
+            ).fetchone()
+            disagreement_count = connection.execute(
+                """
+                SELECT COUNT(*) FROM (
+                    SELECT a.source_id
+                    FROM annotation_revisions a
+                    JOIN corpus_rows c ON c.source_id = a.source_id
+                    JOIN (
+                        SELECT source_id, reviewer_id, MAX(revision) AS revision
+                        FROM annotation_revisions
+                        WHERE status IN ('submitted', 'adjudicated')
+                        GROUP BY source_id, reviewer_id
+                    ) latest ON latest.source_id = a.source_id
+                        AND latest.reviewer_id = a.reviewer_id
+                        AND latest.revision = a.revision
+                    WHERE c.pool NOT IN ('protected_test', 'later_time_holdout')
+                    GROUP BY a.source_id
+                    HAVING COUNT(DISTINCT json_remove(
+                        a.canonical_label_json,
+                        '$.label_id', '$.source_id', '$.reviewer_id', '$.revision',
+                        '$.status', '$.created_at_epoch_ms', '$.supersedes_revision',
+                        '$.notes'
+                    )) > 1
+                )
+                """
+            ).fetchone()[0]
+            my_remaining = None
+            if reviewer_id:
+                my_remaining = connection.execute(
+                    """
+                    SELECT COUNT(*) FROM corpus_rows c
+                    WHERE COALESCE(
+                        (SELECT status FROM annotation_revisions
+                         WHERE source_id = c.source_id AND reviewer_id = ?
+                         ORDER BY revision DESC LIMIT 1),
+                        'unreviewed'
+                    ) IN ('unreviewed', 'draft')
+                    """,
+                    (reviewer_id,),
+                ).fetchone()[0]
         return {
             "total": total,
             "review_states": states,
@@ -525,6 +680,11 @@ class WorkbenchStore:
             "rails": rails,
             "pool_coverage": pool_coverage,
             "class_coverage": class_coverage,
+            "validation_failures": int(validation_row[0]) if validation_row else 0,
+            "disagreements": disagreement_count,
+            "submitted_last_hour": recent_submissions[0] or 0,
+            "submitted_last_day": recent_submissions[1] or 0,
+            "my_remaining": my_remaining,
         }
 
     def verify_revision_chains(self) -> None:
@@ -607,13 +767,77 @@ class WorkbenchStore:
             Path(f"{temporary}-wal").unlink(missing_ok=True)
             Path(f"{temporary}-shm").unlink(missing_ok=True)
 
+    def selected_labels(self, selected_revisions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Resolve an explicit, hash-bound selection without silently widening it."""
+
+        if (
+            not isinstance(selected_revisions, list)
+            or not 1 <= len(selected_revisions) <= 10_000
+        ):
+            raise PrivateArtifactError("export requires an explicit nonempty revision selection")
+        seen: set[tuple[str, str, int]] = set()
+        labels: list[dict[str, Any]] = []
+        with self.connect() as connection:
+            for selected in selected_revisions:
+                if not isinstance(selected, dict) or set(selected) != {
+                    "source_id", "reviewer_id", "revision", "revision_hash"
+                }:
+                    raise PrivateArtifactError("export revision selection is invalid")
+                source_id = selected["source_id"]
+                reviewer_id = selected["reviewer_id"]
+                revision = selected["revision"]
+                revision_hash = selected["revision_hash"]
+                if (
+                    not isinstance(source_id, str) or not source_id
+                    or not isinstance(reviewer_id, str) or not reviewer_id
+                    or isinstance(revision, bool) or not isinstance(revision, int)
+                    or revision < 1 or not isinstance(revision_hash, str)
+                    or len(revision_hash) != 64
+                    or any(char not in "0123456789abcdef" for char in revision_hash)
+                ):
+                    raise PrivateArtifactError("export revision selection is invalid")
+                identity = (source_id, reviewer_id, revision)
+                if identity in seen:
+                    raise PrivateArtifactError("export revision selection contains duplicates")
+                seen.add(identity)
+                row = connection.execute(
+                    """
+                    SELECT source_id, reviewer_id, revision, status,
+                           canonical_label_json, revision_hash
+                    FROM annotation_revisions
+                    WHERE source_id = ? AND reviewer_id = ? AND revision = ?
+                    """,
+                    identity,
+                ).fetchone()
+                if (
+                    row is None or row["revision_hash"] != revision_hash
+                    or row["status"] not in {"submitted", "adjudicated"}
+                    or row["canonical_label_json"] is None
+                ):
+                    raise PrivateArtifactError(
+                        "selected annotation revision is missing or changed"
+                    )
+                labels.append({
+                    "source_id": source_id,
+                    "reviewer_id": reviewer_id,
+                    "revision": revision,
+                    "status": row["status"],
+                    "canonical_label": json.loads(row["canonical_label_json"]),
+                    "revision_hash": revision_hash,
+                })
+        return sorted(labels, key=lambda value: (
+            value["source_id"], value["reviewer_id"], value["revision"]
+        ))
+
     def export_labels(
         self,
         output_root: Path,
         *,
         explicit_consent: bool = False,
+        selected_revisions: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        del explicit_consent  # Legacy direct-call compatibility; production CLI requires SQLCipher.
+        if not explicit_consent:
+            raise PrivateArtifactError("workbench export requires explicit consent")
         self.verify_revision_chains()
         ensure_private_directory(output_root)
         with self.connect() as connection:
@@ -623,26 +847,7 @@ class WorkbenchStore:
             if run_row is None:
                 raise PrivateArtifactError("workbench export requires an imported corpus run")
             run_id = run_row[0]
-            rows = connection.execute(
-                """
-                SELECT source_id, reviewer_id, revision, status, canonical_label_json,
-                       revision_hash
-                FROM annotation_revisions
-                WHERE status IN ('submitted', 'adjudicated') AND canonical_label_json IS NOT NULL
-                ORDER BY source_id, reviewer_id, revision
-                """
-            ).fetchall()
-        values = [
-            {
-                "source_id": row["source_id"],
-                "reviewer_id": row["reviewer_id"],
-                "revision": row["revision"],
-                "status": row["status"],
-                "canonical_label": json.loads(row["canonical_label_json"]),
-                "revision_hash": row["revision_hash"],
-            }
-            for row in rows
-        ]
+        values = self.selected_labels(selected_revisions)
         binding = {
             "corpus_run_id": run_id,
             "labels": values,

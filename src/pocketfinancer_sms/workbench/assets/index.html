@@ -15,7 +15,7 @@
       <label class="reviewer">Reviewer <input id="reviewerId" autocomplete="off" placeholder="Your local reviewer name"></label>
       <div class="top-actions">
         <button id="backupButton" class="secondary">Create backup</button>
-        <button id="exportButton" class="secondary">Export labels</button>
+        <button id="exportButton" class="secondary">Export selected (0)</button>
       </div>
     </header>
 
@@ -55,8 +55,20 @@
         <label>Review state
           <select id="reviewFilter"><option value="">All states</option><option>unreviewed</option><option>draft</option><option>submitted</option><option>adjudicated</option></select>
         </label>
+        <label>My review
+          <select id="reviewerStateFilter"><option value="">All</option><option value="unfinished">My unfinished</option><option value="completed">My completed</option></select>
+        </label>
         <label>Selector action
           <select id="selectorActionFilter"><option value="">All actions</option><option>run_normal</option><option>run_assistive</option><option>skip</option></select>
+        </label>
+        <label>Disagreement
+          <select id="disagreementFilter"><option value="">All</option><option value="yes">Needs adjudication</option></select>
+        </label>
+        <label>Candidate coverage
+          <select id="candidateCoverageFilter"><option value="">All</option><option value="core_complete">Amount and direction together</option><option value="core_missing">Core candidates missing</option></select>
+        </label>
+        <label>Imported native feedback
+          <select id="importedFeedbackFilter"><option value="">All</option><option value="available">Has imported trace</option><option value="correction">Has correction</option></select>
         </label>
         <label>Month group <input id="timeGroupFilter" type="month"></label>
         <label>From date <input id="timeFromFilter" type="date"></label>
@@ -131,9 +143,11 @@
               <label>Notes <textarea id="focusNotes" rows="2" placeholder="Short categorical note; no copied private message"></textarea></label>
               <div class="action-row">
                 <button id="focusSaveDraft" type="button" class="secondary">Save draft</button>
+                <button id="focusCorrection" type="button" class="secondary">Correct with new revision</button>
                 <button id="focusSubmit" type="button">Submit label</button>
                 <button id="focusAdjudicate" type="button" class="secondary">Adjudicate</button>
                 <button id="focusPreview" type="button" class="secondary">Preview extractor target</button>
+                <button id="selectExportButton" type="button" class="secondary">Select this revision for export</button>
               </div>
               <div class="action-row">
                 <button id="focusPrevious" type="button" class="secondary">Previous</button>

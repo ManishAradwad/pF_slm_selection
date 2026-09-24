@@ -1,6 +1,6 @@
 # Workbench Requirements and Data Flow
 
-Status: **v1 foundation and focused canonical-label/2 editor implemented; private end-to-end trial and durable resume pending**
+Status: **focused canonical-label/2 workbench implemented and synthetically verified; private end-to-end trial pending**
 Entry point: `python scripts/run_sms_processing.py serve-workbench`
 
 ## Private layout
@@ -20,10 +20,10 @@ PRIVATE_DATA/sms_processing/
     reports/*.json
     provenance.json
   workbench/
-    workbench.sqlite3
+    workbench-v2.sqlite3
     backups/*.sqlite3
     backups/*.manifest.json
-    exports/<hash-bound-export-id>/
+    exports/workbench-export-<hash-bound-export-id>.json
 ```
 
 Directories are mode `0700`; files are `0600`. The entire root is Git-ignored and
@@ -72,17 +72,17 @@ The secure store, canonical corpus import, pool and category navigation,
 blind-first controls, source-span selection, append-only revisions,
 adjudication, backup, restore, and encrypted export remain reusable. The v2
 editor adds quick decisions, color-coded spans, drafts, queue movement, and
-direct target preview. Browser position currently lasts for the tab session;
-durable encrypted resume and the private acceptance trial remain open.
+direct target preview. Reviewer queue position and filter state now persist in
+the local workbench database and resume across browser sessions; the private
+acceptance trial remains open.
 
 ## Focused personal-corpus annotation mode
 
-The existing unified workbench proves the storage, privacy, queue, revision, and
-labeling foundations. The planned focused mode optimizes repeated annotation of
-the owner's personal SMS corpus without creating a second database or label
-format.
+The focused mode builds on the existing storage, privacy, queue, revision, and
+labeling foundations. It supports repeated annotation of the owner's personal
+SMS corpus in the same database and label history.
 
-The focused mode must provide:
+The focused mode provides:
 
 - a visible annotation-contract identity and an explicit v2 editing path; legacy
   v1 revisions remain readable but cannot be silently edited as v2;

@@ -9,6 +9,8 @@ import urllib.request
 from dataclasses import asdict
 from pathlib import Path
 
+import pytest
+
 from pocketfinancer_sms.analyzer import DeterministicSmsAnalyzer
 from pocketfinancer_sms.corpus.grouping import build_grouping
 from pocketfinancer_sms.currency import CurrencyContext
@@ -126,6 +128,24 @@ def test_synthetic_ui_smoke_is_token_protected_local_and_blind_first(tmp_path: P
         with urllib.request.urlopen(
             _request(
                 server,
+                "/api/resume",
+                payload={
+                    "reviewer_id": "synthetic-reviewer",
+                    "source_id": source_id,
+                    "offset": 0,
+                    "filters": {"pool": "protected_test"},
+                },
+            )
+        ) as response:
+            assert json.loads(response.read())["source_id"] == source_id
+        with urllib.request.urlopen(
+            _request(server, "/api/resume?reviewer_id=synthetic-reviewer")
+        ) as response:
+            assert json.loads(response.read())["filters"]["pool"] == "protected_test"
+
+        with urllib.request.urlopen(
+            _request(
+                server,
                 "/api/draft",
                 payload={
                     "source_id": source_id,
@@ -214,7 +234,8 @@ def test_v2_http_annotation_and_blind_direct_preview(tmp_path: Path) -> None:
                 },
             )
         ) as response:
-            assert json.loads(response.read())["revision"] == 2
+            submitted = json.loads(response.read())
+            assert submitted["revision"] == 2
         preview_path = f"/api/preview?reviewer_id={reviewer}&source_id={source_id}"
         try:
             urllib.request.urlopen(_request(server, preview_path))
@@ -234,6 +255,23 @@ def test_v2_http_annotation_and_blind_direct_preview(tmp_path: Path) -> None:
             preview = json.loads(response.read())
             assert preview["target_contract"] == "pocketfinancer.sms-extractor/1"
             assert preview["target"]["decision"] == "posted"
+        selection = [{
+            "source_id": source_id, "reviewer_id": reviewer,
+            "revision": submitted["revision"],
+            "revision_hash": submitted["revision_hash"],
+        }]
+        with pytest.raises(urllib.error.HTTPError) as rejected:
+            urllib.request.urlopen(_request(
+                server, "/api/export",
+                payload={"explicit_consent": True, "selected_revisions": []},
+            ))
+        assert rejected.value.code == 400
+        with urllib.request.urlopen(_request(
+            server, "/api/export",
+            payload={"explicit_consent": True, "selected_revisions": selection},
+        )) as response:
+            exported = json.loads(response.read())
+            assert exported["label_count"] == 1
     finally:
         server.shutdown()
         thread.join(timeout=2)

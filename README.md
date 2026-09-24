@@ -140,7 +140,7 @@ python scripts/run_sms_processing.py build-corpus
 python scripts/run_sms_processing.py init-workbench
 python scripts/run_sms_processing.py serve-workbench
 python scripts/run_sms_processing.py backup-workbench
-python scripts/run_sms_processing.py export-workbench
+python scripts/run_sms_processing.py export-workbench --selection-manifest PRIVATE_DATA/sms_processing/workbench/export-selection.json --consent-local-encrypted-export
 python scripts/run_sms_processing.py evaluate-extractor --help
 ```
 

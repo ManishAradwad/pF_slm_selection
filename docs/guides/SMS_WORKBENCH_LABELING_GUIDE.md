@@ -34,11 +34,15 @@ checkout merely for a test.
 1. Choose a pool and optional filters in **Find messages**. Start with
    `annotation_training`. The middle column is the current queue; its
    ordering, position, and remaining count appear beside the editor.
+   Disagreement, candidate coverage, and imported feedback filters are
+   available outside blind protected pools.
 2. Read the complete, unchanged SMS before opening machine suggestions.
    Choose **Posted** (`Alt+1`), **None** (`Alt+2`), or **Abstain** (`Alt+3`).
 3. Verify operational class, event state, family, and payment rail. The
    decision sets default class and state, which you may correct. Weak class
-   and analyzer candidates remain suggestions, never human truth.
+   and analyzer candidates remain suggestions, never human truth. Imported
+   native correction evidence appears separately; **Use native evidence**
+   assigns only its verified source span, which you should inspect.
 4. For **Posted**, select exact text in the SMS and assign Amount, Direction,
    Account, and optional Counterparty. Assigned fields stay highlighted in
    distinct colors. Use **Clear** beside a field to select it again.
@@ -51,8 +55,13 @@ checkout merely for a test.
 7. Draft changes save locally after a short pause. **Save draft** is also
    available. **Submit label** validates the complete label and appends a
    revision. **Submit and next**, **Save draft and next**, **Skip**, and
-   **Previous** move through the current filtered queue. The tab remembers
-   its position for the session.
+   **Previous** move through the current filtered queue. The local workbench
+   remembers the reviewer, filters, search, and last unfinished position across
+   browser sessions. **My review → My unfinished** shows only your pending rows.
+
+To revise a submitted v2 label, choose **Correct with new revision**.
+The workbench saves a new draft and keeps the earlier submission in its
+append-only history. Finish the correction and submit the new revision.
 
 A submitted Posted label requires one exact amount, direction, and account
 span. The counterparty needs a span if it is present. Offsets are half-open
@@ -85,12 +94,22 @@ decision made after reveal blind.
 ## Local safety and remaining checkpoint
 
 The workbench keeps append-only revisions and expected-revision conflict
-checks. Backups, recovery, and encrypted exports remain separate explicit
-operations. Native feedback is evidence for adjudication, not automatic
-canonical truth. No SFT target or model training is enabled by this editor.
+checks. Backups and recovery remain separate explicit operations. To export,
+select specific submitted or adjudicated revisions, then choose **Export
+selected** and confirm the local encrypted export. Each selection includes its
+revision hash, and an outdated selection is rejected. The CLI requires a JSON
+selection manifest under `PRIVATE_DATA` containing a nonempty JSON array of
+`source_id`, `reviewer_id`, `revision`, and `revision_hash` objects. Native
+feedback is evidence for
+adjudication, not automatic canonical truth. No SFT target or model training is
+enabled by this editor.
+
+The dashboard shows your remaining count, non-protected disagreements,
+validation failures, and submissions during the past hour and day. These
+counts are local; they do not imply human-gold readiness.
 
 The remaining acceptance trial must use the owner's private corpus and cover
 queue selection, rapid labeling, interruption and resume across browser
 sessions, conflicts, blind reveal, backup and restore, adjudication, and
-consent-bound export. Browser position currently survives within the open
-tab session; durable encrypted cross-session resume is still planned.
+consent-bound export. Cross-session resume has synthetic verification but has
+not yet been exercised against the private corpus.

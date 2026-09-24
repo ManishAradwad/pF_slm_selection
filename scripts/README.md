@@ -15,7 +15,7 @@ contains the ignored private archive:
 | `python scripts/package_native_contract_v3.py export --bundle-root <app-resource-root>` | Copy the exact frozen v3 manifest and all hash-bound artifacts into an app bundle root, preserving manifest-relative paths and refusing conflicting files. |
 | `python scripts/package_native_contract_v3.py check --bundle-root <app-resource-root>` | Verify the packaged v3 manifest and every referenced artifact; missing or altered files fail with the stable `configuration_integrity` reason. |
 | `python scripts/run_sms_processing.py backup-workbench` | Create a mode-0600 SQLite backup and SHA-256 manifest. |
-| `python scripts/run_sms_processing.py export-workbench` | Export submitted/adjudicated canonical labels into a reproducible hash-bound private directory. |
+| `python scripts/run_sms_processing.py export-workbench --selection-manifest PRIVATE_DATA/sms_processing/workbench/export-selection.json --consent-local-encrypted-export` | Export only the explicitly selected, hash-bound submitted/adjudicated revisions in a local encrypted bundle. |
 
 The corpus command prints aggregate counts only. The UI and all generated state
 remain below ignored `PRIVATE_DATA/sms_processing`. Never tunnel, screen-share, or

@@ -112,6 +112,11 @@ class SecureWorkbenchStore(WorkbenchStore):
             if version is None or not version[0]:
                 raise PrivateArtifactError("database driver did not prove SQLCipher support")
             connection.row_factory = sqlite3.Row
+            connection.create_function(
+                "source_ref_sha256", 1,
+                lambda value: hashlib.sha256(value.encode("utf-8")).hexdigest(),
+                deterministic=True,
+            )
             connection.execute("PRAGMA cipher_memory_security = ON")
             connection.execute("PRAGMA foreign_keys = ON")
             connection.execute("PRAGMA journal_mode = WAL")
@@ -191,8 +196,9 @@ class SecureWorkbenchStore(WorkbenchStore):
         output_root: Path,
         *,
         explicit_consent: bool = False,
+        selected_revisions: list[dict[str, object]] | None = None,
     ) -> dict[str, object]:
-        """Write only an authenticated encrypted export after explicit consent."""
+        """Write only explicitly selected revisions to an encrypted export."""
 
         if not explicit_consent:
             raise PrivateArtifactError("encrypted workbench export requires explicit consent")
@@ -204,27 +210,7 @@ class SecureWorkbenchStore(WorkbenchStore):
             ).fetchone()
             if run_row is None:
                 raise PrivateArtifactError("workbench export requires an imported corpus run")
-            rows = connection.execute(
-                """
-                SELECT source_id, reviewer_id, revision, status, canonical_label_json,
-                       revision_hash
-                FROM annotation_revisions
-                WHERE status IN ('submitted', 'adjudicated')
-                  AND canonical_label_json IS NOT NULL
-                ORDER BY source_id, reviewer_id, revision
-                """
-            ).fetchall()
-        labels = [
-            {
-                "source_id": row["source_id"],
-                "reviewer_id": row["reviewer_id"],
-                "revision": row["revision"],
-                "status": row["status"],
-                "canonical_label": json.loads(row["canonical_label_json"]),
-                "revision_hash": row["revision_hash"],
-            }
-            for row in rows
-        ]
+        labels = self.selected_labels(selected_revisions)
         payload = {
             "contract": "pocketfinancer.workbench-export-payload/2",
             "corpus_run_id": run_row[0],

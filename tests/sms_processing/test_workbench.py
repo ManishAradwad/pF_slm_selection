@@ -199,6 +199,8 @@ def test_revision_conflicts_and_invalid_submissions_never_downgrade_to_negative(
             },
         )
     assert store.current_revision(source_id, "reviewer-one") == 1
+    assert store.progress(reviewer_id="reviewer-one")["validation_failures"] == 1
+    assert store.progress(reviewer_id="reviewer-one")["my_remaining"] == 1
     assert store.latest_annotation(source_id, "reviewer-one")["status"] == "draft"
     row = service.view_row(source_id, "reviewer-one")
     assert [item["revision"] for item in row["annotation_history"]] == [1]
@@ -334,8 +336,21 @@ def test_backup_recovery_integrity_and_reproducible_hash_bound_export(tmp_path: 
             "different-synthetic-run",
         )
 
-    first = store.export_labels(tmp_path / "exports")
-    second = store.export_labels(tmp_path / "exports")
+    revision = store.latest_annotation(record["source_id"], "reviewer-one")
+    selection = [{
+        "source_id": record["source_id"], "reviewer_id": "reviewer-one",
+        "revision": revision["revision"], "revision_hash": revision["revision_hash"],
+    }]
+    with pytest.raises(PrivateArtifactError, match="explicit consent"):
+        store.export_labels(tmp_path / "exports", selected_revisions=selection)
+    with pytest.raises(PrivateArtifactError, match="nonempty revision selection"):
+        store.export_labels(tmp_path / "exports", explicit_consent=True)
+    first = store.export_labels(
+        tmp_path / "exports", explicit_consent=True, selected_revisions=selection,
+    )
+    second = store.export_labels(
+        tmp_path / "exports", explicit_consent=True, selected_revisions=selection,
+    )
     assert first == second
     assert first["label_count"] == 1
     export_dir = tmp_path / "exports" / first["export_id"]
@@ -361,7 +376,13 @@ def test_export_and_backup_fail_closed_if_revision_history_is_tampered(
         connection.commit()
 
     with pytest.raises(PrivateArtifactError, match="revision chain is invalid"):
-        store.export_labels(tmp_path / "exports")
+        store.export_labels(
+            tmp_path / "exports", explicit_consent=True,
+            selected_revisions=[{
+                "source_id": record["source_id"], "reviewer_id": "reviewer-one",
+                "revision": 1, "revision_hash": "0" * 64,
+            }],
+        )
     with pytest.raises(PrivateArtifactError, match="revision chain is invalid"):
         store.create_backup(tmp_path / "backups")
 
@@ -395,6 +416,9 @@ def test_adjudication_requires_disagreement_and_binds_resolved_revision_hashes(
     )
     disagreement = service.disagreements(source_id, "adjudicator")
     assert disagreement["has_disagreement"] is True
+    assert service.list_rows(
+        reviewer_id="adjudicator", filters={"disagreement": "yes"},
+    )["total"] == 1
     result = service.submit(
         source_id=source_id,
         reviewer_id="adjudicator",
@@ -404,6 +428,9 @@ def test_adjudication_requires_disagreement_and_binds_resolved_revision_hashes(
     )
 
     assert result["status"] == "adjudicated"
+    assert store.progress(reviewer_id="adjudicator")["disagreements"] == 1
+    assert store.progress(reviewer_id="adjudicator")["my_remaining"] == 0
+    assert store.progress()["submitted_last_day"] >= 3
     latest = store.latest_annotation(source_id, "adjudicator")
     assert len(latest["payload"]["adjudication_of"]) == 2
     assert set(latest["payload"]["adjudication_of"]) == {
@@ -557,3 +584,145 @@ def test_progress_does_not_expose_protected_weak_facets(tmp_path: Path) -> None:
     assert progress["families"] == {}
     assert progress["rails"] == {}
     assert progress["class_coverage"] == {}
+
+
+def test_durable_resume_and_reviewer_unfinished_queue(tmp_path: Path) -> None:
+    store, record = _store(tmp_path, pool="annotation_training")
+    service = WorkbenchService(store)
+    source_id = record["source_id"]
+    saved = service.save_resume(
+        reviewer_id="reviewer-one",
+        source_id=source_id,
+        offset=0,
+        filters={"pool": "annotation_training", "reviewer_state": "unfinished"},
+        search="",
+        sort="timestamp",
+        descending=False,
+    )
+    reopened = WorkbenchService(WorkbenchStore(store.database_path))
+    assert reopened.load_resume("reviewer-one") == saved
+    assert reopened.load_resume("reviewer-two") is None
+    assert reopened.list_rows(
+        reviewer_id="reviewer-one",
+        filters={"reviewer_state": "unfinished"},
+    )["total"] == 1
+
+    reopened.submit(
+        source_id=source_id,
+        reviewer_id="reviewer-one",
+        expected_revision=0,
+        payload=_posted_payload(record),
+    )
+    assert reopened.list_rows(
+        reviewer_id="reviewer-one",
+        filters={"reviewer_state": "unfinished"},
+    )["total"] == 0
+    assert reopened.list_rows(
+        reviewer_id="reviewer-two",
+        filters={"reviewer_state": "unfinished"},
+    )["total"] == 1
+    assert reopened.list_rows(
+        reviewer_id="reviewer-one",
+        filters={"reviewer_state": "completed"},
+    )["total"] == 1
+
+    with pytest.raises(WorkbenchValidationError, match="resume filters"):
+        reopened.save_resume(
+            reviewer_id="reviewer-one",
+            source_id=source_id,
+            offset=0,
+            filters={"unsafe": "value"},
+        )
+    assert reopened.load_resume("reviewer-one") == saved
+
+
+def test_export_rejects_stale_or_duplicate_selection(tmp_path: Path) -> None:
+    store, record = _store(tmp_path, pool="annotation_training")
+    result = WorkbenchService(store).submit(
+        source_id=record["source_id"], reviewer_id="reviewer-one",
+        expected_revision=0, payload=_posted_payload(record),
+    )
+    selection = {
+        "source_id": record["source_id"], "reviewer_id": "reviewer-one",
+        "revision": result["revision"], "revision_hash": result["revision_hash"],
+    }
+    with pytest.raises(PrivateArtifactError, match="missing or changed"):
+        store.export_labels(
+            tmp_path / "exports", explicit_consent=True,
+            selected_revisions=[{**selection, "revision_hash": "0" * 64}],
+        )
+    with pytest.raises(PrivateArtifactError, match="duplicates"):
+        store.export_labels(
+            tmp_path / "exports", explicit_consent=True,
+            selected_revisions=[selection, selection],
+        )
+    assert not (tmp_path / "exports" / "canonical_labels.jsonl").exists()
+
+
+def test_candidate_coverage_filter_preserves_protected_blindness(tmp_path: Path) -> None:
+    store, _record = _store(tmp_path, pool="annotation_training")
+    service = WorkbenchService(store)
+    complete = service.list_rows(
+        reviewer_id="reviewer-one", filters={"candidate_coverage": "core_complete"},
+    )["total"]
+    missing = service.list_rows(
+        reviewer_id="reviewer-one", filters={"candidate_coverage": "core_missing"},
+    )["total"]
+    assert complete + missing == 1
+
+    protected_root = tmp_path / "protected"
+    protected_root.mkdir()
+    protected_store, _ = _store(protected_root, pool="protected_test")
+    protected = WorkbenchService(protected_store)
+    assert protected.list_rows(
+        reviewer_id="reviewer-one", filters={"candidate_coverage": "core_complete"},
+    )["total"] == 0
+    with pytest.raises(WorkbenchValidationError, match="blind review"):
+        protected.list_rows(
+            reviewer_id="reviewer-one",
+            filters={"pool": "protected_test", "candidate_coverage": "core_complete"},
+        )
+
+
+def test_label_correction_appends_new_draft_and_preserves_submission(tmp_path: Path) -> None:
+    store, record = _store(tmp_path, pool="annotation_training")
+    service = WorkbenchService(store)
+    source_id = record["source_id"]
+    submitted = service.submit(
+        source_id=source_id, reviewer_id="reviewer-one",
+        expected_revision=0, payload=_posted_v2_payload(record),
+    )
+    draft = service.save_draft(
+        source_id=source_id, reviewer_id="reviewer-one",
+        expected_revision=submitted["revision"],
+        payload=_posted_v2_payload(record),
+    )
+    assert draft["revision"] == submitted["revision"] + 1
+    assert [item["status"] for item in store.annotation_history(
+        source_id, "reviewer-one"
+    )] == ["submitted", "draft"]
+    assert store.progress(reviewer_id="reviewer-one")["my_remaining"] == 1
+    store.verify_revision_chains()
+
+
+def test_field_level_disagreement_enters_adjudication_queue(tmp_path: Path) -> None:
+    store, record = _store(tmp_path, pool="annotation_development")
+    service = WorkbenchService(store)
+    source_id = record["source_id"]
+    first = _posted_v2_payload(record)
+    second = _posted_v2_payload(record)
+    second["event"]["counterparty"] = None
+    second["event"]["counterparty_span"] = None
+    service.submit(
+        source_id=source_id, reviewer_id="reviewer-one",
+        expected_revision=0, payload=first,
+    )
+    service.submit(
+        source_id=source_id, reviewer_id="reviewer-two",
+        expected_revision=0, payload=second,
+    )
+    assert service.disagreements(source_id, "adjudicator")["has_disagreement"] is True
+    assert service.list_rows(
+        reviewer_id="adjudicator", filters={"disagreement": "yes"},
+    )["total"] == 1
+    assert store.progress()["disagreements"] == 1
