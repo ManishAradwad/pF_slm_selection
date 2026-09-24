@@ -4,7 +4,7 @@ This repository has one synthetic SMS semantic cohort and one deterministic host
 scorer for two inference lanes. `evaluate-extractor` remains the Android-target
 GGUF/llama.cpp host lane in WSL. `evaluate-apple-fm` is the macOS Apple Foundation
 Models Python SDK lane. The suite declaration is
-`configs/sms_processing/evaluations/sms-model-quality-v1.json`; its fixture hash,
+`configs/sms_processing/evaluations/model-quality-v1.json`; its fixture hash,
 prompt/schema hashes, parser/evaluator hashes, runtime identity, locale, and
 scoring versions bind each run. The synthetic labels live in the existing
 `tests/sms_processing/fixtures/extractor/synthetic-suite.jsonl` fixture.
@@ -24,10 +24,13 @@ not iPhone app latency.
 Use a compatible Apple Silicon Mac with macOS 26 or later, Xcode 26 or later
 installed and its agreement accepted, and Apple Intelligence enabled with its
 model downloaded. These are the [official SDK requirements](https://apple.github.io/python-apple-fm-sdk/).
-In Terminal, pull the reviewed branch or PR into the Mac checkout and run:
+For a fresh synthetic-only Mac checkout, run these exact commands in Terminal:
 
 ```bash
-cd /path/to/pF_slm_selection
+git clone --branch codex/sms-model-quality-eval --single-branch \
+  https://github.com/ManishAradwad/pF_slm_selection.git \
+  ~/pF_slm_selection_sms_eval
+cd ~/pF_slm_selection_sms_eval
 python3 --version
 xcodebuild -version
 python3 -c 'import sys; assert sys.version_info >= (3, 10), "Python 3.10+ required"'

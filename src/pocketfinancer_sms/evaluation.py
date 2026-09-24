@@ -40,7 +40,7 @@ from .types import Analysis, CandidateKind
 
 EVALUATION_CONTRACT = "pocketfinancer.sms-extractor-evaluation/2"
 SCORING_VERSION = "pocketfinancer.sms-model-quality-scoring/2"
-SUITE_MANIFEST_PATH = Path("configs/sms_processing/evaluations/sms-model-quality-v1.json")
+SUITE_MANIFEST_PATH = Path("configs/sms_processing/evaluations/model-quality-v1.json")
 PROMPT_PATH = Path("configs/sms_processing/prompts/sms-extractor-v1.txt")
 GRAMMAR_PATH = Path("configs/sms_processing/grammars/sms-extractor-v1.gbnf")
 SCHEMA_PATH = Path("configs/sms_processing/contracts/v3/sms-extractor.schema.json")
