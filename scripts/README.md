@@ -1,6 +1,56 @@
 # Command map
 
-Run commands inside WSL2 after activating the environment from the canonical
+## Active SMS processing and workbench
+
+Pure-Python foundation and local review commands can run from the checkout that
+contains the ignored private archive:
+
+| Command | Purpose |
+|---|---|
+| `python scripts/run_sms_processing.py build-corpus` | Build/reuse the immutable 17,830-row canonical private run with explicit INR configuration. |
+| `python scripts/run_sms_processing.py init-workbench` | Import the current canonical manifest into the crash-safe local SQLite workbench. |
+| `python scripts/run_sms_processing.py serve-workbench` | Serve the token-protected workbench on `127.0.0.1` only. |
+| `python scripts/run_sms_processing.py evaluate-extractor --gguf <local.gguf> --suite synthetic --output-dir PRIVATE_DATA/sms_processing/evaluations/<run>` | Evaluate the direct extractor locally with aggregate console output and permission-restricted, ignored row-level artifacts. |
+| `python scripts/build_native_contract_release_v3.py` | Validate schemas/profiles/goldens and historical hashes, then print the deterministic frozen v3 manifest for exact comparison. |
+| `python scripts/package_native_contract_v3.py export --bundle-root <app-resource-root>` | Copy the exact frozen v3 manifest and all hash-bound artifacts into an app bundle root, preserving manifest-relative paths and refusing conflicting files. |
+| `python scripts/package_native_contract_v3.py check --bundle-root <app-resource-root>` | Verify the packaged v3 manifest and every referenced artifact; missing or altered files fail with the stable `configuration_integrity` reason. |
+| `python scripts/run_sms_processing.py backup-workbench` | Create a mode-0600 SQLite backup and SHA-256 manifest. |
+| `python scripts/run_sms_processing.py export-workbench --selection-manifest PRIVATE_DATA/sms_processing/workbench/export-selection.json --consent-local-encrypted-export` | Export only the explicitly selected, hash-bound submitted/adjudicated revisions in a local encrypted bundle. |
+
+The corpus command prints aggregate counts only. The UI and all generated state
+remain below ignored `PRIVATE_DATA/sms_processing`. Never tunnel, screen-share, or
+open private rows in browser developer tools intended for capture. Synthetic HTTP
+tests are the only supported UI smoke evidence in Git/CI.
+
+
+The grandfathered regression remains explicitly non-production:
+
+```bash
+python scripts/run_sms_processing.py evaluate-extractor \
+  --gguf <local.gguf> \
+  --suite grandfathered \
+  --output-dir PRIVATE_DATA/sms_processing/evaluations/<grandfathered-run>
+```
+
+On the private MacBook checkout that owns the secure workbench and canonical
+labels, run the protected human-gold follow-up locally:
+
+```bash
+python scripts/run_sms_processing.py evaluate-extractor \
+  --gguf <local.gguf> \
+  --suite private-canonical \
+  --output-dir PRIVATE_DATA/sms_processing/evaluations/<private-run> \
+  --account-catalog PRIVATE_DATA/sms_processing/<local-account-catalog.json>
+```
+
+Only submitted/adjudicated labels contribute accuracy; unlabelled rows contribute
+outcome and latency rates. Keep every row artifact local and ignored. This GGUF
+run is not evidence for Apple Foundation Models: after the iOS port exists, test
+that native path separately on Apple hardware. Native integration v3 remains
+review-only, and its release manifest keeps automatic persistence disabled.
+## Historical model research environment
+
+Run the following commands inside WSL2 after activating the environment from the canonical
 checkout with `source /home/tojinotzenin/pF_slm_selection/scripts/activate_wsl.sh`.
 Then enter the checkout that owns the code. Keep linked worktrees outside the
 canonical repository and generated-artifact roots, and use only synthetic data
@@ -8,10 +58,10 @@ there. The privacy guard intentionally rejects private roots that resolve outsid
 the active checkout. Run private workflows from the canonical checkout after the
 change is merged; never symlink or copy `PRIVATE_DATA` into a worktree.
 
-## Primary PocketFinancer pipeline
+## Historical PocketFinancer model pipeline
 
-`scripts/run_pocketfinancer_pipeline.py` is the single supported entry point for
-new app-facing work. The default and canonical declaration is
+`scripts/run_pocketfinancer_pipeline.py` reproduces the previous app-facing model
+research workflow. The default declaration is
 `configs/pipelines/pocketfinancer-lfm2.5-350m.json`. The parallel
 `configs/pipelines/pocketfinancer-lfm2.5-2.6b-base.json` declaration applies the
 same workflow to the pinned LFM2.5-2.6B-Base checkpoint and must be selected

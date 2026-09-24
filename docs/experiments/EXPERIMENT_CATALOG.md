@@ -1,5 +1,12 @@
 # Experiment and dataset catalog
 
+> **Historical research catalog.** The active SMS-processing architecture is now
+> `src/pocketfinancer_sms` and the Grounded Candidate Selector contract. Terms such
+> as “current” below describe status within the measured model-research lineage;
+> they do not make Candidate Protocol V1, Semantic V2, or the old private splits
+> active product/data architecture. See the
+> [historical evidence index](../history/SMS_PROCESSING_EVIDENCE_INDEX.md).
+
 Updated: 2026-08-08
 
 Current Android profile: `a9b7df44` with active SMS prefilter, `n_ctx=3072`,

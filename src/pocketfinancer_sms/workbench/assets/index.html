@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PocketFinancer SMS Review</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Local-only review workspace</p>
+        <h1>PocketFinancer SMS Review</h1>
+      </div>
+      <label class="reviewer">Reviewer <input id="reviewerId" autocomplete="off" placeholder="Your local reviewer name"></label>
+      <div class="top-actions">
+        <button id="backupButton" class="secondary">Create backup</button>
+        <button id="exportButton" class="secondary">Export selected (0)</button>
+      </div>
+    </header>
+
+    <section id="progress" class="progress"></section>
+    <details id="coveragePanel" class="coverage-panel">
+      <summary>Progress and coverage by pool and weak class <span id="coverageToggleHint" class="coverage-toggle-hint">Show breakdown</span></summary>
+      <div id="coverageTables" class="coverage-tables" aria-live="polite"></div>
+    </details>
+
+    <div class="workspace">
+      <aside class="filters">
+        <h2>Find messages</h2>
+        <label>Search <input id="search" type="search" placeholder="Search locally"></label>
+        <label>Pool
+          <select id="poolFilter">
+            <option value="">All pools</option>
+            <option>annotation_training</option><option>annotation_development</option>
+            <option>protected_test</option><option>later_time_holdout</option>
+            <option>legacy_review</option><option>regression_only</option>
+          </select>
+        </label>
+        <label>Operational class
+          <select id="classFilter"><option value="">All classes</option></select>
+        </label>
+        <label>Event state
+          <select id="eventStateFilter"><option value="">All states</option></select>
+        </label>
+        <label>Financial family
+          <select id="familyFilter"><option value="">All families</option></select>
+        </label>
+        <label>Payment rail
+          <select id="railFilter"><option value="">All rails</option></select>
+        </label>
+        <label>Disposition
+          <select id="dispositionFilter"><option value="">All dispositions</option><option>invoke</option><option>retain_review</option><option>discard</option></select>
+        </label>
+        <label>Review state
+          <select id="reviewFilter"><option value="">All states</option><option>unreviewed</option><option>draft</option><option>submitted</option><option>adjudicated</option></select>
+        </label>
+        <label>My review
+          <select id="reviewerStateFilter"><option value="">All</option><option value="unfinished">My unfinished</option><option value="completed">My completed</option></select>
+        </label>
+        <label>Selector action
+          <select id="selectorActionFilter"><option value="">All actions</option><option>run_normal</option><option>run_assistive</option><option>skip</option></select>
+        </label>
+        <label>Disagreement
+          <select id="disagreementFilter"><option value="">All</option><option value="yes">Needs adjudication</option></select>
+        </label>
+        <label>Candidate coverage
+          <select id="candidateCoverageFilter"><option value="">All</option><option value="core_complete">Amount and direction together</option><option value="core_missing">Core candidates missing</option></select>
+        </label>
+        <label>Imported native feedback
+          <select id="importedFeedbackFilter"><option value="">All</option><option value="available">Has imported trace</option><option value="correction">Has correction</option></select>
+        </label>
+        <label>Month group <input id="timeGroupFilter" type="month"></label>
+        <label>From date <input id="timeFromFilter" type="date"></label>
+        <label>To date <input id="timeToFilter" type="date"></label>
+        <label>Sort
+          <select id="sort"><option value="timestamp">Time</option><option value="source_id">Source ID</option><option value="pool">Pool</option><option value="review_state">Review state</option></select>
+        </label>
+        <label class="checkbox"><input id="descending" type="checkbox"> Newest first</label>
+        <button id="refreshButton">Apply filters</button>
+        <p class="privacy-note">Nothing leaves this computer. Protected rows hide deterministic suggestions until you submit and explicitly reveal them.</p>
+      </aside>
+
+      <section class="message-column">
+        <div class="section-heading"><h2>Messages</h2><span id="rowCount"></span></div>
+        <div id="messageList" class="message-list"></div>
+        <div class="pager"><button id="previousPage" class="secondary">Previous</button><span id="pageLabel"></span><button id="nextPage" class="secondary">Next</button></div>
+      </section>
+
+      <main class="detail">
+        <div id="emptyDetail" class="empty-state">Choose a message to inspect and label.</div>
+        <div id="detailContent" hidden>
+          <div class="section-heading"><div><p id="detailMeta" class="eyebrow"></p><h2>Message evidence</h2></div><span id="reviewBadge" class="badge"></span></div>
+          <div id="blindBanner" class="blind-banner" hidden><strong>Blind-first review</strong><span>Deterministic suggestions and earlier labels stay hidden until you submit your initial decision.</span><button id="revealButton" hidden>Reveal after submission</button></div>
+          <p id="senderText" class="sender"></p>
+          <pre id="messageText" class="message-evidence" tabindex="0"></pre>
+          <details id="analysisPanel" class="panel"><summary>Analyzer, candidates, queue reasons, and processing trace</summary><div id="analysisContent"></div></details>
+          <div id="groupNavigation" class="group-navigation"></div>
+
+          <section id="focusedPanel" class="panel annotation-panel">
+            <div class="section-heading"><h2>Canonical annotation</h2><span><span id="revisionLabel" class="badge"></span> <span class="badge">canonical-label/2</span></span></div>
+            <p id="focusedPosition" class="eyebrow"></p>
+            <div id="legacyNotice" class="blind-banner" hidden>
+              <strong>Historical label</strong>
+              <span>This message has a canonical-label/1 revision. It remains in history. Start a new v2 revision to edit under the direct extractor contract.</span>
+              <button id="startV2Button" type="button">Start v2 revision</button>
+            </div>
+            <details id="legacyHistoryPanel" class="panel" hidden>
+              <summary>Historical v1 revisions (read-only)</summary>
+              <div id="legacyHistoryContent"></div>
+            </details>
+            <div id="focusedEditor">
+              <div class="form-grid">
+                <label>Decision
+                  <select id="focusDecision"><option value="">Choose…</option><option value="posted">Posted (Alt+1)</option><option value="none">None (Alt+2)</option><option value="abstain">Abstain (Alt+3)</option></select>
+                </label>
+                <label>Operational class <select id="focusClass"></select></label>
+                <label>Event state <select id="focusState"></select></label>
+                <label>Financial family <select id="focusFamily"></select></label>
+                <label>Payment rail <select id="focusRail"></select></label>
+                <label class="checkbox"><input id="focusUncertain" type="checkbox"> Mark uncertain</label>
+              </div>
+              <div id="focusEvent" class="event-editor" hidden>
+                <h3>Posted event</h3>
+                <p>Select exact text in the message, then assign each field. Suggestions are optional.</p>
+                <div class="selection-tools">
+                  <button type="button" class="secondary" data-v2-span="amount_span">Amount</button>
+                  <button type="button" class="secondary" data-v2-span="direction_span">Direction</button>
+                  <button type="button" class="secondary" data-v2-span="account_span">Account</button>
+                  <button type="button" class="secondary" data-v2-span="counterparty_span">Counterparty</button>
+                  <button type="button" id="clearV2Span" class="secondary">Clear selected field</button>
+                </div>
+                <div id="focusSpanSummary" class="span-summary"></div>
+                <div class="form-grid">
+                  <label>Amount value <input id="focusAmount" inputmode="decimal" placeholder="42.50"></label>
+                  <label>Currency <input id="focusCurrency" maxlength="3" placeholder="INR"></label>
+                  <label>Direction <select id="focusDirection"><option value="">Choose…</option><option value="debit">Debit</option><option value="credit">Credit</option></select></label>
+                  <label>Account reference <input id="focusAccount" placeholder="Text of the selected account"></label>
+                  <label>Existing account ID (optional) <input id="focusAccountId" placeholder="Only if known"></label>
+                  <label>Counterparty (optional) <input id="focusCounterparty" placeholder="Text of the selected counterparty"></label>
+                </div>
+              </div>
+              <label>Notes <textarea id="focusNotes" rows="2" placeholder="Short categorical note; no copied private message"></textarea></label>
+              <div class="action-row">
+                <button id="focusSaveDraft" type="button" class="secondary">Save draft</button>
+                <button id="focusCorrection" type="button" class="secondary">Correct with new revision</button>
+                <button id="focusSubmit" type="button">Submit label</button>
+                <button id="focusAdjudicate" type="button" class="secondary">Adjudicate</button>
+                <button id="focusPreview" type="button" class="secondary">Preview extractor target</button>
+                <button id="selectExportButton" type="button" class="secondary">Select this revision for export</button>
+              </div>
+              <div class="action-row">
+                <button id="focusPrevious" type="button" class="secondary">Previous</button>
+                <button id="focusSkip" type="button" class="secondary">Skip</button>
+                <button id="focusSaveNext" type="button" class="secondary">Save draft and next</button>
+                <button id="focusSubmitNext" type="button">Submit and next</button>
+              </div>
+              <p id="focusSaveState" class="eyebrow" role="status"></p>
+              <div id="focusPreviewOutput" class="preview"></div>
+            </div>
+          </section>
+
+          <details class="panel" open><summary>Reviewer agreement and adjudication</summary><div id="disagreementContent"></div></details>
+
+          <details class="panel"><summary>Correct weak segregation (separate from human truth)</summary><div class="correction"><label>Reason <input id="correctionReason" placeholder="Why the weak class is wrong"></label><button id="correctionButton" class="secondary">Save segregation correction</button></div></details>
+        </div>
+      </main>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script src="/assets/app.js"></script>
+  </body>
+</html>
