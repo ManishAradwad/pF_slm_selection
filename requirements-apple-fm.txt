@@ -1,0 +1,2 @@
+# Optional local macOS inference lane; the WSL lightweight gate does not install this.
+apple-fm-sdk==0.2.1; sys_platform == "darwin"

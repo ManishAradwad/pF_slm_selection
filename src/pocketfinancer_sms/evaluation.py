@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import importlib
+import fcntl
 import json
 import math
+import os
 import re
 import statistics
 import time
 from dataclasses import asdict, dataclass, is_dataclass, replace
 from decimal import Decimal
+from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
@@ -35,7 +38,9 @@ from .provenance import (
 from .types import Analysis, CandidateKind
 
 
-EVALUATION_CONTRACT = "pocketfinancer.sms-extractor-evaluation/1"
+EVALUATION_CONTRACT = "pocketfinancer.sms-extractor-evaluation/2"
+SCORING_VERSION = "pocketfinancer.sms-model-quality-scoring/2"
+SUITE_MANIFEST_PATH = Path("configs/sms_processing/evaluations/sms-model-quality-v1.json")
 PROMPT_PATH = Path("configs/sms_processing/prompts/sms-extractor-v1.txt")
 GRAMMAR_PATH = Path("configs/sms_processing/grammars/sms-extractor-v1.gbnf")
 SCHEMA_PATH = Path("configs/sms_processing/contracts/v3/sms-extractor.schema.json")
@@ -44,6 +49,7 @@ SYNTHETIC_PATH = Path("tests/sms_processing/fixtures/extractor/synthetic-suite.j
 GRANDFATHERED_PATH = Path("DATA/extraction_ds.jsonl")
 _SAFE_REASON = re.compile(r"^[a-z][a-z0-9_]{2,79}$")
 _SMALL_GROUP_MINIMUM = 5
+_ATOMIC_TEMP = re.compile(r"^\.(?:checkpoint|report)\.json\.[A-Za-z0-9_-]+$")
 
 
 class ExtractorEvaluationError(PrivateArtifactError):
@@ -71,6 +77,32 @@ class EvaluationRow:
     fingerprint_binding: Mapping[str, Any]
 
 
+def _locked_evaluation(func: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
+    @wraps(func)
+    def run(repo_root: Path, **kwargs: Any) -> dict[str, Any]:
+        root = repo_root.resolve()
+        output = require_private_output(root, _resolve_user_path(root, kwargs["output_dir"]))
+        ensure_private_directory(output)
+        lock_path = output / "run.lock"
+        try:
+            descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        except OSError as exc:
+            raise ExtractorEvaluationError("evaluation output lock is invalid") from exc
+        with os.fdopen(descriptor, "a+b") as lock:
+            os.chmod(lock_path, 0o600)
+            try:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as exc:
+                raise ExtractorEvaluationError("evaluation output is already in use") from exc
+            try:
+                return func(repo_root, **kwargs)
+            finally:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+    return run
+
+
+@_locked_evaluation
 def evaluate_extractor(
     repo_root: Path,
     *,
@@ -107,9 +139,11 @@ def evaluate_extractor(
     schema_path = _required_asset(root, SCHEMA_PATH, "extractor schema")
     profile_path = _required_asset(root, PROFILE_PATH, "extractor validation profile")
     prompt = _read_text(prompt_path, "extractor prompt")
+    manifest, manifest_hash = _load_evaluation_manifest(root, suite)
     rows, capabilities, dataset_fingerprint = _load_suite(
         root, suite, primary_currency=primary_currency
     )
+    _require_unique_rows(rows)
     catalog, catalog_hash = _load_account_catalog(root, account_catalog)
 
     llama_module = None
@@ -117,9 +151,7 @@ def evaluate_extractor(
         try:
             llama_module = importlib.import_module("llama_cpp")
         except ImportError as exc:
-            raise ExtractorEvaluationError(
-                "local llama-cpp-python runtime is unavailable"
-            ) from exc
+            raise ExtractorEvaluationError("local llama-cpp-python runtime is unavailable") from exc
     if runtime_version is None:
         runtime_version = str(getattr(llama_module, "__version__", "unknown"))
     assets = {
@@ -129,6 +161,9 @@ def evaluate_extractor(
         "grammar_sha256": file_sha256(grammar_path),
         "validation_profile_sha256": file_sha256(profile_path),
         "account_catalog_sha256": catalog_hash,
+        "suite_manifest_sha256": manifest_hash,
+        "evaluator_sha256": file_sha256(Path(__file__)),
+        "strict_parser_sha256": file_sha256(root / "src/pocketfinancer_sms/extractor.py"),
     }
     inference = {
         "n_ctx": n_ctx,
@@ -144,9 +179,22 @@ def evaluate_extractor(
         "enabled_profile_ids": list(enabled_profile_ids),
     }
     provenance = {
+        "lane": "android_target_gguf",
         "suite": suite,
+        "evaluation_version": EVALUATION_CONTRACT,
+        "scoring_version": SCORING_VERSION,
+        "semantic_contract": manifest["semantic_contract"],
+        "output_contract": manifest["lanes"]["android_target_gguf"]["output_contract"],
+        "prompt_version": manifest["lanes"]["android_target_gguf"]["prompt_version"],
+        "schema_version": manifest["lanes"]["android_target_gguf"]["schema_version"],
+        "dataset_version": manifest["cohorts"][suite]["version"],
         "dataset_fingerprint": dataset_fingerprint,
-        "runtime": {"name": "llama-cpp-python", "version": runtime_version},
+        "runtime": {
+            "name": "llama-cpp-python",
+            "version": runtime_version,
+            "model_identity_kind": "file_sha256",
+            "model_file_sha256": assets["gguf_sha256"],
+        },
         "assets": assets,
         "inference": inference,
     }
@@ -157,6 +205,11 @@ def evaluate_extractor(
         configuration_hash=configuration_hash,
         dataset_fingerprint=dataset_fingerprint,
         row_ids={row.row_id for row in rows},
+    )
+    _validate_existing_report(
+        private_output / "report.json",
+        configuration_hash=configuration_hash,
+        dataset_fingerprint=dataset_fingerprint,
     )
 
     if grammar_factory is None:
@@ -320,11 +373,22 @@ def _read_text(path: Path, label: str) -> str:
 
 
 def _refuse_unsafe_output_reuse(output_dir: Path) -> None:
-    allowed = {"checkpoint.json", "report.json"}
-    if any(path.name not in allowed for path in output_dir.iterdir()):
+    allowed = {"checkpoint.json", "report.json", "run.lock"}
+    paths = list(output_dir.iterdir())
+    if any(
+        path.is_symlink() or (path.name not in allowed and not _ATOMIC_TEMP.fullmatch(path.name))
+        for path in paths
+    ):
         raise ExtractorEvaluationError("nonempty evaluation output cannot be reused")
     if (output_dir / "report.json").exists() and not (output_dir / "checkpoint.json").exists():
         raise ExtractorEvaluationError("nonempty evaluation output cannot be reused")
+    # A process killed during an atomic write may leave a temporary file. The
+    # durable checkpoint remains the only authority for completed case IDs.
+    for path in paths:
+        if _ATOMIC_TEMP.fullmatch(path.name):
+            if not path.is_file():
+                raise ExtractorEvaluationError("evaluation temporary output is invalid")
+            path.unlink()
 
 
 def _load_checkpoint(
@@ -337,8 +401,10 @@ def _load_checkpoint(
     if not path.exists():
         return {}
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        value = json.loads(
+            path.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise ExtractorEvaluationError("evaluation checkpoint is invalid") from exc
     if (
         not isinstance(value, dict)
@@ -346,11 +412,102 @@ def _load_checkpoint(
         or value.get("configuration_sha256") != configuration_hash
         or value.get("dataset_fingerprint") != dataset_fingerprint
         or value.get("total_rows") != len(row_ids)
+        or value.get("status") not in {"running", "interrupted", "complete"}
         or not isinstance(value.get("records"), dict)
         or not set(value["records"]) <= row_ids
+        or any(
+            not isinstance(record, dict) or record.get("row_id") != row_id
+            for row_id, record in value["records"].items()
+        )
+        or (value.get("status") == "complete" and len(value["records"]) != len(row_ids))
     ):
         raise ExtractorEvaluationError("evaluation checkpoint provenance does not match")
     return dict(value["records"])
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key")
+        result[key] = value
+    return result
+
+
+def _load_evaluation_manifest(root: Path, suite: str) -> tuple[dict[str, Any], str]:
+    path = _required_asset(root, SUITE_MANIFEST_PATH, "model-quality suite manifest")
+    try:
+        manifest = json.loads(
+            path.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys
+        )
+        cohort = manifest["cohorts"][suite]
+        if (
+            manifest["contract"] != "pocketfinancer.sms-model-quality-suite/1"
+            or manifest["evaluation_version"] != EVALUATION_CONTRACT
+            or manifest["scoring_version"] != SCORING_VERSION
+            or manifest["semantic_contract"] != "pocketfinancer.sms-extractor/1"
+        ):
+            raise ValueError("unsupported suite manifest")
+        lanes = manifest["lanes"]
+        if not isinstance(cohort["version"], str) or not cohort["version"]:
+            raise ValueError("cohort version is invalid")
+        for lane in ("android_target_gguf", "apple_fm_python"):
+            if any(
+                not isinstance(lanes[lane][field], str) or not lanes[lane][field]
+                for field in ("prompt_version", "schema_version", "output_contract")
+            ):
+                raise ValueError("lane version is invalid")
+        if (
+            lanes["android_target_gguf"]["prompt"] != PROMPT_PATH.as_posix()
+            or lanes["android_target_gguf"]["schema"] != SCHEMA_PATH.as_posix()
+            or lanes["apple_fm_python"]["prompt"]
+            != "configs/sms_processing/prompts/apple-fm-sms-extractor-v1.txt"
+            or lanes["apple_fm_python"]["schema"]
+            != "configs/sms_processing/evaluations/apple-fm-flat-v1.schema.json"
+        ):
+            raise ValueError("lane asset path mismatch")
+        expected_path = {
+            "synthetic": SYNTHETIC_PATH,
+            "grandfathered": GRANDFATHERED_PATH,
+            "private-canonical": Path("PRIVATE_DATA/sms_processing"),
+        }[suite]
+        if cohort["path"] != expected_path.as_posix():
+            raise ValueError("cohort path mismatch")
+        if suite == "private-canonical":
+            if cohort["sha256"] is not None:
+                raise ValueError("private cohort must be dynamically bound")
+        elif cohort["sha256"] != file_sha256(root / expected_path):
+            raise ValueError("cohort hash mismatch")
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        raise ExtractorEvaluationError("model-quality suite manifest is invalid or stale") from exc
+    return manifest, file_sha256(path)
+
+
+def _require_unique_rows(rows: Sequence[EvaluationRow]) -> None:
+    ids = [row.row_id for row in rows]
+    if not ids or any(not isinstance(row_id, str) or not row_id for row_id in ids):
+        raise ExtractorEvaluationError("evaluation suite has invalid case IDs")
+    if len(ids) != len(set(ids)):
+        raise ExtractorEvaluationError("evaluation suite has duplicate case IDs")
+
+
+def _validate_existing_report(
+    path: Path, *, configuration_hash: str, dataset_fingerprint: str
+) -> None:
+    if not path.exists():
+        return
+    try:
+        value = json.loads(
+            path.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys
+        )
+        if (
+            value["contract"] != EVALUATION_CONTRACT
+            or value["configuration_sha256"] != configuration_hash
+            or value["provenance"]["dataset_fingerprint"] != dataset_fingerprint
+        ):
+            raise ValueError("report provenance mismatch")
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        raise ExtractorEvaluationError("evaluation report provenance does not match") from exc
 
 
 def _load_suite(
@@ -409,11 +566,11 @@ def _load_suite(
 def _read_jsonl(path: Path, label: str) -> list[dict[str, Any]]:
     try:
         values = [
-            json.loads(line)
+            json.loads(line, object_pairs_hook=_reject_duplicate_keys)
             for line in path.read_text(encoding="utf-8").splitlines()
             if line
         ]
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise ExtractorEvaluationError(f"{label} is invalid") from exc
     if not all(isinstance(value, dict) for value in values):
         raise ExtractorEvaluationError(f"{label} is invalid")
@@ -618,18 +775,13 @@ def _select_committed_annotation(values: Sequence[Mapping[str, Any]]) -> Mapping
     submitted = [value for value in values if value.get("status") == "submitted"]
     if len(submitted) == 1:
         return submitted[0]
-    if submitted and len(
-        {object_sha256(value.get("canonical_label")) for value in submitted}
-    ) == 1:
+    if submitted and len({object_sha256(value.get("canonical_label")) for value in submitted}) == 1:
         return submitted[0]
     return None
 
 
 def _direct_gold(value: Any, source: str, primary_currency: str) -> dict[str, Any]:
-    if (
-        not isinstance(value, dict)
-        or value.get("decision") not in {"none", "abstain", "posted"}
-    ):
+    if not isinstance(value, dict) or value.get("decision") not in {"none", "abstain", "posted"}:
         raise ValueError("invalid direct gold")
     if value["decision"] != "posted":
         return {"decision": value["decision"]}
@@ -643,9 +795,7 @@ def _direct_gold(value: Any, source: str, primary_currency: str) -> dict[str, An
         "direction": _checked_span(direction["evidence"], source),
         "account": _checked_span(account["evidence"], source),
         "counterparty": (
-            _checked_span(counterparty["evidence"], source)
-            if counterparty is not None
-            else None
+            _checked_span(counterparty["evidence"], source) if counterparty is not None else None
         ),
     }
     return {
@@ -682,9 +832,7 @@ def _canonical_gold(value: Mapping[str, Any], source: str) -> dict[str, Any]:
             "spans": {
                 "amount": _checked_span(event["amount_span"], source),
                 "direction": (
-                    _checked_span(direction_span, source)
-                    if direction_span is not None
-                    else None
+                    _checked_span(direction_span, source) if direction_span is not None else None
                 ),
                 "account": _checked_span(event["account_span"], source),
                 "counterparty": (
@@ -782,9 +930,7 @@ def _apply_analysis_mode(analysis: Analysis, mode: str) -> Analysis:
         return replace(analysis, clauses=(), candidates=(), cues=(), reason_codes=())
     if mode == "incomplete":
         candidates = tuple(
-            candidate
-            for candidate in analysis.candidates
-            if candidate.kind == CandidateKind.AMOUNT
+            candidate for candidate in analysis.candidates if candidate.kind == CandidateKind.AMOUNT
         )
         return replace(analysis, candidates=candidates, cues=())
     if mode == "conflicting":
@@ -793,9 +939,7 @@ def _apply_analysis_mode(analysis: Analysis, mode: str) -> Analysis:
             replacement = dict(candidate.value)
             if candidate.kind == CandidateKind.DIRECTION:
                 direction = replacement.get("direction")
-                replacement["direction"] = (
-                    "credit" if direction == "debit" else "debit"
-                )
+                replacement["direction"] = "credit" if direction == "debit" else "debit"
             elif candidate.kind == CandidateKind.ACCOUNT:
                 replacement["normalized_identifier"] = "0000"
             elif candidate.kind == CandidateKind.AMOUNT and isinstance(
@@ -810,8 +954,7 @@ def _apply_analysis_mode(analysis: Analysis, mode: str) -> Analysis:
 def _require_embedded_chat_template(model: Any) -> None:
     metadata = getattr(model, "metadata", None)
     if not isinstance(metadata, Mapping) or not any(
-        str(key).startswith("tokenizer.chat_template") and value
-        for key, value in metadata.items()
+        str(key).startswith("tokenizer.chat_template") and value for key, value in metadata.items()
     ):
         raise ExtractorEvaluationError("GGUF does not provide an embedded chat template")
 
@@ -1055,10 +1198,17 @@ def _build_report(
         adjusted_capabilities["account_resolution"] = True
     return {
         "contract": EVALUATION_CONTRACT,
+        "scoring_version": SCORING_VERSION,
         "status": status,
+        "lane": provenance["lane"],
         "suite": suite,
         "configuration_sha256": configuration_hash,
         "provenance": dict(provenance),
+        "contract_differences": {
+            "gguf": "embedded chat template, direct extractor JSON, GBNF, observable model file hash",
+            "apple": "system-managed model, guided flat schema mapped to strict extractor JSON; guided snapshots and model-file hash unavailable in Python SDK",
+            "comparison": "same declared cohort and host parser/scoring; prompts and output protocols differ, so results are non-causal",
+        },
         "capabilities": adjusted_capabilities,
         "production_readiness_claim": False,
         "counts": {"completed": len(ordered), "total": len(rows)},
@@ -1069,6 +1219,19 @@ def _build_report(
 
 def _metrics(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     labelled = [record for record in records if record.get("gold") is not None]
+    decisions = ("none", "abstain", "posted")
+    observed_outcomes = (*decisions, "malformed", "runtime_failure")
+    confusion = {
+        gold_decision: {
+            outcome: sum(
+                record["gold"]["decision"] == gold_decision and record["outcome"] == outcome
+                for record in labelled
+            )
+            for outcome in observed_outcomes
+        }
+        for gold_decision in decisions
+    }
+    decision_correct = sum(record["gold"]["decision"] == record["outcome"] for record in labelled)
     gold_posted = sum(record["gold"]["decision"] == "posted" for record in labelled)
     predicted_posted = sum(record["outcome"] == "posted" for record in labelled)
     true_posted = sum(
@@ -1079,30 +1242,21 @@ def _metrics(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     recall = _ratio(true_posted, gold_posted)
     f1 = None
     if precision is not None and recall is not None:
-        f1 = (
-            0.0
-            if precision + recall == 0
-            else 2 * precision * recall / (precision + recall)
-        )
+        f1 = 0.0 if precision + recall == 0 else 2 * precision * recall / (precision + recall)
     strict = [
-        _strict_match(record)
-        for record in labelled
-        if _strict_gold_supported(record["gold"])
+        _strict_match(record) for record in labelled if _strict_gold_supported(record["gold"])
     ]
     grounding = [
-        _grounding_valid(record)
-        for record in records
-        if record.get("outcome") == "posted"
+        _grounding_valid(record) for record in records if record.get("outcome") == "posted"
     ]
     resolutions = [
         record["account_resolution"]["status"]
         for record in records
         if record.get("account_resolution") is not None
     ]
-    outcome_names = ("none", "abstain", "malformed", "runtime_failure")
+    outcome_names = observed_outcomes
     outcomes = {
-        name: sum(record["outcome"] == name for record in records)
-        for name in outcome_names
+        name: sum(record["outcome"] == name for record in records) for name in outcome_names
     }
     reason_code_counts: dict[str, int] = {}
     for record in records:
@@ -1110,8 +1264,30 @@ def _metrics(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         if reason:
             reason_code_counts[str(reason)] = reason_code_counts.get(str(reason), 0) + 1
     count = len(records)
+    rejected_grounding = sum(
+        str(record.get("reason_code") or "").startswith("extractor_evidence_") for record in records
+    )
+    rejected_derivation = sum(
+        record.get("reason_code")
+        in {"extractor_amount_value_disagreement", "extractor_account_reference_invalid"}
+        for record in records
+    )
     return {
         "labelled_count": len(labelled),
+        "classification": {
+            "correct_count": decision_correct,
+            "eligible_count": len(labelled),
+            "accuracy": _ratio(decision_correct, len(labelled)),
+            "confusion": confusion,
+            "false_transactions": sum(
+                record["outcome"] == "posted" and record["gold"]["decision"] != "posted"
+                for record in labelled
+            ),
+            "missed_transactions": sum(
+                record["gold"]["decision"] == "posted" and record["outcome"] != "posted"
+                for record in labelled
+            ),
+        },
         "transaction": {"precision": precision, "recall": recall, "f1": f1},
         "strict_posted_exact_success": {
             "count": sum(strict),
@@ -1122,6 +1298,15 @@ def _metrics(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "direction_accuracy": _field_accuracy(labelled, "direction"),
         "account_reference_accuracy": _field_accuracy(labelled, "account"),
         "counterparty_accuracy": _field_accuracy(labelled, "counterparty"),
+        "exact_source_spans": _source_span_accuracy(labelled),
+        "source_grounding": {
+            "rejected_count": rejected_grounding + rejected_derivation,
+            "rejected_rate": _ratio(rejected_grounding + rejected_derivation, count),
+            "source_span_rejected_count": rejected_grounding,
+            "source_derivation_rejected_count": rejected_derivation,
+            "accepted_posted_count": sum(grounding),
+            "accepted_posted_eligible_count": len(grounding),
+        },
         "amount_grounding_validity": {
             "count": sum(grounding),
             "eligible_count": len(grounding),
@@ -1129,24 +1314,31 @@ def _metrics(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         },
         "account_resolution": {
             "eligible_count": len(resolutions),
-            "success_rate": _ratio(
-                resolutions.count("uniquely_resolved"), len(resolutions)
-            ),
+            "success_rate": _ratio(resolutions.count("uniquely_resolved"), len(resolutions)),
             "ambiguity_rate": _ratio(resolutions.count("ambiguous"), len(resolutions)),
         },
         "outcome_rates": {
             **{name: _ratio(value, count) for name, value in outcomes.items()},
             "review": _ratio(
-                outcomes["abstain"]
-                + outcomes["malformed"]
-                + outcomes["runtime_failure"],
+                outcomes["abstain"] + outcomes["malformed"] + outcomes["runtime_failure"],
                 count,
             ),
         },
+        "abstention": {
+            "predicted_count": outcomes["abstain"],
+            "predicted_rate": _ratio(outcomes["abstain"], count),
+            "correct_on_gold_abstain": confusion["abstain"]["abstain"],
+            "gold_abstain_count": sum(
+                record["gold"]["decision"] == "abstain" for record in labelled
+            ),
+        },
+        "failures": {
+            "malformed_count": outcomes["malformed"],
+            "runtime_failure_count": outcomes["runtime_failure"],
+            "total_count": outcomes["malformed"] + outcomes["runtime_failure"],
+        },
         "reason_code_counts": dict(sorted(reason_code_counts.items())),
-        "latency_ms": _latency_summary(
-            [float(record["latency_ms"]) for record in records]
-        ),
+        "latency_ms": _latency_summary([float(record["latency_ms"]) for record in records]),
     }
 
 
@@ -1186,9 +1378,7 @@ def _strict_match(record: Mapping[str, Any]) -> bool:
     )
 
 
-def _field_accuracy(
-    records: Sequence[Mapping[str, Any]], field: str
-) -> dict[str, Any]:
+def _field_accuracy(records: Sequence[Mapping[str, Any]], field: str) -> dict[str, Any]:
     eligible = []
     for record in records:
         gold = record["gold"]
@@ -1208,16 +1398,13 @@ def _field_accuracy(
         prediction = record.get("prediction") or {}
         gold = record["gold"]
         if field == "amount":
-            matched = (
-                prediction.get("minor_units") == gold.get("minor_units")
-                and prediction.get("currency") == gold.get("currency")
-            )
+            matched = prediction.get("minor_units") == gold.get("minor_units") and prediction.get(
+                "currency"
+            ) == gold.get("currency")
         elif field == "direction":
             matched = prediction.get("direction") == gold.get("direction")
         elif field == "account":
-            matched = prediction.get("account_reference") == gold.get(
-                "account_reference"
-            )
+            matched = prediction.get("account_reference") == gold.get("account_reference")
         else:
             matched = prediction.get("counterparty") == gold.get("counterparty")
         correct += int(matched)
@@ -1228,10 +1415,43 @@ def _field_accuracy(
     }
 
 
+def _source_span_accuracy(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    fields = ("amount", "direction", "account", "counterparty")
+    result: dict[str, Any] = {}
+    for field in fields:
+        eligible = [
+            record
+            for record in records
+            if record["gold"].get("decision") == "posted"
+            and isinstance(record["gold"].get("spans"), Mapping)
+            and record["gold"]["spans"].get(field) is not None
+        ]
+        correct = sum(
+            record.get("outcome") == "posted"
+            and ((record.get("prediction") or {}).get("spans") or {}).get(field)
+            == record["gold"]["spans"][field]
+            for record in eligible
+        )
+        result[field] = {
+            "count": correct,
+            "eligible_count": len(eligible),
+            "rate": _ratio(correct, len(eligible)),
+        }
+    return result
+
+
 def _grounding_valid(record: Mapping[str, Any]) -> bool:
     prediction = record.get("prediction") or {}
-    span = (prediction.get("spans") or {}).get("amount")
-    return isinstance(span, Mapping) and isinstance(span.get("text"), str)
+    spans = prediction.get("spans") or {}
+    required = ("amount", "direction", "account")
+    if prediction.get("counterparty") is not None:
+        required = (*required, "counterparty")
+    return all(
+        isinstance(spans.get(field), Mapping)
+        and isinstance(spans[field].get("text"), str)
+        and spans[field]["text"]
+        for field in required
+    )
 
 
 def _latency_summary(values: Sequence[float]) -> dict[str, Any]:
@@ -1263,9 +1483,7 @@ def _ratio(numerator: int, denominator: int) -> float | None:
     return numerator / denominator if denominator else None
 
 
-def _group_metrics(
-    records: Sequence[Mapping[str, Any]], *, suite: str
-) -> dict[str, Any]:
+def _group_metrics(records: Sequence[Mapping[str, Any]], *, suite: str) -> dict[str, Any]:
     if suite == "grandfathered":
         return {
             "available": False,
@@ -1293,9 +1511,7 @@ def _group_metrics(
             visible[group] = {
                 "count": len(values),
                 "transaction": aggregate["transaction"],
-                "strict_posted_exact_success": aggregate[
-                    "strict_posted_exact_success"
-                ],
+                "strict_posted_exact_success": aggregate["strict_posted_exact_success"],
                 "outcome_rates": aggregate["outcome_rates"],
             }
         result[dimension] = {
@@ -1311,6 +1527,7 @@ def _aggregate_summary(report: Mapping[str, Any]) -> dict[str, Any]:
 
     return {
         "status": report["status"],
+        "lane": report["lane"],
         "suite": report["suite"],
         "completed_rows": report["counts"]["completed"],
         "total_rows": report["counts"]["total"],

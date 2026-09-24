@@ -142,11 +142,17 @@ python scripts/run_sms_processing.py serve-workbench
 python scripts/run_sms_processing.py backup-workbench
 python scripts/run_sms_processing.py export-workbench --selection-manifest PRIVATE_DATA/sms_processing/workbench/export-selection.json --consent-local-encrypted-export
 python scripts/run_sms_processing.py evaluate-extractor --help
+python scripts/run_sms_processing.py evaluate-apple-fm --help
 ```
 
 The workbench binds only to `127.0.0.1`, uses no remote assets/API/telemetry, and
 stores all state below ignored `PRIVATE_DATA/sms_processing`. Do not tunnel or
 screen-share private review rows.
+
+The [local SMS model-quality evaluation guide](docs/guides/SMS_MODEL_QUALITY_EVALUATION.md)
+has exact WSL GGUF and Mac Apple Foundation Models SDK setup and run commands.
+Both lanes use the declared synthetic cases and deterministic scoring; live Apple
+inference and Mac results require the later MacBook Air run.
 
 The current workbench already contains the complete private corpus, leakage-safe
 pools, weak category views, annotation queues, legacy canonical-label/1
