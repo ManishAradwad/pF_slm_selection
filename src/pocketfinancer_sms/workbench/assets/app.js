@@ -21,6 +21,7 @@ const state = {
   correctionRevision: 0,
   hasDisagreement: false,
   exportSelections: [],
+  listHistory: [],
   groupFilters: {
     normalized_template_group: null,
     sender_family_group: null,
@@ -235,6 +236,7 @@ async function saveResume() {
   });
 }
 async function resumeQueue() {
+  state.listHistory = [];
   const saved = await api("/api/resume?" + queryString());
   if (saved) {
     Object.entries(resumeControlIds).forEach(([key, id]) => {
@@ -410,7 +412,7 @@ function section(title) { const node = document.createElement("div"); node.class
 
 function renderGroupNavigation(record) {
   const root = el("groupNavigation"); root.textContent = "";
-  if (!record.grouping) return;
+  if (!record || !record.grouping) return;
   const groups = [
     ["normalized_template_group", record.grouping.normalized_template_hash, "Show this template family"],
     ["sender_family_group", record.grouping.sender_family_hash, "Show this sender family"],
@@ -418,11 +420,41 @@ function renderGroupNavigation(record) {
   ];
   groups.forEach(([key, value, label]) => {
     const button = document.createElement("button"); button.className = "secondary"; button.textContent = label;
-    button.addEventListener("click", () => run(async () => { state.groupFilters = {normalized_template_group: null, sender_family_group: null, sender_template_group: null}; state.groupFilters[key] = value; await showQueuePage(0); toast(`${label} filter applied.`); }));
+    button.addEventListener("click", () => run(async () => {
+      const previous = {filters: filters(), selectedId: state.selectedId};
+      state.listHistory.push(previous);
+      state.groupFilters = {normalized_template_group: null, sender_family_group: null, sender_template_group: null};
+      state.groupFilters[key] = value;
+      await showQueuePage(0);
+      toast(`${label} filter applied.`);
+    }));
     root.append(button);
   });
+  if (state.listHistory.length) {
+    const back = document.createElement("button"); back.className = "secondary"; back.textContent = "Back to previous list";
+    back.addEventListener("click", () => run(async () => {
+      const previous = state.listHistory.at(-1);
+      Object.entries(resumeControlIds).forEach(([key, id]) => { el(id).value = previous.filters[key] || ""; });
+      state.groupFilters = {
+        normalized_template_group: previous.filters.normalized_template_group || null,
+        sender_family_group: previous.filters.sender_family_group || null,
+        sender_template_group: previous.filters.sender_template_group || null,
+      };
+      el("search").value = previous.filters.search || "";
+      el("sort").value = previous.filters.sort || "timestamp";
+      el("descending").checked = previous.filters.descending === "true";
+      await showQueuePage(previous.filters.offset, previous.selectedId);
+      state.listHistory.pop();
+      renderGroupNavigation(state.selectedRecord);
+    }));
+    root.append(back);
+  }
   const clear = document.createElement("button"); clear.className = "secondary"; clear.textContent = "Clear group filter";
-  clear.addEventListener("click", () => run(async () => { state.groupFilters = {normalized_template_group: null, sender_family_group: null, sender_template_group: null}; await showQueuePage(0); }));
+  clear.addEventListener("click", () => run(async () => {
+    state.listHistory = [];
+    state.groupFilters = {normalized_template_group: null, sender_family_group: null, sender_template_group: null};
+    await showQueuePage(0);
+  }));
   root.append(clear);
 }
 
@@ -459,17 +491,18 @@ function currentRevision() {
   return state.selectedRecord.latest_annotation ? state.selectedRecord.latest_annotation.revision : 0;
 }
 
-async function showQueuePage(offset) {
+async function showQueuePage(offset, preferredId = null) {
   await flushFocusedDraft();
   state.offset = offset;
   await loadRows();
   if (state.rowIds[0]) {
-    await selectRow(state.rowIds[0]);
+    await selectRow(preferredId && state.rowIds.includes(preferredId) ? preferredId : state.rowIds[0]);
   } else {
     state.selectedId = null;
     state.selectedRecord = null;
     el("detailContent").hidden = true;
     el("emptyDetail").hidden = false;
+    el("groupNavigation").textContent = "";
     updateFocusedPosition();
   }
 }
