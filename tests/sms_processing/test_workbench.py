@@ -12,15 +12,17 @@ from pocketfinancer_sms.analyzer import DeterministicSmsAnalyzer
 from pocketfinancer_sms.corpus.grouping import build_grouping
 from pocketfinancer_sms.currency import CurrencyContext
 from pocketfinancer_sms.extractor import SourceSpan
-from pocketfinancer_sms.provenance import PrivateArtifactError
+from pocketfinancer_sms.provenance import PrivateArtifactError, file_sha256
 from pocketfinancer_sms.triage import evaluate_triage
 from pocketfinancer_sms.types import CandidateKind
 from pocketfinancer_sms.workbench.service import WorkbenchService, WorkbenchValidationError
 from pocketfinancer_sms.workbench.store import WorkbenchConflict, WorkbenchStore
 
 
-def _manifest_record(*, pool: str = "protected_test") -> dict:
-    source_id = "src_" + "a" * 32
+def _manifest_record(
+    *, pool: str = "protected_test", source_id: str | None = None,
+) -> dict:
+    source_id = source_id or "src_" + "a" * 32
     source = "INR 42.50 was credited to account **7788 from FRIEND."
     analysis = DeterministicSmsAnalyzer(CurrencyContext("INR", ("core-en", "india"))).analyze(
         source, operation_id=source_id, is_outgoing=False
@@ -726,3 +728,239 @@ def test_field_level_disagreement_enters_adjudication_queue(tmp_path: Path) -> N
         reviewer_id="adjudicator", filters={"disagreement": "yes"},
     )["total"] == 1
     assert store.progress()["disagreements"] == 1
+
+
+def _source_set_fixture(tmp_path: Path) -> tuple[WorkbenchService, WorkbenchStore, dict, Path]:
+    private_root = tmp_path / "private_data"
+    run_root = private_root / "runs" / "synthetic-run"
+    run_root.mkdir(parents=True)
+    records = [
+        _manifest_record(pool="annotation_training", source_id="src_" + "a" * 32),
+        _manifest_record(pool="legacy_review", source_id="src_" + "b" * 32),
+        _manifest_record(pool="protected_test", source_id="src_" + "c" * 32),
+    ]
+    canonical_path = run_root / "canonical_manifest.jsonl"
+    canonical_path.write_text(
+        "".join(json.dumps(record) + "\n" for record in records),
+        encoding="utf-8",
+    )
+    (private_root / "CURRENT.json").write_text(
+        json.dumps({"run_id": "synthetic-run"}), encoding="utf-8",
+    )
+    store = WorkbenchStore(tmp_path / "private" / "workbench.sqlite3")
+    assert store.import_manifest(canonical_path, corpus_run_id="synthetic-run") == 3
+    selection_root = private_root / "evaluations" / "synthetic-source-set"
+    selection_root.mkdir(parents=True)
+    selection_path = selection_root / "selected_sources.jsonl"
+    selection_path.write_text(
+        "".join(
+            json.dumps({"source_id": record["source_id"]}) + "\n"
+            for record in records[:2]
+        ),
+        encoding="utf-8",
+    )
+    selection_sha256 = file_sha256(selection_path)
+    (selection_root / "manifest.json").write_text(
+        json.dumps({
+            "set_id": "synthetic-source-set",
+            "counts": {"total": 2},
+            "files": {
+                "selected_sources.jsonl": {
+                    "records": 2,
+                    "sha256": selection_sha256,
+                },
+            },
+            "provenance": {
+                "corpus_run_id": "synthetic-run",
+                "canonical_manifest_sha256": file_sha256(canonical_path),
+                "selected_sources_sha256": selection_sha256,
+            },
+        }),
+        encoding="utf-8",
+    )
+    return WorkbenchService(store, private_root=private_root), store, records[0], private_root
+
+
+def test_named_source_set_filters_current_corpus_and_survives_resume(tmp_path: Path) -> None:
+    service, store, record, private_root = _source_set_fixture(tmp_path)
+    assert service.list_source_sets() == [{
+        "id": "synthetic-source-set", "name": "Synthetic source set", "count": 2,
+    }]
+    assert service.list_rows(reviewer_id="reviewer-one", filters={})["total"] == 3
+    selected = {"source_set": "synthetic-source-set"}
+    assert service.list_rows(
+        reviewer_id="reviewer-one", filters=selected,
+    )["total"] == 2
+    assert service.list_rows(
+        reviewer_id="reviewer-one",
+        filters={**selected, "pool": "annotation_training"},
+    )["total"] == 1
+    assert service.list_rows(
+        reviewer_id="reviewer-one",
+        filters={**selected, "pool": "protected_test"},
+    )["total"] == 0
+    assert service.list_rows(
+        reviewer_id="reviewer-one",
+        filters={"source_set": None},
+    )["total"] == 3
+    saved = service.save_resume(
+        reviewer_id="reviewer-one",
+        source_id=record["source_id"],
+        offset=0,
+        filters={**selected, "reviewer_state": "unfinished"},
+    )
+    reopened = WorkbenchService(
+        WorkbenchStore(store.database_path), private_root=private_root,
+    )
+    assert reopened.load_resume("reviewer-one") == saved
+    assert reopened.list_rows(
+        reviewer_id="reviewer-one", filters=saved["filters"],
+    )["total"] == 2
+
+
+def test_named_source_set_rejects_unknown_stale_and_protected_membership(
+    tmp_path: Path,
+) -> None:
+    service, _store, _record, private_root = _source_set_fixture(tmp_path)
+    with pytest.raises(WorkbenchValidationError, match="source set is unavailable"):
+        service.list_rows(
+            reviewer_id="reviewer-one", filters={"source_set": "unknown-set"},
+        )
+    selection_root = private_root / "evaluations" / "synthetic-source-set"
+    selection_path = selection_root / "selected_sources.jsonl"
+    selection_path.write_text(
+        selection_path.read_text(encoding="utf-8")
+        + json.dumps({"source_id": "src_" + "d" * 32}) + "\n",
+        encoding="utf-8",
+    )
+    assert service.list_source_sets() == []
+    with pytest.raises(PrivateArtifactError, match="selection hash differs"):
+        service.list_rows(
+            reviewer_id="reviewer-one",
+            filters={"source_set": "synthetic-source-set"},
+        )
+    manifest_path = selection_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    selection_path.write_text(
+        json.dumps({"source_id": "src_" + "c" * 32}) + "\n",
+        encoding="utf-8",
+    )
+    selection_sha256 = file_sha256(selection_path)
+    manifest["counts"]["total"] = 1
+    manifest["files"]["selected_sources.jsonl"]["records"] = 1
+    manifest["files"]["selected_sources.jsonl"]["sha256"] = selection_sha256
+    manifest["provenance"]["selected_sources_sha256"] = selection_sha256
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    assert service.list_source_sets() == []
+    with pytest.raises(PrivateArtifactError, match="protected review rows"):
+        service.list_rows(
+            reviewer_id="reviewer-one",
+            filters={"source_set": "synthetic-source-set"},
+        )
+    selection_path.write_text(
+        json.dumps({"source_id": "src_" + "d" * 32}) + "\n",
+        encoding="utf-8",
+    )
+    selection_sha256 = file_sha256(selection_path)
+    manifest["files"]["selected_sources.jsonl"]["sha256"] = selection_sha256
+    manifest["provenance"]["selected_sources_sha256"] = selection_sha256
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    assert service.list_source_sets() == []
+    with pytest.raises(PrivateArtifactError, match="missing from the current corpus"):
+        service.list_rows(
+            reviewer_id="reviewer-one",
+            filters={"source_set": "synthetic-source-set"},
+        )
+
+
+def test_named_source_set_rejects_changed_current_corpus(tmp_path: Path) -> None:
+    service, _store, _record, private_root = _source_set_fixture(tmp_path)
+    current_path = private_root / "CURRENT.json"
+    current_path.write_text(
+        json.dumps({"run_id": "another-synthetic-run"}), encoding="utf-8",
+    )
+    with pytest.raises(PrivateArtifactError, match="not current"):
+        service.list_source_sets()
+    current_path.write_text(
+        json.dumps({"run_id": "synthetic-run"}), encoding="utf-8",
+    )
+    canonical_path = (
+        private_root / "runs" / "synthetic-run" / "canonical_manifest.jsonl"
+    )
+    canonical_path.write_text(
+        canonical_path.read_text(encoding="utf-8") + "\n",
+        encoding="utf-8",
+    )
+    assert service.list_source_sets() == []
+    with pytest.raises(PrivateArtifactError, match="stale or incomplete"):
+        service.list_rows(
+            reviewer_id="reviewer-one",
+            filters={"source_set": "synthetic-source-set"},
+        )
+
+
+def test_unrelated_stale_source_set_does_not_hide_valid_set(tmp_path: Path) -> None:
+    service, _store, _record, private_root = _source_set_fixture(tmp_path)
+    valid_root = private_root / "evaluations" / "synthetic-source-set"
+    stale_root = private_root / "evaluations" / "stale-source-set"
+    stale_root.mkdir()
+    (stale_root / "selected_sources.jsonl").write_bytes(
+        (valid_root / "selected_sources.jsonl").read_bytes()
+    )
+    stale_manifest = json.loads(
+        (valid_root / "manifest.json").read_text(encoding="utf-8")
+    )
+    stale_manifest["set_id"] = "stale-source-set"
+    stale_manifest["provenance"]["canonical_manifest_sha256"] = "0" * 64
+    (stale_root / "manifest.json").write_text(
+        json.dumps(stale_manifest), encoding="utf-8",
+    )
+    assert service.list_source_sets() == [{
+        "id": "synthetic-source-set", "name": "Synthetic source set", "count": 2,
+    }]
+    with pytest.raises(PrivateArtifactError, match="stale or incomplete"):
+        service.list_rows(
+            reviewer_id="reviewer-one",
+            filters={"source_set": "stale-source-set"},
+        )
+    (stale_root / "manifest.json").write_text("{", encoding="utf-8")
+    assert len(service.list_source_sets()) == 1
+    with pytest.raises(PrivateArtifactError, match="manifest is invalid"):
+        service.list_rows(
+            reviewer_id="reviewer-one",
+            filters={"source_set": "stale-source-set"},
+        )
+
+
+def test_source_set_hash_and_ids_use_one_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, _store, _record, private_root = _source_set_fixture(tmp_path)
+    selection_path = (
+        private_root / "evaluations" / "synthetic-source-set"
+        / "selected_sources.jsonl"
+    )
+    original_read_bytes = Path.read_bytes
+    changed = False
+
+    def change_after_read(path: Path) -> bytes:
+        nonlocal changed
+        snapshot = original_read_bytes(path)
+        if path == selection_path and not changed:
+            changed = True
+            path.write_text(
+                json.dumps({"source_id": "src_" + "c" * 32}) + "\n",
+                encoding="utf-8",
+            )
+        return snapshot
+
+    monkeypatch.setattr(Path, "read_bytes", change_after_read)
+    assert service.list_rows(
+        reviewer_id="reviewer-one",
+        filters={"source_set": "synthetic-source-set"},
+    )["total"] == 2
+    with pytest.raises(PrivateArtifactError, match="selection hash differs"):
+        service.list_rows(
+            reviewer_id="reviewer-one",
+            filters={"source_set": "synthetic-source-set"},
+        )

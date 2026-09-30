@@ -23,3 +23,9 @@ def test_sms_workbench_keeps_columns_in_viewport_and_reveals_selected_detail() -
     assert 'id="coverageToggleHint"' in markup
     assert 'coverage.textContent = error.message || "Coverage data could not be loaded.";' in script
     assert 'el("coveragePanel").addEventListener("toggle"' in script
+    assert 'id="sourceSetFilter"' in markup
+    assert 'source_set: el("sourceSetFilter").value' in script
+    assert 'source_set: "sourceSetFilter"' in script
+    assert 'el("sourceSetFilter").addEventListener("change"' in script
+    assert 'if (key !== "source_set") el(id).value = "";' in script
+    assert 'await loadSourceSets();' in script

@@ -178,6 +178,37 @@ def test_non_loopback_bind_is_rejected(tmp_path: Path) -> None:
         assert "127.0.0.1" in str(exc)
 
 
+def test_source_set_metadata_is_token_protected_and_rows_validate_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    server, _ = _server(tmp_path)
+    monkeypatch.setattr(
+        server.service,
+        "list_source_sets",
+        lambda: [{"id": "synthetic-set", "name": "Synthetic review set", "count": 1}],
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        path = "/api/source-sets?reviewer_id=synthetic-reviewer"
+        with pytest.raises(urllib.error.HTTPError) as rejected:
+            urllib.request.urlopen(_request(server, path, authorized=False))
+        assert rejected.value.code == 401
+        with urllib.request.urlopen(_request(server, path)) as response:
+            assert json.loads(response.read()) == [
+                {"id": "synthetic-set", "name": "Synthetic review set", "count": 1}
+            ]
+
+        with pytest.raises(urllib.error.HTTPError) as rejected:
+            urllib.request.urlopen(_request(
+                server, "/api/rows?reviewer_id=synthetic-reviewer&source_set=unknown-set"
+            ))
+        assert rejected.value.code == 400
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+
 def test_v2_http_annotation_and_blind_direct_preview(tmp_path: Path) -> None:
     server, source_id = _server(tmp_path)
     thread = threading.Thread(target=server.serve_forever, daemon=True)

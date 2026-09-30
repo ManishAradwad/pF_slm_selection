@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 from ..extractor import SourceSpan
@@ -31,6 +32,7 @@ from ..labels import (
 from ..provenance import object_sha256
 from ..types import Analysis, CurrencyProvenance, Direction, EvidenceSpan
 from .native_import import NativeTraceImporter
+from .source_sets import SourceSetCatalog
 from .store import WorkbenchStore
 
 
@@ -41,7 +43,7 @@ RESUME_FILTERS = frozenset({
     "payment_rail", "normalized_template_group", "sender_family_group",
     "sender_template_group", "time_group", "time_from", "time_to",
     "disposition", "selector_action", "review_state", "reviewer_state",
-    "candidate_coverage", "disagreement", "imported_feedback",
+    "candidate_coverage", "disagreement", "imported_feedback", "source_set",
 })
 RESUME_SORTS = frozenset({
     "timestamp", "source_id", "pool", "review_state", "operational_class",
@@ -59,9 +61,18 @@ class WorkbenchService:
         store: WorkbenchStore,
         *,
         native_trace_importer: NativeTraceImporter | None = None,
+        private_root: Path | None = None,
     ) -> None:
         self.store = store
         self.native_trace_importer = native_trace_importer
+        self.source_sets = (
+            SourceSetCatalog(store, private_root) if private_root is not None else None
+        )
+
+    def list_source_sets(self) -> list[dict[str, str | int]]:
+        if self.source_sets is None:
+            return []
+        return [source_set.summary() for source_set in self.source_sets.list_sets()]
 
     def list_rows(
         self,
@@ -76,6 +87,18 @@ class WorkbenchService:
     ) -> dict[str, Any]:
         if not reviewer_id:
             raise WorkbenchValidationError("reviewer_id is required")
+        selected_set = filters.get("source_set")
+        source_ids = None
+        if selected_set:
+            if not isinstance(selected_set, str) or len(selected_set) > 256:
+                raise WorkbenchValidationError("source set is invalid")
+            if self.source_sets is None:
+                raise WorkbenchValidationError("source set is unavailable")
+            try:
+                source_ids = self.source_sets.get_set(selected_set).source_ids
+            except KeyError as exc:
+                raise WorkbenchValidationError("source set is unavailable") from exc
+        filters = {key: value for key, value in filters.items() if key != "source_set"}
         pool = filters.get("pool")
         hidden_filters = {
             "operational_class",
@@ -109,6 +132,7 @@ class WorkbenchService:
             limit=limit,
             offset=offset,
             reviewer_id=reviewer_id,
+            source_ids=source_ids,
         )
         for row in result["rows"]:
             if row["pool"] in PROTECTED_POOLS and not self._may_reveal(
