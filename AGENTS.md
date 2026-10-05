@@ -34,7 +34,7 @@ action and reason. This procedure does not grant permissions or alter the sandbo
 Keep Git/tooling native to each checkout. Linux Git against Windows app checkouts
 can show file-mode noise; do not reset files to remove it. Never copy private data
 between checkouts to solve access. The shared guide is
-`docs/guides/POCKETFINANCER_WINDOWS_WSL_ACCESS.md` in the WSL repo. A matching
+`docs/guides/POCKETFINANCER_WINDOWS_WSL_ACCESS.md` in the WSL repo. A general Windows/WSL
 bootstrap is installed in this workstation's `C:\Users\manis\.codex\AGENTS.md`
 so a new session can learn the procedure before opening WSL.
 

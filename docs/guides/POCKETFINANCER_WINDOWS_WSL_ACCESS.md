@@ -70,7 +70,7 @@ response to that noise.
 The root `AGENTS.md` in each repository includes the path map and recovery
 procedure. Android's `copilot-instructions.md` points to that entry guidance.
 
-This workstation also has a scoped PocketFinancer bootstrap in
+This workstation also has general Windows/WSL recovery guidance in
 `C:\Users\manis\.codex\AGENTS.md`. This global file is outside WSL, so Codex can
 load the procedure even when a sandboxed read of the shared repo fails.
 Existing communication preferences are preserved.
@@ -80,7 +80,7 @@ to `~/.codex`, then project instructions. A nonempty `AGENTS.override.md`
 takes precedence in the same directory. Guidance is discovered at session start;
 the current session does not demonstrate a future session's instruction load.
 If using a different Windows account, Codex home, or machine, install the same
-scoped procedure in that account's active global guidance. This guide does not
+general procedure in that account's active global guidance. This guide does not
 change security settings or promise that all future approvals will succeed.
 
 Official references:
