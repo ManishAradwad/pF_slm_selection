@@ -2,8 +2,9 @@
 
 This repository owns PocketFinancer's shared SMS architecture, frozen contracts,
 sanitized parity fixtures, evaluation definitions, private local workbench, and
-historical model evidence. The host GGUF evaluator and encrypted native-trace
-import exist; the dedicated Android and iOS native evaluation lanes are planned.
+historical model evidence. The host GGUF evaluator, exploratory Apple Python SDK
+evaluator, and encrypted native-trace import exist. The dedicated Android
+app/device scorer and exact Swift/iOS evaluation lane remain planned.
 Native implementation details live in the Android and iOS repositories.
 
 ## Canonical documents
@@ -26,6 +27,13 @@ Read these in order:
 7. [Currency context and provenance](architecture/CURRENCY_CONTEXT_AND_PROVENANCE.md),
    [data taxonomy](architecture/DATA_TAXONOMY_AND_CANONICAL_LABELS.md), and
    [workbench flow](architecture/WORKBENCH_REQUIREMENTS_AND_DATA_FLOW.md).
+
+## Workstation access
+
+For session startup and Windows/WSL access across all three checkouts, read
+[the access guide](guides/POCKETFINANCER_WINDOWS_WSL_ACCESS.md).
+The root `AGENTS.md` carries the short procedure; this workstation's global
+Codex guidance carries the bootstrap needed before opening WSL.
 
 ## Platform handoffs
 
