@@ -1,6 +1,7 @@
 > **Historical goal brief.** Retained to interpret the model experiments it
 > initiated. It is superseded by the active SMS Processing Architecture and
-> Execution Plan and must not govern new data or product work.
+> Execution Plan and must not govern new data or product work. Its original
+> checkout path is historical; the repository is now `pocket-financer-intelligence`.
 
 # LFM2.5-350M PocketFinancer Goal Brief
 

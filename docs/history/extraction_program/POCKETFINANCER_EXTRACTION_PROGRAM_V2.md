@@ -1,5 +1,7 @@
 > **Historical program plan.** Preserved to interpret completed Phase C/D
 > evidence. It is superseded by `docs/plans/CROSS_PLATFORM_SMS_ROADMAP.md`.
+> Its original repository name is historical; the repository is now
+> `pocket-financer-intelligence`.
 
 # PocketFinancer transaction-extraction program, V2
 

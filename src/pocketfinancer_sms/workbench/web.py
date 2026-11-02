@@ -139,10 +139,13 @@ class WorkbenchWebServer:
                         result = service.store.progress(reviewer_id=reviewer)
                     elif path == "/api/resume":
                         result = service.load_resume(reviewer)
+                    elif path == "/api/source-sets":
+                        result = service.list_source_sets()
                     elif path == "/api/rows":
                         filters = {
                             name: _one(query, name)
                             for name in (
+                                "source_set",
                                 "pool",
                                 "operational_class",
                                 "event_state",
@@ -187,7 +190,7 @@ class WorkbenchWebServer:
                     else:
                         self._json(HTTPStatus.NOT_FOUND, {"error": "endpoint not found"})
                         return
-                except (WorkbenchValidationError, KeyError, TypeError, ValueError) as exc:
+                except (PrivateArtifactError, WorkbenchValidationError, KeyError, TypeError, ValueError) as exc:
                     self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                     return
                 except Exception:

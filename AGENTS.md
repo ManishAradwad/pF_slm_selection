@@ -74,14 +74,12 @@ specifically requires it and the corresponding lock/provenance record is updated
 
 ## Working environment
 
-CUDA training, conversion, and legacy model evaluation use the native WSL2 repository:
-
-```text
-/home/tojinotzenin/pF_slm_selection
-```
-
-Activate that environment with `source scripts/activate_wsl.sh`. Pure-Python SMS
-analysis, corpus construction, the local workbench, documentation, and lightweight
+CUDA training, conversion, and legacy model evaluation use the native WSL2
+`pocket-financer-intelligence` checkout that owns the relevant artifacts. From
+that checkout's root, activate the environment with `source scripts/activate_wsl.sh`.
+Do not move private state or recreate a workspace merely to rename a directory.
+Pure-Python SMS analysis, corpus construction, the local workbench, documentation,
+and lightweight
 tests may run from the local macOS checkout containing the private archive. Never
 copy private data between checkouts merely to satisfy an environment convention.
 

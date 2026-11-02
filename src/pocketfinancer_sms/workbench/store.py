@@ -162,6 +162,24 @@ class WorkbenchStore:
         record["review_state"] = row["review_state"]
         return record
 
+    def corpus_run_id(self) -> str | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT value FROM meta WHERE key = 'corpus_run_id'"
+            ).fetchone()
+        return row[0] if row is not None else None
+
+    def source_set_pool_counts(self, source_ids: tuple[str, ...]) -> dict[str, int]:
+        """Count matching corpus rows without exposing source identifiers."""
+
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT pool, COUNT(*) AS row_count FROM corpus_rows "
+                "WHERE source_id IN (SELECT value FROM json_each(?)) GROUP BY pool",
+                (json.dumps(source_ids),),
+            ).fetchall()
+        return {row["pool"]: row["row_count"] for row in rows}
+
     def list_rows(
         self,
         *,
@@ -172,6 +190,7 @@ class WorkbenchStore:
         limit: int,
         offset: int,
         reviewer_id: str | None = None,
+        source_ids: tuple[str, ...] | None = None,
     ) -> dict[str, Any]:
         filter_expressions = {
             "pool": "pool",
@@ -191,6 +210,9 @@ class WorkbenchStore:
         }
         clauses: list[str] = []
         values: list[Any] = []
+        if source_ids is not None:
+            clauses.append("corpus_rows.source_id IN (SELECT value FROM json_each(?))")
+            values.append(json.dumps(source_ids))
         for name, value in filters.items():
             if name == "candidate_coverage":
                 if not value:

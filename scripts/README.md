@@ -54,10 +54,10 @@ that native path separately on Apple hardware. Native integration v3 remains
 review-only, and its release manifest keeps automatic persistence disabled.
 ## Historical model research environment
 
-Run the following commands inside WSL2 after activating the environment from the canonical
-checkout with `source /home/tojinotzenin/pF_slm_selection/scripts/activate_wsl.sh`.
-Then enter the checkout that owns the code. Keep linked worktrees outside the
-canonical repository and generated-artifact roots, and use only synthetic data
+Run the following commands inside WSL2 from the checkout that owns the code and
+artifacts, after activating its environment with `source scripts/activate_wsl.sh`.
+Keep linked worktrees outside the canonical repository and generated-artifact
+roots, and use only synthetic data
 there. The privacy guard intentionally rejects private roots that resolve outside
 the active checkout. Run private workflows from the canonical checkout after the
 change is merged; never symlink or copy `PRIVATE_DATA` into a worktree.

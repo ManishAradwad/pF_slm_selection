@@ -65,6 +65,21 @@ async function api(path, options = {}) {
   if (!response.ok) throw new Error(body.error || "Local workbench request failed.");
   return body;
 }
+async function loadSourceSets() {
+  const sets = await api("/api/source-sets?" + queryString());
+  const select = el("sourceSetFilter");
+  select.textContent = "";
+  const all = document.createElement("option");
+  all.value = "";
+  all.textContent = "All messages";
+  select.append(all);
+  sets.forEach((set) => {
+    const option = document.createElement("option");
+    option.value = set.id;
+    option.textContent = set.name + " (" + Number(set.count).toLocaleString() + ")";
+    select.append(option);
+  });
+}
 async function post(path, body) {
   return api(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
 }
@@ -163,6 +178,7 @@ function coverageTable(title, values) {
 }
 function filters() {
   return {
+    source_set: el("sourceSetFilter").value,
     pool: el("poolFilter").value,
     operational_class: el("classFilter").value,
     event_state: el("eventStateFilter").value,
@@ -213,7 +229,7 @@ async function loadRows() {
 }
 
 const resumeControlIds = {
-  pool: "poolFilter", operational_class: "classFilter",
+  source_set: "sourceSetFilter", pool: "poolFilter", operational_class: "classFilter",
   event_state: "eventStateFilter", financial_family: "familyFilter",
   payment_rail: "railFilter", disposition: "dispositionFilter",
   selector_action: "selectorActionFilter", review_state: "reviewFilter",
@@ -242,6 +258,9 @@ async function resumeQueue() {
     Object.entries(resumeControlIds).forEach(([key, id]) => {
       el(id).value = saved.filters[key] || "";
     });
+    if (saved.filters.source_set && el("sourceSetFilter").value !== saved.filters.source_set) {
+      throw new Error("The saved message set is unavailable in this local workbench.");
+    }
     state.groupFilters = {
       normalized_template_group: saved.filters.normalized_template_group || null,
       sender_family_group: saved.filters.sender_family_group || null,
@@ -507,6 +526,21 @@ async function showQueuePage(offset, preferredId = null) {
   }
 }
 el("refreshButton").addEventListener("click", () => run(() => showQueuePage(0)));
+el("sourceSetFilter").addEventListener("change", () => run(async () => {
+  const selected = el("sourceSetFilter").value;
+  Object.entries(resumeControlIds).forEach(([key, id]) => {
+    if (key !== "source_set") el(id).value = "";
+  });
+  state.groupFilters = {
+    normalized_template_group: null,
+    sender_family_group: null,
+    sender_template_group: null,
+  };
+  state.listHistory = [];
+  el("search").value = "";
+  await showQueuePage(0);
+  toast(selected ? "Message set selected. Narrow it with the other filters if needed." : "Showing all messages.");
+}));
 el("previousPage").addEventListener("click", () => run(() => showQueuePage(Math.max(0, state.offset - state.limit))));
 el("nextPage").addEventListener("click", () => run(() => showQueuePage(state.offset + state.limit)));
 el("revealButton").addEventListener("click", () => run(async () => { await post("/api/reveal", {source_id: state.selectedId, reviewer_id: state.selectedReviewer}); await selectRow(state.selectedId); toast("Deterministic analysis revealed."); }));
@@ -881,10 +915,12 @@ el("reviewerId").addEventListener("change", () => run(async () => {
   state.selectedRecord = null;
   state.selectedReviewer = null;
   await loadProgress();
+  await loadSourceSets();
   await resumeQueue();
 }));
 run(async () => {
   if (!el("reviewerId").value.trim()) return;
   await loadProgress();
+  await loadSourceSets();
   await resumeQueue();
 });

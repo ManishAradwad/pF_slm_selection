@@ -359,8 +359,9 @@ quality claim.
 
 1. Preserve `evaluate-extractor` as the reproducible Android-target GPU/GGUF
    semantic evaluator. Do not describe host results as Android device results.
-2. Define one hash-bound evaluation-suite manifest in `pF_slm_selection` with
-   cohort identity, contract/prompt/schema hashes, protected-pool policy, expected
+2. Define one hash-bound evaluation-suite manifest in
+   `pocket-financer-intelligence` with cohort identity, contract/prompt/schema
+   hashes, protected-pool policy, expected
    canonical labels, and aggregate scoring rules. The Apple and Android-target
    lanes must consume the same declared semantic cohort when comparison is
    intended.
@@ -378,8 +379,8 @@ quality claim.
    Define fresh run, interruption, retry, partial output, duplicate case,
    configuration mismatch, and incompatible result-bundle behavior.
 6. Export Apple results through an explicit encrypted local bundle and import them
-   into `pF_slm_selection` using the existing protected trace boundary. Raw
-   messages, prompts, snapshots, and per-row predictions remain private; checked-in
+   into `pocket-financer-intelligence` using the existing protected trace boundary.
+   Raw messages, prompts, snapshots, and per-row predictions remain private; checked-in
    reports contain sanitized fixtures or aggregates only.
 7. Add shared scoring and report generation for classification, exact fields,
    Unicode-scalar grounding, account resolution, abstention, false/missed

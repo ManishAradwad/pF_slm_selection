@@ -199,7 +199,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 expected_release_hash=_release_manifest_sha256(args.repo_root),
             )
             server = WorkbenchWebServer(
-                WorkbenchService(store, native_trace_importer=importer),
+                WorkbenchService(store, native_trace_importer=importer, private_root=private_root),
                 port=args.port,
                 backup_root=private_root / "workbench" / "backups",
                 export_root=private_root / "workbench" / "exports",

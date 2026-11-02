@@ -13,11 +13,10 @@ JavaScript session, bootstrap data, or SMS row. The resulting unstyled page stay
 on **Loading**, shows `0 / 0`, and has an empty Sender/SMS area. This is expected
 for an incorrectly opened file and does not indicate that a private row was lost.
 
-Activate the environment first, enter the checkout that owns the code, and launch
-the server command:
+Enter the `pocket-financer-intelligence` checkout that owns the code and private
+workspace, activate its environment, and launch the server command:
 
 ```bash
-cd /home/tojinotzenin/pF_slm_selection
 source scripts/activate_wsl.sh
 python scripts/run_lfm25_annotation_workbench.py blinded \
   --reviewer <stable-id> \

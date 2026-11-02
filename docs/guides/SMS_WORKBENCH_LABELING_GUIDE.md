@@ -10,7 +10,7 @@ labels. If the guide and validator disagree, stop and resolve the policy gap.
 
 ## Start
 
-Run from the `pF_slm_selection` checkout that owns the private canonical
+Run from the `pocket-financer-intelligence` checkout that owns the private canonical
 corpus and secure workbench:
 
 ```bash
@@ -27,6 +27,28 @@ screenshots, tests, or hosted tools.
 Start the local UI with `serve-workbench` above and open its freshly
 printed URL each time the server restarts. Keep corpus and backup files inside
 the ignored private-data tree.
+
+## Label the cross-platform diversity set
+
+In **Find messages**, choose **Cross-platform diversity v5** from
+**Message set**. This selects the saved 240 source messages across their
+existing pools and clears other filters so the full set is visible. You can
+then narrow the list by pool, review status, or other workbench filters. Leave
+**Message set** selected to stay within those 240 messages. The selection
+is remembered with your workbench position.
+
+The set is a private view over canonical workbench rows. Drafts and submitted
+labels stay in the encrypted workbench database; labeling does not edit
+`evaluations/cross-platform-diversity-v5/cases.jsonl`. The set's audit tags
+are not expected labels and are never sent to the label editor as truth. If
+the set is absent or the workbench rejects it, check that its private
+`selected_sources.jsonl` and the matching canonical corpus are present
+before starting the server; a partial set must not be used silently.
+
+Labeling the 240 creates a useful candidate pool for later fine-tuning and
+evaluation. Before training, keep evaluation messages separate from training
+messages by template and sender family. Never score a model on messages it
+was fine-tuned on.
 
 ## Focused annotation flow
 

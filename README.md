@@ -1,6 +1,6 @@
-# PocketFinancer SMS Processing and Model Research
+# Pocket Financer Intelligence
 
-[![CI](https://github.com/ManishAradwad/pF_slm_selection/actions/workflows/ci.yml/badge.svg)](https://github.com/ManishAradwad/pF_slm_selection/actions/workflows/ci.yml)
+[![CI](https://github.com/pocket-financer/pocket-financer-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/pocket-financer/pocket-financer-intelligence/actions/workflows/ci.yml)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Runtime](https://img.shields.io/badge/target-Android%20%2B%20iOS%20on--device-3DDC84)](docs/architecture/SMS_PROCESSING_ARCHITECTURE.md)
 
@@ -133,6 +133,22 @@ generation snapshots and labels token-level data unavailable. The v4 provenance
 contract likewise records a real file hash for file-backed runtimes and `null`
 for system-managed runtimes; it never fabricates a model-file SHA.
 
+## Existing checkouts after the rename
+
+This repository was previously named `pF_slm_selection`. In an existing checkout,
+update its Git remote without cloning or moving private data:
+
+```bash
+git remote set-url origin https://github.com/pocket-financer/pocket-financer-intelligence.git
+```
+
+Renaming the local directory is optional. Before moving a checkout, stop active
+workbench or training processes and inspect its linked worktrees, private workspace
+bindings, backups, virtual environment, and any absolute paths. Do not recreate,
+copy, or overwrite private state merely to change the folder name. Historical
+reports and frozen provenance may intentionally retain the original repository name
+and path; they are records of the environment used at the time.
+
 ## Active local workflow
 
 ```bash
@@ -164,10 +180,10 @@ provenance.
 
 ## Historical model-research workflow
 
-Development happens in the native WSL2 checkout, not in a duplicated NTFS clone:
+Development happens in the native WSL2 checkout, not in a duplicated NTFS clone.
+Run the following from the root of the checkout that owns the relevant artifacts:
 
 ```bash
-cd /home/tojinotzenin/pF_slm_selection
 source scripts/activate_wsl.sh
 
 # Choose the 350M or 2.6B Base declaration.

@@ -1,5 +1,7 @@
 > **Historical training-readiness record.** This does not authorize new training
 > or describe the active canonical corpus. See the SMS Processing Execution Plan.
+> The recorded checkout path is historical; the repository is now
+> `pocket-financer-intelligence`.
 
 # PocketFinancer SLM training readiness
 
