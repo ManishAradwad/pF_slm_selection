@@ -3,6 +3,10 @@
 Date: 2026-08-04
 Status: local pre-release execution complete; public candidate unreleased; human review pending
 
+> **Repository rename:** Paths below preserve the original experiment environment.
+> The repository is now `pocket-financer-intelligence`; use its current README for
+> checkout and workspace guidance.
+
 > **Historical scope correction (2026-08-05):** this report's later phrase
 > "production prompt" refers only to the experiment repository's short prompt. It
 > is not the long seven-shot prompt/runtime contract used by PocketFinancer Android.

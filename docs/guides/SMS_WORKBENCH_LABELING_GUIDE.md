@@ -10,7 +10,7 @@ labels. If the guide and validator disagree, stop and resolve the policy gap.
 
 ## Start
 
-Run from the `pF_slm_selection` checkout that owns the private canonical
+Run from the `pocket-financer-intelligence` checkout that owns the private canonical
 corpus and secure workbench:
 
 ```bash

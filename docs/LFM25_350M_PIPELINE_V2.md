@@ -1,5 +1,9 @@
 # LFM2.5-350M PocketFinancer pipeline v2
 
+> **Repository rename:** Historical paths below describe the original checkout.
+> The repository is now `pocket-financer-intelligence`; see its current README for
+> checkout and workspace guidance.
+
 > **Current app correction (2026-08-05):** PocketFinancer Android `a9b7df44`
 > supersedes the `a6c8a11` runtime described in this experiment chronology. The
 > app now applies its SMS filter, uses a 3,072 context, branches on model thinking

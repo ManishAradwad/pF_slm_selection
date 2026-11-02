@@ -1,4 +1,4 @@
-# Contributing to PocketFinancer SLM Selection
+# Contributing to Pocket Financer Intelligence
 
 This repository is a privacy-sensitive ML research and engineering workspace. A
 useful contribution must be reproducible, honest about evaluation boundaries, and
@@ -32,10 +32,9 @@ merely to avoid an appropriate runtime skip.
 ### Full WSL/CUDA environment
 
 Training and local inference use the native WSL2 checkout and its prepared Python
-3.11 environment:
+3.11 environment. Run these commands from the checkout root:
 
 ```bash
-cd /home/tojinotzenin/pF_slm_selection
 bash scripts/setup_wsl.sh
 source scripts/activate_wsl.sh
 python scripts/verify_gpu.py
@@ -62,8 +61,8 @@ explicit shims/migrations.
 ### Linked-worktree hygiene
 
 Keep development worktrees outside the canonical repository and outside ignored
-generated roots such as `TRAINING_ARTIFACTS/`. A suitable layout is
-`/home/tojinotzenin/worktrees/pF_slm_selection/<branch-name>`. Before editing or
+generated roots such as `TRAINING_ARTIFACTS/`. A suitable layout is a separate
+`worktrees/pocket-financer-intelligence/<branch-name>` directory. Before editing or
 opening VS Code, verify the folder rather than relying on the window title:
 
 ```bash

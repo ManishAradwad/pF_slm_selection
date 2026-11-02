@@ -31,7 +31,7 @@ has two cooperating parts:
    instructions, guided schema, explicit model-processing locale check, observable
    cumulative snapshots, mapped draft, strict source grounding, validation, and
    terminal disposition.
-2. `pF_slm_selection` owns the versioned suite manifest, protected package
+2. `pocket-financer-intelligence` owns the versioned suite manifest, protected package
    identity, encrypted result import, canonical-label comparison, aggregate
    scorer, and evidence report.
 

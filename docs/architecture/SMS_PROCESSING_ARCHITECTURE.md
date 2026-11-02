@@ -122,7 +122,7 @@ No platform may fabricate a hash. Releases v1-v3 remain byte-for-byte frozen.
 
 | Repository/lane | Responsibility |
 | --- | --- |
-| `pF_slm_selection` on WSL | Architecture, frozen contracts, schemas, sanitized vectors, Python parity oracle, host GGUF evaluation, native-trace import, future Android/iOS native scorers, corpus/workbench, and aggregate model evidence |
+| `pocket-financer-intelligence` on WSL | Architecture, frozen contracts, schemas, sanitized vectors, Python parity oracle, host GGUF evaluation, native-trace import, future Android/iOS native scorers, corpus/workbench, and aggregate model evidence |
 | `pocket-financer-android` on Windows | Kotlin/JNI/Room/Compose implementation, Gradle verification, emulator evidence, and Android physical-device acceptance |
 | `pocket-financer-ios` on macOS | Swift/Foundation Models/SwiftData/SwiftUI implementation, Xcode build/XCTest/simulator evidence, and iPhone acceptance |
 

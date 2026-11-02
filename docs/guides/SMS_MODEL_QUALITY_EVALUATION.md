@@ -28,9 +28,9 @@ For a fresh synthetic-only Mac checkout, run these exact commands in Terminal:
 
 ```bash
 git clone --branch codex/sms-model-quality-eval --single-branch \
-  https://github.com/ManishAradwad/pF_slm_selection.git \
-  ~/pF_slm_selection_sms_eval
-cd ~/pF_slm_selection_sms_eval
+  https://github.com/pocket-financer/pocket-financer-intelligence.git \
+  ~/pocket-financer-intelligence-sms-eval
+cd ~/pocket-financer-intelligence-sms-eval
 python3 --version
 xcodebuild -version
 python3 -c 'import sys; assert sys.version_info >= (3, 10), "Python 3.10+ required"'
@@ -75,7 +75,8 @@ and [guided-generation documentation](https://apple.github.io/python-apple-fm-sd
 
 ## WSL GGUF host run on the same cohort
 
-From `/home/tojinotzenin/pF_slm_selection` on the gaming PC:
+From the root of the native WSL `pocket-financer-intelligence` checkout on the
+gaming PC:
 
 ```bash
 source scripts/activate_wsl.sh
