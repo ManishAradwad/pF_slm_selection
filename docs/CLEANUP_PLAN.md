@@ -200,6 +200,7 @@ force pushes, history rewriting, or unapproved publication.
 
 - [x] Agree on product, evaluation, cleanup, and documentation expectations.
 - [x] Record initial source observations and open-PR metadata.
+- [x] Commit/push docs-only handoff branches and open the three coordination PRs.
 - [ ] **Next: audit relevant PR diffs/ancestry and produce the file-level cleanup map.**
 - [ ] Review the proposed integration branches, PR dispositions, reset scope,
       documentation consolidation, and acceptance tests with the owner.
@@ -233,11 +234,14 @@ contain main-based code, not the feature tips in section 2.** The earlier branch
 remain untouched. Audit them explicitly via refs/diffs or deliberate checkouts;
 this docs bootstrap does not choose the implementation integration baseline.
 
-| Repository | Bootstrap base (`origin/main`) | Handoff PR |
-| --- | --- | --- |
-| Intelligence | `7850964` | Pending creation |
-| Android | `a58fcad` | Pending creation |
-| iOS | `c79b7b5` | Pending creation |
+| Repository | Bootstrap base (`origin/main`) | Initial docs commit | Handoff PR (base: `main`) |
+| --- | --- | --- | --- |
+| Intelligence | `7850964` | `00c649f` | [#11](https://github.com/pocket-financer/pocket-financer-intelligence/pull/11) |
+| Android | `a58fcad` | `ca25105` | [#48](https://github.com/pocket-financer/pocket-financer-android/pull/48) |
+| iOS | `c79b7b5` | `1343ab7` | [#12](https://github.com/pocket-financer/pocket-financer-ios/pull/12) |
+
+Subsequent intelligence checkpoint-only commits record these PR links; use the
+branch head for the latest plan rather than pinning to the initial docs commit.
 
 Changes: this plan, a pointer in each `AGENTS.md`, and the intelligence docs index.
 No runtime code, old document deletion, data reset, frozen asset, release file,
@@ -259,9 +263,11 @@ Verification in this Linux bootstrap:
   suites were not run for this docs-only bootstrap. CI results must be checked
   separately and must not be represented as local results.
 
-Publication: handoff PRs pending creation. Git fetch and authenticated push
-preflights passed for all repos. `gh` is absent; GitHub API access can be used
-without exposing credential-helper secrets.
+Publication: all three handoff branches were pushed and the PRs above opened;
+none was merged. Git fetch/push and authenticated GitHub PR creation succeeded.
+`gh` is absent; the GitHub API was used with existing credential-helper access,
+without printing or persisting secrets. CI completion has not been awaited or
+claimed. No older implementation/guidance/dependency/release PR was modified.
 
 At each handoff, replace this checkpoint with current branches/commit references,
 PR links, changes, exact checks/results and unavailable lanes, blockers, and the
