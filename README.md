@@ -11,11 +11,12 @@ classifier and extractor. Deterministic analysis is advisory evidence; strict ho
 validation, Unicode-scalar grounding, exact money, account resolution, duplicate
 assessment, persistence, and recovery remain deterministic safety boundaries.
 
-Android and iOS source now contain the additive v4 direct-extractor integration.
-V4 remains review-only and is not a deployment or full-verification claim. The
-next planned contract will route complete valid uniquely resolved results directly
-to Transactions and reserve Review for incomplete, invalid, ambiguous, abstained,
-interrupted, incompatible, or failed work.
+Shared v5 successor routing is implemented: complete, valid, uniquely resolved,
+non-duplicate posted results go to Transactions; exceptions go to Review.
+Android current v5/v6 operations support that routing under the opt-in preference.
+Stored v4 operations and current iOS v4 operations remain review-only.
+Source implementation does not establish model-driven automatic persistence,
+exact native evaluation parity, or physical-device release readiness.
 
 ## Active status
 
@@ -315,6 +316,7 @@ guard, not a substitute for reviewing content and diffs.
 
 - [Documentation index](docs/README.md)
 - [Agent/tool-neutral repository rules](AGENTS.md)
+- [Windows/WSL access across all three repos](docs/guides/POCKETFINANCER_WINDOWS_WSL_ACCESS.md)
 - [Contribution and pull-request workflow](CONTRIBUTING.md)
 - [Command map](scripts/README.md)
 - [SMS Processing Architecture](docs/architecture/SMS_PROCESSING_ARCHITECTURE.md)
@@ -337,10 +339,9 @@ guard, not a substitute for reviewing content and diffs.
 ## Next decision gates
 
 The [cross-platform roadmap](docs/plans/CROSS_PLATFORM_SMS_ROADMAP.md) is the only
-active implementation sequence. Its next contract decision is exception-only
-review routing: complete valid uniquely resolved non-duplicate posted results to
-Transactions; incomplete, invalid, ambiguous, abstained, interrupted,
-incompatible, or failed work to Review. The
+active implementation sequence. Shared exception-only routing is implemented.
+The remaining gates include model-quality proof, native evaluation, iOS successor
+integration, and physical-device acceptance. The
 [evaluation strategy](docs/plans/SMS_EVALUATION_STRATEGY.md) defines parity,
 human-gold, runtime, privacy, recovery, and physical-device acceptance gates.
 

@@ -55,9 +55,12 @@ source/XCTest coverage are recorded in the historical implementation reviews;
 they do not prove physical-device release readiness, and iOS execution still
 requires the Mac/Xcode lane.
 
-The shared `native-integration-v5` release now freezes the successor routing
-policy below. Android adoption is still in progress, so this describes executable
-shared behavior rather than current Android runtime verification:
+The shared `native-integration-v5` release freezes the successor routing policy
+below. Android source binds it through v5 and v6 operation configurations under
+the automatic-processing opt-in, which remains off by default. The v6 binding
+captures the per-operation grammar choice. Current iOS v4 operations remain
+review-only. These source facts do not prove model-driven automatic persistence
+or physical-device acceptance; the table describes the shared routing policy:
 
 | Result | Destination |
 | --- | --- |

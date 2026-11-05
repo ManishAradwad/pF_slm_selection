@@ -50,7 +50,13 @@ locally. Pixel_9 verifies exception Review and part of the UI/runtime path, not
 successful model-driven automatic persistence. Physical-device behavior remains
 unverified.
 
-## 2026-09-24 Android Review and settings correction
+## 2026-09-24 Android Review and settings correction (historical feedback)
+
+Source update (2026-10-05): current Android operations capture the grammar choice
+in `native-integration-v6` / `processing-config/6`. The first paragraph below
+records the mismatch observed on 2026-09-24, not current grammar behavior. Stored
+v5 operations preserve their original configuration. The remaining interaction
+requirements still need the acceptance evidence described in the native plan.
 
 The owner tested the Android PR on the emulator. The visible grammar toggle is
 off by default, but v5 inference always uses grammar; this is a real settings
@@ -107,6 +113,10 @@ transaction-settlement intent, original-release compatibility, explicit retry
 lineage, partial grounded field evidence, and sanitized routing vectors. Android
 migration, atomic routing, and recovery paths now have local automated coverage;
 emulator and device execution remain open in Workstreams 2 and 3.
+
+The next two paragraphs record the historical 2026-09-22 shared-only checkpoint.
+Their Android implementation start points are superseded by the 2026-09-23
+completion checkpoint below; they are not the current remaining-work list.
 
 Shared verification on 2026-09-22 ran `python scripts/check_repo_safety.py`, both
 required Ruff commands, `pytest -q`, and `git diff --check` from the activated WSL
@@ -404,9 +414,10 @@ runtime fact.
    complete local-model result to prove automatic persistence and duplicate
    fencing there, and test retry/recovery; then implement and run the Android
    native evaluation lane. Keep JVM and emulator evidence separate.
-3. Implement and verify the equivalent iOS behavior on the Mac, respecting the
-   Foundation Models observability limits; then implement and run the Apple
-   Foundation Models evaluation pipeline above.
+3. Implement and verify the equivalent iOS successor behavior on the Mac,
+   respecting Foundation Models observability limits; then implement and run the
+   exact Swift/Xcode evaluation and scoring lane above. The exploratory Apple
+   Python SDK evaluator already exists and does not prove Swift/iPhone parity.
 4. Exercise the fast personal-corpus annotation flow, including blind review,
    interruption/resume, backup/restore, adjudication, and governed export.
 5. Exercise native correction export, adjudication, and component error
@@ -414,6 +425,7 @@ runtime fact.
 6. Run physical Android and iPhone acceptance, compare aggregate evidence, and
    make a separate owner-controlled rollout decision.
 
-Do not enable rollout, publish data, or describe the SMS product as complete until
-the [evaluation strategy](SMS_EVALUATION_STRATEGY.md) passes and the owner makes
-an explicit release decision.
+Android's implemented automatic policy remains opt-in and off by default.
+Do not broaden that default, publish data, or describe the SMS product as complete
+until the [evaluation strategy](SMS_EVALUATION_STRATEGY.md) passes and the owner
+makes an explicit release decision.

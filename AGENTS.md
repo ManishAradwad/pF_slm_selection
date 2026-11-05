@@ -5,6 +5,39 @@ tools. It is intentionally independent of any editor, coding agent, or model
 provider. Read this file before changing code, data builders, evaluation behavior,
 or experiment documentation.
 
+## Cross-repository access on Windows
+
+For PocketFinancer work on this workstation, use these existing checkouts:
+
+| Repository | Windows location | Native tooling |
+| --- | --- | --- |
+| Shared SMS/data/model research | `\\wsl.localhost\Ubuntu\home\tojinotzenin\pF_slm_selection` | Ubuntu: `/home/tojinotzenin/pF_slm_selection` |
+| Android | `D:\Personal_Projects\pocket-financer\pocket-financer-android` | Windows Git, PowerShell, `gradlew.bat` |
+| iOS | `D:\Personal_Projects\pocket-financer\pocket-financer-ios` | Windows Git for local edits; macOS/Xcode for builds and devices |
+
+Read each target repo's `AGENTS.md` and respect the active task scope and workspace
+permissions. If a Windows sandbox denies WSL with `E_ACCESSDENIED`, start the
+execution tool from `C:\Users\manis`, then use its supported sandbox-escalation
+approval path for a harmless probe and authorized WSL commands:
+
+```powershell
+wsl.exe -d Ubuntu --cd /home/tojinotzenin/pF_slm_selection --exec bash -lc '<command>'
+```
+
+For Codex this means `exec_command` with
+`sandbox_permissions="require_escalated"` and a precise justification; automatic
+review applies when configured. Do not claim the repo is unavailable after only
+a sandboxed failure, ask the user to repeat access history, or use a Codex restart
+as the default remedy. If review rejects the request, respect it and report the
+action and reason. This procedure does not grant permissions or alter the sandbox.
+
+Keep Git/tooling native to each checkout. Linux Git against Windows app checkouts
+can show file-mode noise; do not reset files to remove it. Never copy private data
+between checkouts to solve access. The shared guide is
+`docs/guides/POCKETFINANCER_WINDOWS_WSL_ACCESS.md` in the WSL repo. A general Windows/WSL
+bootstrap is installed in this workstation's `C:\Users\manis\.codex\AGENTS.md`
+so a new session can learn the procedure before opening WSL.
+
 ## Codex collaboration model profile
 
 This repository currently uses the following Codex collaboration profile
@@ -32,9 +65,14 @@ record any deliberate override in the task handoff.
 The active production-intended SMS architecture is the shared foundation in
 `src/pocketfinancer_sms`, its schemas under `configs/sms_processing`, and the
 descriptive documents indexed by
-`docs/architecture/SMS_PROCESSING_ARCHITECTURE.md`. Android and iOS contain the
-frozen v4 direct-extractor source integration, but v4 remains review-only and the
-successor exception-only routing/evaluation work is not implemented. The locked Android profile at
+`docs/architecture/SMS_PROCESSING_ARCHITECTURE.md`. Both apps retain the frozen
+v4 direct-extractor integration for compatibility; v4 operations remain
+review-only. Shared successor exception-only routing and Python evaluation lanes
+are implemented. Android current operations support v5/v6 automatic routing under
+the opt-in preference; iOS current v4 operations remain review-only. Model-driven
+automatic persistence, exact native evaluation parity, and physical-device
+acceptance retain the gates in the roadmap and native next-step documents.
+The locked Android profile at
 `configs/contracts/pocketfinancer-android-current.json` remains the authority for
 reproducing the currently deployed/historical native path and measured experiments;
 it is not the intended future shared contract.
