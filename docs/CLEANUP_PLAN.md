@@ -1,6 +1,6 @@
 # Cross-repository cleanup plan and handoff
 
-Status: **pure prefilter pilot locally committed and source-reviewed; PR-base confirmation and execution gates pending**
+Status: **pure prefilter pilot published as three dependent drafts; Python CI passed, native execution and policy-design work pending**
 Last updated: **2026-11-07** (pilot baseline/live PR refresh: **2026-11-07**)
 
 This is the single temporary work plan for `pocket-financer-intelligence`,
@@ -528,8 +528,9 @@ quality/timing is not device latency/battery/background/storage acceptance.
 1. The owner explicitly authorized the section 6 pure prefilter/synthetic-vector
    pilot on 2026-11-07, superseding the prior setup-only restriction. This is not
    approval of the full disposition/deletion map, intake wiring or retention.
-   Dependent PR bases require confirmation before publication (section 10).
-   No deletion, PR closure or reset is preauthorized by an R row.
+   The owner authorized draft publication on the confirmed dependent bases;
+   exact PRs and remaining gates are in section 10. No deletion, PR closure or
+   reset is preauthorized by an R row.
 2. Specify minimal excluded/valid-none outcome/evidence retention and reconcile
    iOS guidance that deterministically rejected bodies are erased immediately;
    preserve enough non-sensitive durable identity/outcome state for replay without
@@ -565,8 +566,9 @@ quality/timing is not device latency/battery/background/storage acceptance.
 - [x] Add the pure Python policy, invented shared vectors and native Kotlin/Swift ports.
 - [x] Complete fresh independent source review; no actionable defects identified.
 - [x] Commit the focused pilot changes locally in all three isolated worktrees.
-- [ ] Confirm dependent PR bases before publication.
-- [ ] Obtain applicable CI/native execution evidence; no local test/build suites on this host.
+- [x] Owner authorizes publication on the proposed dependent bases; create three focused draft PRs.
+- [x] Observe successful intelligence CI on exact pilot head `4688d2e`.
+- [ ] Obtain native execution evidence; no local test/build suites on this host.
 - [ ] Resolve retention/admission decisions before separately authorized wiring or deletion.
 - [ ] Review the proposed integration branches, PR dispositions, reset scope,
       documentation consolidation, and acceptance tests with the owner.
@@ -640,8 +642,8 @@ preliminary invented-case tests. Refresh status/live PR state before acting.
 > Read all three repositories' AGENTS.md files and this CLEANUP_PLAN.md. Sections
 > 4-6 retain the bounded audit; section 10 records the explicitly authorized pure
 > prefilter pilot, current commits and remaining gates. Reuse existing pilot
-> branches/worktrees without discarding work. Confirm dependent PR bases before
-> publication; do not infer native CI or executed parity from source review or
+> branches/worktrees without discarding work. Verify the published draft heads,
+> dependent bases and checks; do not infer executed native parity from source review or
 > fixture byte equality. No test/build suites or native tooling installation on
 > this host. Preserve useful feature work, unfinished Review UI, the annotation
 > workbench, private evidence/labels/provenance, keys and backups. Dataset-backed
@@ -667,18 +669,22 @@ repos. Existing branches/worktrees were reused, not reset or recreated. Main
 and feature source branches remain unchanged. The docs handoff remains separate;
 combining older guidance stacks is deferred rather than mixed into pure code.
 
-| Repo | Exact preservation baseline / live feature head | Proposed dependent draft PR base | Local pilot commit |
+| Repo / published draft | Exact preservation baseline / live feature head | Confirmed dependent PR base | Published pilot commit |
 | --- | --- | --- | --- |
-| Intelligence | `0fd9b8aece174f28f2b390d8d7fe99bc0ebc58fe` (#8) | `codex/workbench-eval-set-filter` | `4688d2eabc8f278ca8bd3906da622dc28894ca47` |
-| Android | `54a8aa7ab9c0c4bc4c640c5534d7e637d27eecfd` (#42) | `codex/feat-native-sms-v3` | `2f19cc29e7c4d7ff1f6a90b499268761068aa232` |
-| iOS | `050010e78afff3712750c67e206833df11170415` (#8, draft) | `codex/feat-native-sms-integration` | `fe336182eb87f689eadee9000d7ad76767968851` |
+| Intelligence [#12](https://github.com/pocket-financer/pocket-financer-intelligence/pull/12) | `0fd9b8aece174f28f2b390d8d7fe99bc0ebc58fe` (#8) | `codex/workbench-eval-set-filter` | `4688d2eabc8f278ca8bd3906da622dc28894ca47` |
+| Android [#49](https://github.com/pocket-financer/pocket-financer-android/pull/49) | `54a8aa7ab9c0c4bc4c640c5534d7e637d27eecfd` (#42) | `codex/feat-native-sms-v3` | `2f19cc29e7c4d7ff1f6a90b499268761068aa232` |
+| iOS [#13](https://github.com/pocket-financer/pocket-financer-ios/pull/13) | `050010e78afff3712750c67e206833df11170415` (#8, draft) | `codex/feat-native-sms-integration` | `fe336182eb87f689eadee9000d7ad76767968851` |
 
 Refreshed main heads are intelligence `78509644dad110219e7a53d7c503cd746f9e0ab6`,
 Android `a58fcad7903f99484cc98f16006b00cf02fa127c`, and iOS
 `c79b7b574fc1d390adbc59dc4771b656015c1144`. Open PR inventory is unchanged
-from section 3. No merge-first baseline or main-based feature rewrite was used.
-The three bases above are **proposed, pending owner confirmation before push/PR
-publication**. No pilot branch has been pushed and no pilot PR has been opened.
+from section 3 apart from the three new pilot drafts above. No merge-first
+baseline or main-based feature rewrite was used. After the owner requested
+creation of these drafts, all three base heads were re-fetched and matched the
+recorded baselines before publication. All three pilot branches were pushed
+normally; GitHub metadata confirms the expected heads, bases, draft status and
+exact three-file additive diffs. No old implementation PR/base or source feature
+branch changed; only the existing docs handoff PR receives the plan update.
 
 ### Contract and changed files
 
@@ -698,6 +704,16 @@ allowlist, model dependency or retention action. This is intentionally limited
 coverage, not a claim to filter every OTP or advertisement. Passing is not a
 transaction classification. The shared contract/vectors were settled before
 porting to native functions; native apps do not depend on Python at runtime.
+
+The owner questioned the design's maturity and usefulness. This is a provisional
+policy/conformance scaffold, **not a final prefilter or a shipping recommendation**.
+No app intake calls it, so actual processing remains unchanged. The implementation
+used the cleanup audit and architecture guidance, not a fresh line-by-line
+comparison of earlier filters across branches. Before connecting a production
+prefilter, directly inspect the existing implementations/callers, design a better
+justified exclusion policy with broader invented edge cases, and obtain applicable
+execution evidence. Real-data safety/usefulness requires the owner's later labels
+and ready cohorts; source review and synthetic mechanics do not establish it.
 
 | Repo | Additive files only |
 | --- | --- |
@@ -739,9 +755,9 @@ model runtime or native tooling was executed or installed.
 
 | Gate / evidence | Actual state |
 | --- | --- |
-| Pilot Python safety, both Ruff gates including `src`, targeted/full pytest | **Not run**. Existing intelligence CI triggers on branch push/PR; pending publication and its new-head results. |
-| Android focused pipeline/full unit tests, lint, debug APK | **Not run**. Existing CI only triggers push/PR against `main`, not the proposed dependent base. Pending appropriate machine/later approved integration checks. |
-| iOS format, Release build, unit/UI smoke tests | **Not run**. Existing CI only targets `main`; Mac/Xcode execution required. Pending appropriate machine/later approved integration checks. |
+| Pilot Python safety, both Ruff gates including `src`, full pytest | **Passed in existing GitHub Actions** for exact head `4688d2eabc8f278ca8bd3906da622dc28894ca47`: push run [42408109003](https://github.com/pocket-financer/pocket-financer-intelligence/actions/runs/42408109003) and PR run [42408114432](https://github.com/pocket-financer/pocket-financer-intelligence/actions/runs/42408114432). Prefilter tests are included in full pytest; no separate targeted invocation or local suite was run. |
+| Android focused pipeline/full unit tests, lint, debug APK | **Not run**. #49 returns no checks; existing CI only targets `main`, not the dependent base. Pending appropriate machine/later approved integration checks. |
+| iOS format, Release build, unit/UI smoke tests | **Not run**. #13's Conventional Commit title check passed, not a native test. Existing CI only targets `main`; Mac/Xcode execution required. Pending appropriate machine/later approved integration checks. |
 | Native supplied-vector parity | **Pending**. Byte equality/source review does not establish native execution. |
 | Real-data recall / end-to-end pipeline quality | **Pending owner annotation/cohort readiness**, not established by invented vectors. |
 
@@ -754,12 +770,13 @@ and no release workflow was touched.
 
 ### Draft delivery and next bounded task
 
-Prepared scope/title for each draft: **`feat: add conservative standalone SMS
-prefilter`**, targeting only its proposed feature base above. Each draft must
-state: pure/unwired implementation, intelligence-owned fixture/hash, inherited
-feature dependency, source-review outcome, no local suite execution, pending
-native lanes and pending dataset quality. A main-target PR would inherit the
-large unreviewed feature stack and is not an acceptable shortcut.
+All three drafts are titled **`feat: add conservative SMS prefilter pilot`** and
+target only their confirmed feature bases above. Their descriptions explicitly
+state that the apps do not call this code and processing is unchanged, explain
+the provisional narrow coverage, intelligence-owned fixture/hash, inherited
+feature dependency, agent source-review outcome, no local suite execution,
+pending native lanes and pending dataset quality. A main-target PR would inherit
+the large unreviewed feature stack and was not used as a shortcut.
 
 All three code commits use `feat: add conservative standalone SMS prefilter`,
 contain exactly the three additions listed for their repo, and leave their pilot
@@ -767,10 +784,16 @@ worktrees clean. The plan-only handoff update uses
 `docs: record reviewed prefilter pilot outcome`; its final SHA is recorded in the
 delivery response rather than self-referenced inside its own commit.
 
-Next: obtain owner confirmation of the three dependent bases before push/draft
-PR creation. After confirmation, observe existing intelligence CI
-without changing native CI triggers; leave unavailable checks pending. The next
-implementation slice is **not started**: decide retention/admission contracts,
-then separately authorize the common source-outcome/admission boundary with
-fake-runtime zero-call/replay/retry/cancellation/atomic-settlement coverage. Do
-not retain the old Android terminal filter ahead of that future boundary.
+The prior plan-only outcome is commit `84dc95b07b621cdc8445cec5ddef06aeeeed3a17`.
+This publication/check update remains plan-only on the existing docs handoff PR
+#11; its exact commit is recorded in the delivery response. No implementation
+commit changed for publication and no additional child/review run was needed.
+
+Next bounded task: review the three drafts and obtain native execution evidence
+on an appropriate machine without modifying CI triggers. Before any separately
+authorized production connection, revisit the filter design and existing callers
+as described above, decide retention/admission contracts, then bound the common
+source-outcome/admission work with fake-runtime zero-call/replay/retry/cancellation/
+atomic-settlement coverage. That implementation slice is **not started**. Do not
+retain the old Android terminal filter ahead of a future common boundary. No
+merge, old-PR closure/retarget, reset, model/data publication or release occurred.
