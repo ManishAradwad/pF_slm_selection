@@ -1,6 +1,6 @@
 # Cross-repository cleanup plan and handoff
 
-Status: **pure prefilter pilot published as three dependent drafts; Python CI passed, native execution and policy-design work pending**
+Status: **three dependent pilot drafts published; Python CI passed, native CI in progress, policy-design work pending**
 Last updated: **2026-11-07** (pilot baseline/live PR refresh: **2026-11-07**)
 
 This is the single temporary work plan for `pocket-financer-intelligence`,
@@ -568,7 +568,8 @@ quality/timing is not device latency/battery/background/storage acceptance.
 - [x] Commit the focused pilot changes locally in all three isolated worktrees.
 - [x] Owner authorizes publication on the proposed dependent bases; create three focused draft PRs.
 - [x] Observe successful intelligence CI on exact pilot head `4688d2e`.
-- [ ] Obtain native execution evidence; no local test/build suites on this host.
+- [x] Correct the CI-trigger assessment: existing native `workflow_dispatch` supports pilot branches.
+- [ ] Observe the dispatched native CI results; no local test/build suites on this host.
 - [ ] Resolve retention/admission decisions before separately authorized wiring or deletion.
 - [ ] Review the proposed integration branches, PR dispositions, reset scope,
       documentation consolidation, and acceptance tests with the owner.
@@ -756,8 +757,8 @@ model runtime or native tooling was executed or installed.
 | Gate / evidence | Actual state |
 | --- | --- |
 | Pilot Python safety, both Ruff gates including `src`, full pytest | **Passed in existing GitHub Actions** for exact head `4688d2eabc8f278ca8bd3906da622dc28894ca47`: push run [42408109003](https://github.com/pocket-financer/pocket-financer-intelligence/actions/runs/42408109003) and PR run [42408114432](https://github.com/pocket-financer/pocket-financer-intelligence/actions/runs/42408114432). Prefilter tests are included in full pytest; no separate targeted invocation or local suite was run. |
-| Android focused pipeline/full unit tests, lint, debug APK | **Not run**. #49 returns no checks; existing CI only targets `main`, not the dependent base. Pending appropriate machine/later approved integration checks. |
-| iOS format, Release build, unit/UI smoke tests | **Not run**. #13's Conventional Commit title check passed, not a native test. Existing CI only targets `main`; Mac/Xcode execution required. Pending appropriate machine/later approved integration checks. |
+| Android focused pipeline/full unit tests, lint, debug APK | **In progress.** Existing `ci.yml` supports `workflow_dispatch` on the pilot branch. Run [42408589642](https://github.com/pocket-financer/pocket-financer-android/actions/runs/42408589642) targets exact head `2f19cc29e7c4d7ff1f6a90b499268761068aa232`; all debug unit tests (including pipeline) are running, with lint and debug APK build pending. No separate focused invocation or local suite was run. |
+| iOS format, Release build, unit/UI smoke tests | **In progress.** Existing `ci.yml` supports `workflow_dispatch` on the pilot branch. Run [42408592877](https://github.com/pocket-financer/pocket-financer-ios/actions/runs/42408592877) targets exact head `fe336182eb87f689eadee9000d7ad76767968851` on the configured Mac runner. Formatting and Release build passed; unit/UI smoke tests are running. #13's separate title check is not native acceptance. |
 | Native supplied-vector parity | **Pending**. Byte equality/source review does not establish native execution. |
 | Real-data recall / end-to-end pipeline quality | **Pending owner annotation/cohort readiness**, not established by invented vectors. |
 
@@ -765,8 +766,12 @@ Live baseline results remain intelligence #8 Python checks successful and Androi
 #42 build/lint/unit successful **for their old heads only**, not this pilot.
 iOS #8 still fails `Format, build, and test` in run `41490942618`; its title
 checks succeeded. Separate Android dependency #46 still fails run `38181207167`.
-No root cause or fix is claimed. No workflow trigger was changed or dispatched,
-and no release workflow was touched.
+No root cause or fix is claimed. **Correction to the earlier delivery:** only the
+automatic native push/PR triggers are restricted to `main`; existing
+`workflow_dispatch` permits CI on the pilot branches. The earlier claim that
+native CI was unavailable was wrong. Both normal `ci.yml` workflows have now
+been manually dispatched without changing any trigger. No release workflow was
+touched or dispatched.
 
 ### Draft delivery and next bounded task
 
@@ -775,7 +780,7 @@ target only their confirmed feature bases above. Their descriptions explicitly
 state that the apps do not call this code and processing is unchanged, explain
 the provisional narrow coverage, intelligence-owned fixture/hash, inherited
 feature dependency, agent source-review outcome, no local suite execution,
-pending native lanes and pending dataset quality. A main-target PR would inherit
+pending native CI results and pending dataset quality. A main-target PR would inherit
 the large unreviewed feature stack and was not used as a shortcut.
 
 All three code commits use `feat: add conservative standalone SMS prefilter`,
@@ -785,12 +790,15 @@ worktrees clean. The plan-only handoff update uses
 delivery response rather than self-referenced inside its own commit.
 
 The prior plan-only outcome is commit `84dc95b07b621cdc8445cec5ddef06aeeeed3a17`.
-This publication/check update remains plan-only on the existing docs handoff PR
-#11; its exact commit is recorded in the delivery response. No implementation
-commit changed for publication and no additional child/review run was needed.
+The publication/check update `2111ae43aa4df7adf22852435e0da002ffb552ca` and the
+subsequent CI-trigger correction remain plan-only on the existing docs handoff
+PR #11; the correction commit is recorded in the delivery response. All three
+pilot PR descriptions now correct the manual-dispatch availability and link the
+native runs. No implementation/workflow file or pilot commit changed, and no
+additional child/review run was needed.
 
-Next bounded task: review the three drafts and obtain native execution evidence
-on an appropriate machine without modifying CI triggers. Before any separately
+Next bounded task: review the three drafts and observe the existing manually
+dispatched native CI workflows without modifying triggers. Before any separately
 authorized production connection, revisit the filter design and existing callers
 as described above, decide retention/admission contracts, then bound the common
 source-outcome/admission work with fake-runtime zero-call/replay/retry/cancellation/
