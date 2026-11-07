@@ -1,7 +1,7 @@
 # Cross-repository cleanup plan and handoff
 
-Status: **bounded audit complete; proposed scope awaits owner approval**
-Last updated: **2026-11-07** (PR audit/check observations: **2026-11-05**)
+Status: **pure prefilter pilot locally committed and source-reviewed; PR-base confirmation and execution gates pending**
+Last updated: **2026-11-07** (pilot baseline/live PR refresh: **2026-11-07**)
 
 This is the single temporary work plan for `pocket-financer-intelligence`,
 `pocket-financer-android`, and `pocket-financer-ios`. It records the owner's
@@ -525,8 +525,11 @@ quality/timing is not device latency/battery/background/storage acceptance.
 
 ### Blockers and decisions to carry forward
 
-1. Owner approval of the disposition/map/baseline strategy and first slice is
-   pending. No deletion, PR closure or reset is preauthorized by an R row.
+1. The owner explicitly authorized the section 6 pure prefilter/synthetic-vector
+   pilot on 2026-11-07, superseding the prior setup-only restriction. This is not
+   approval of the full disposition/deletion map, intake wiring or retention.
+   Dependent PR bases require confirmation before publication (section 10).
+   No deletion, PR closure or reset is preauthorized by an R row.
 2. Specify minimal excluded/valid-none outcome/evidence retention and reconcile
    iOS guidance that deterministically rejected bodies are erased immediately;
    preserve enough non-sensitive durable identity/outcome state for replay without
@@ -557,8 +560,14 @@ quality/timing is not device latency/battery/background/storage acceptance.
 - [x] Record initial source observations and open-PR metadata.
 - [x] Commit/push docs-only handoff branches and open the three coordination PRs.
 - [x] Audit relevant PR diffs/ancestry and produce the proposed file-level cleanup map.
-- [ ] **Next: owner approval of sections 4-6; resolve baseline/retention blockers
-      before implementation wiring or deletion.**
+- [x] Owner authorizes only the section 6 pure prefilter/shared invented-vector pilot.
+- [x] Refresh live feature/main refs and verify the existing clean pilot worktrees.
+- [x] Add the pure Python policy, invented shared vectors and native Kotlin/Swift ports.
+- [x] Complete fresh independent source review; no actionable defects identified.
+- [x] Commit the focused pilot changes locally in all three isolated worktrees.
+- [ ] Confirm dependent PR bases before publication.
+- [ ] Obtain applicable CI/native execution evidence; no local test/build suites on this host.
+- [ ] Resolve retention/admission decisions before separately authorized wiring or deletion.
 - [ ] Review the proposed integration branches, PR dispositions, reset scope,
       documentation consolidation, and acceptance tests with the owner.
 - [ ] Implement the selected flow and Python evaluation in bounded, tested slices;
@@ -569,13 +578,13 @@ quality/timing is not device latency/battery/background/storage acceptance.
 - [ ] Complete docs/dependency cleanup, parity checks, and platform verification;
       reconcile PRs and retire this temporary plan.
 
-The bounded audit deliverables are now in sections 4-6. The next action is owner
-review, not another design/planning exercise and not authorization for runtime
-changes, resets, merges, PR closure or deletion. After approval, refresh refs and
-record the exact selected baseline/destination commits and native-test evidence
-in this same document as the approved slices land.
+The bounded audit deliverables remain in sections 4-6. The newly authorized pure
+pilot and its remaining gates are recorded in section 10. The broader cleanup,
+intake wiring, resets, merges, PR closure and deletion remain unapproved. Record
+exact selected baseline/destination commits and native-test evidence in this same
+document as approved slices progress.
 
-## 8. Session checkpoint
+## 8. Historical docs-only checkpoint
 
 Docs clarification environment: sibling checkouts under
 `/home/ubuntu/pocket-financer`, generic Linux, **2026-11-07 UTC**. All three working
@@ -628,16 +637,140 @@ preliminary invented-case tests. Refresh status/live PR state before acting.
 
 ## 9. Resume prompt
 
-> Read all three repositories' AGENTS.md files and this CLEANUP_PLAN.md. The
-> bounded audit is complete in sections 4-6; verify status, remote refs and live
-> PR checks again. Ask for/observe the owner's approval of the proposed baseline,
-> dispositions, cleanup map and first slice before implementation or deletion.
-> The handoff checkouts are main-based, not implementation baselines. Preserve
-> useful feature work, unfinished SMS Review UI and the usable workbench. The
-> owner will annotate the evaluation dataset later: preliminary synthetic/unit
-> checks do not establish dataset-backed pipeline quality. Preserve original
-> private data/human annotations and full stateful Python evaluation, including
-> Apple's official Python SDK on Mac. No resets,
-> merges, closures, force pushes or releases without separate explicit approval.
-> Update this single plan with authorized work, exact verification and blockers;
-> do not create another planning/session document or redesign the approved flow.
+> Read all three repositories' AGENTS.md files and this CLEANUP_PLAN.md. Sections
+> 4-6 retain the bounded audit; section 10 records the explicitly authorized pure
+> prefilter pilot, current commits and remaining gates. Reuse existing pilot
+> branches/worktrees without discarding work. Confirm dependent PR bases before
+> publication; do not infer native CI or executed parity from source review or
+> fixture byte equality. No test/build suites or native tooling installation on
+> this host. Preserve useful feature work, unfinished Review UI, the annotation
+> workbench, private evidence/labels/provenance, keys and backups. Dataset-backed
+> quality remains pending owner annotation and cohort readiness. Wiring requires
+> separately bounded approval and retention/admission decisions. No resets,
+> merges, closures, force pushes, model/data publication or releases. Update this
+> single plan; do not create another planning/session document.
+
+## 10. Authorized pure prefilter pilot outcome
+
+### Authority, baseline and scope
+
+The owner's 2026-11-07 request explicitly authorizes application implementation
+of the **section 6 pure prefilter plus shared invented-vector slice only**. The
+prior setup-only restriction is superseded for that slice. It does not authorize
+production admission wiring, erasure/retention changes, database resets, Review
+UI changes, broad deletion, inherited-stack integration, model/data publication
+or release. No old PR is retargeted, closed, superseded or merged.
+
+Fresh fetches and live GitHub PR metadata match the previously prepared clean
+pilot branches; all three remain `codex/feat-prefilter-pilot` in their respective
+repos. Existing branches/worktrees were reused, not reset or recreated. Main
+and feature source branches remain unchanged. The docs handoff remains separate;
+combining older guidance stacks is deferred rather than mixed into pure code.
+
+| Repo | Exact preservation baseline / live feature head | Proposed dependent draft PR base | Local pilot commit |
+| --- | --- | --- | --- |
+| Intelligence | `0fd9b8aece174f28f2b390d8d7fe99bc0ebc58fe` (#8) | `codex/workbench-eval-set-filter` | `4688d2eabc8f278ca8bd3906da622dc28894ca47` |
+| Android | `54a8aa7ab9c0c4bc4c640c5534d7e637d27eecfd` (#42) | `codex/feat-native-sms-v3` | `2f19cc29e7c4d7ff1f6a90b499268761068aa232` |
+| iOS | `050010e78afff3712750c67e206833df11170415` (#8, draft) | `codex/feat-native-sms-integration` | `fe336182eb87f689eadee9000d7ad76767968851` |
+
+Refreshed main heads are intelligence `78509644dad110219e7a53d7c503cd746f9e0ab6`,
+Android `a58fcad7903f99484cc98f16006b00cf02fa127c`, and iOS
+`c79b7b574fc1d390adbc59dc4771b656015c1144`. Open PR inventory is unchanged
+from section 3. No merge-first baseline or main-based feature rewrite was used.
+The three bases above are **proposed, pending owner confirmation before push/PR
+publication**. No pilot branch has been pushed and no pilot PR has been opened.
+
+### Contract and changed files
+
+`conservative-prefilter-v1` takes only an unchanged body and returns `pass` /
+`uncertain`, or `exclude` / `standalone_verification` or
+`standalone_promotion`. Exclusion requires a whole ASCII message matching one of
+these closed templates (digits shown as placeholders):
+
+- `Your OTP is <4-8 ASCII digits>. Do not share it.`
+- `Your login verification code is <4-8 ASCII digits>. Do not share it.`
+- `Advertisement: Save <1-2 ASCII digits>% in our weekend sale. Shop now.`
+
+Only ASCII case and runs of space/tab/CR/LF are ignored, for matching only.
+Non-ASCII, unrecognized templates and additional content always pass. There is
+no broad keyword exclusion, negative amount/account/verb/sender test, analyzer
+allowlist, model dependency or retention action. This is intentionally limited
+coverage, not a claim to filter every OTP or advertisement. Passing is not a
+transaction classification. The shared contract/vectors were settled before
+porting to native functions; native apps do not depend on Python at runtime.
+
+| Repo | Additive files only |
+| --- | --- |
+| Intelligence | `src/pocketfinancer_sms/prefilter.py`; `tests/sms_processing/test_prefilter.py`; `tests/sms_processing/golden/prefilter-v1.json` |
+| Android | `pipeline/src/main/java/com/pocketfinancer/pipeline/sms/ConservativeSmsPrefilter.kt`; matching `pipeline/src/test/java/com/pocketfinancer/pipeline/sms/ConservativeSmsPrefilterTest.kt`; `pipeline/src/test/resources/prefilter-v1.json` |
+| iOS | `PocketFinancer/Services/SmsProcessing/ConservativeSmsPrefilter.swift`; `PocketFinancerTests/ConservativeSmsPrefilterTests.swift`; `PocketFinancerTests/Fixtures/prefilter-v1.json` |
+
+Intelligence owns the fixture. All three copies are byte-identical, SHA-256
+`373337f584cd70d4d165e7ff557fb45ece8967f3795d0d2d05a02f61db5053c9`.
+It has 38 unique invented cases: 5 expected excludes and 33 expected passes,
+including mixed posted/OTP/promotion text, missing fields, numeric sender,
+uncertain collect requests, foreign currency, Unicode, control characters and
+near-template misses. Tests pin the hash, decision/reason, repeatability and
+source preservation. Native resource loading and execution remain unverified.
+
+### Review, preservation and checks
+
+Parent implementation/integration uses configured OpenAI `gpt-6.1-sol`; one fresh
+read-only contract reviewer uses the same explicitly selected OpenAI model.
+No Astra, API-key fallback, priority route or model/data evaluation is used.
+Independent review of all nine additions completed with **no actionable defects**.
+The parent inspected the saved review and verified the same additive scope,
+fixture hashes and absence of intake callers. No fix round was needed. Review
+supports source-level policy alignment, not executed parity or native acceptance.
+Nonblocking future coverage opportunities (uppercase login in the shared set,
+three-digit promotion percentage and ASCII DEL suffix) were not treated as
+permission to expand this settled fixture slice.
+
+Only the nine additive pilot files and this existing plan are in scope. Parent
+inspection confirms no existing production source/UI/storage/annotation asset
+was modified. Android partial-Review `f6079ff` and contrast `cc1eb79` remain
+ancestors. The baseline histories and existing Review/workbench files remain
+intact. No private data, labels, provenance, keys or backups were opened.
+
+Performed on the editing host: status/ref/worktree/ancestry inspection, live PR
+and check metadata refresh, JSON data inventory, `sha256sum`, `cmp`, and staged
+`git diff --check`. No application code, tests, builds, formatter, safety suite,
+model runtime or native tooling was executed or installed.
+
+| Gate / evidence | Actual state |
+| --- | --- |
+| Pilot Python safety, both Ruff gates including `src`, targeted/full pytest | **Not run**. Existing intelligence CI triggers on branch push/PR; pending publication and its new-head results. |
+| Android focused pipeline/full unit tests, lint, debug APK | **Not run**. Existing CI only triggers push/PR against `main`, not the proposed dependent base. Pending appropriate machine/later approved integration checks. |
+| iOS format, Release build, unit/UI smoke tests | **Not run**. Existing CI only targets `main`; Mac/Xcode execution required. Pending appropriate machine/later approved integration checks. |
+| Native supplied-vector parity | **Pending**. Byte equality/source review does not establish native execution. |
+| Real-data recall / end-to-end pipeline quality | **Pending owner annotation/cohort readiness**, not established by invented vectors. |
+
+Live baseline results remain intelligence #8 Python checks successful and Android
+#42 build/lint/unit successful **for their old heads only**, not this pilot.
+iOS #8 still fails `Format, build, and test` in run `41490942618`; its title
+checks succeeded. Separate Android dependency #46 still fails run `38181207167`.
+No root cause or fix is claimed. No workflow trigger was changed or dispatched,
+and no release workflow was touched.
+
+### Draft delivery and next bounded task
+
+Prepared scope/title for each draft: **`feat: add conservative standalone SMS
+prefilter`**, targeting only its proposed feature base above. Each draft must
+state: pure/unwired implementation, intelligence-owned fixture/hash, inherited
+feature dependency, source-review outcome, no local suite execution, pending
+native lanes and pending dataset quality. A main-target PR would inherit the
+large unreviewed feature stack and is not an acceptable shortcut.
+
+All three code commits use `feat: add conservative standalone SMS prefilter`,
+contain exactly the three additions listed for their repo, and leave their pilot
+worktrees clean. The plan-only handoff update uses
+`docs: record reviewed prefilter pilot outcome`; its final SHA is recorded in the
+delivery response rather than self-referenced inside its own commit.
+
+Next: obtain owner confirmation of the three dependent bases before push/draft
+PR creation. After confirmation, observe existing intelligence CI
+without changing native CI triggers; leave unavailable checks pending. The next
+implementation slice is **not started**: decide retention/admission contracts,
+then separately authorize the common source-outcome/admission boundary with
+fake-runtime zero-call/replay/retry/cancellation/atomic-settlement coverage. Do
+not retain the old Android terminal filter ahead of that future boundary.
