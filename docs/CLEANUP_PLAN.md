@@ -1,7 +1,7 @@
 # Cross-repository cleanup plan and handoff
 
 Status: **bounded audit complete; proposed scope awaits owner approval**
-Last checked: **2026-11-05**
+Last updated: **2026-11-07** (PR audit/check observations: **2026-11-05**)
 
 This is the single temporary work plan for `pocket-financer-intelligence`,
 `pocket-financer-android`, and `pocket-financer-ios`. It records the owner's
@@ -36,6 +36,14 @@ not competing task lists.
   to the design; they do not call Python or depend on this repo at runtime.
 - No shared UI framework, wholesale rewrite, automatic training-label promotion,
   publication, model deployment, or release is authorized by this plan.
+- **Preserve unfinished SMS Review-page UI work.** The owner wants that work
+  carried into the retained implementation, not removed because it is incomplete,
+  experimental-looking, or tied to a superseded pipeline version. Keeping it only
+  in Git history is not sufficient. Preserve the screens, evidence-selection and
+  partial-field editing behavior, supporting state/validation and tests while
+  consolidating backend contracts. Do not redesign, replace, hide or remove that
+  work as a cleanup side effect; any such change requires a separate owner
+  decision. Preservation is not a claim that the UI is finished or safe to ship.
 
 ### Product flow
 
@@ -124,6 +132,14 @@ Retain atomic writes and database uniqueness as final race/retry protection.
 - Use a fixed labelled development cohort for tuning and a protected held-out
   cohort for quality claims. The 203-row regression fixture is not fresh gold.
   Keep private inputs/outputs local and ignored; do not use hosted inference.
+- **The evaluation dataset is not ready. The owner will annotate the data using
+  the existing workbench later.** Keep that annotation workflow available and
+  protect work-in-progress labels, revisions, source mappings, keys and backups.
+  Initial filter/unit/parity and fake-runtime state tests may use invented
+  fixtures now; they do not establish real-data filter recall, model quality or
+  end-to-end pipeline quality. Dataset-backed pipeline evaluation follows owner
+  annotation and explicit cohort readiness. Do not fabricate gold, use model
+  outputs as human labels, or make preliminary work wait for the full dataset.
 - Improvement loop: baseline -> controlled change -> compare -> adopt in native
   app -> parity check. Desktop quality/timing is not phone speed, battery,
   background execution, or native storage/device acceptance evidence.
@@ -165,6 +181,20 @@ The source observations below came from these **unmerged feature tips**, not
   Audit useful runtime/framework pieces without treating that old flow as current.
 
 No new app, model, emulator, or device verification supports this bootstrap.
+
+**Unfinished Review UI preservation reference (2026-11-07):** Android #42's
+`codex/feat-native-sms-v3` contains
+`app/src/main/java/com/pocketfinancer/ui/review/{ReviewInboxScreen,ReviewDetailScreen,ReviewViewModel,GroundedReviewContent,EvidenceSelectionText}.kt`.
+Its history includes `f6079ff` (partial-evidence Review), `f7f5301` (Review/settings
+alignment) and `cc1eb79` (field contrast); the partial-evidence and contrast
+commits were verified as ancestors of `54a8aa7`. Keep this unfinished work present
+in the integration candidate with its supporting repository/grounding/tests.
+iOS #8 also contains `GroundedReviewCorrectionView.swift`, `ReviewCorrectionView.swift`
+and `EvidenceSelectionTextView.swift`; retain useful native Review work there as
+well. These are verified preservation locations, not proof that a specific one
+is the exact revision the owner recalls. If another branch/revision contains
+additional owner UI changes, locate and carry those forward before any affected
+removal; do not assume the current checkout or these filenames are exhaustive.
 
 ## 3. Open PR inventory
 
@@ -313,7 +343,7 @@ remove original evidence, labels, correction history, source mappings or keys.
 | Action | Paths / useful work | Destination, dependents and removal gate |
 | --- | --- | --- |
 | K | `src/pocketfinancer_sms/corpus/{manifest,grouping,pools,reports}.py`, `provenance.py`, `labels.py`, `feedback.py`; `tests/sms_processing/{test_corpus_builder,test_labels_and_trace}.py` | One private corpus/annotation workflow. Keep held-out grouping, provenance, append-only human revisions, weak-vs-gold separation and fail-closed paths/permissions; evaluation and workbench depend on these. |
-| K/S | `src/pocketfinancer_sms/workbench/{store,secure_store,service,web,native_import,source_sets}.py`, `workbench/assets/*`; `tests/sms_processing/{test_workbench,test_workbench_web,test_native_workbench_import}.py`, `tests/test_sms_workbench_assets.py` | Preserve loopback/token protection, SQLCipher/key handling, backup/restore, blind held-out review, saved-source sets and back-navigation fixes. One current UI; consolidate candidate preview/version branches only after historical labels/native feedback remain readable. No store conversion/reset in cleanup by implication. |
+| K/S | `src/pocketfinancer_sms/workbench/{store,secure_store,service,web,native_import,source_sets}.py`, `workbench/assets/*`; `tests/sms_processing/{test_workbench,test_workbench_web,test_native_workbench_import}.py`, `tests/test_sms_workbench_assets.py` | Preserve loopback/token protection, SQLCipher/key handling, backup/restore, blind held-out review, saved-source sets and back-navigation fixes. One current UI; consolidate candidate preview/version branches only after historical labels/native feedback remain readable. No store conversion/reset in cleanup by implication. The owner will use this workbench for later annotation: preserve the usable workflow and unfinished labels; do not retire it before an owner-approved replacement is verified. |
 | K/S | `extractor.py`, `currency.py`, `structural_text.py`, `account_resolution.py`, `processing_v3.py`, `analyzer.py`, `types.py`, `profiles.py`, `trace.py` under `src/pocketfinancer_sms/` | Consolidate into one current host flow. Keep exact minor units, scalar/UTF-8 grounding, optional counterparty, explicit-currency precedence, account aliases, independent partial fields and failure/retry fencing. Analyzer is advisory; add narrow prefilter and pre-model source-outcome lookup. Current Python duplicate lookup occurs after model work and exact-time fingerprinting is insufficient for different alerts. |
 | K/S | `tests/sms_processing/test_extractor_{contracts,pipeline,state,evaluation}.py`, `test_successor_routing.py`; `tests/sms_processing/golden/{extractor-v1,native-v5}` | Keep semantic/grounding/failure/none/partial-field tests. Update assertions for the approved flow; add same-source zero-call replay and stateful account-confirm/save/duplicate/interruption sequences. Do not retain review-only rollout as an alternative product or remove assertions merely to pass cleanup. |
 | S | `src/pocketfinancer_sms/{configuration,configuration_v3,configuration_v4,configuration_v5,configuration_v6}.py`, `configs/sms_processing/contracts/{v2,v3,v4,v5,v6}`, `policies/native-persistence-v*.json` | One current configuration/result/Review/feedback contract and explicit runtime capability settings. Preserve stored snapshots as evidence; current retry may report old executable adapter unavailable and offer explicit current-config retry. Migrate/read historical annotations first; remove runnable old variants only after CLI/workbench/native import references move. Do not edit hashes to pretend old evidence used the new contract. |
@@ -343,7 +373,7 @@ For compact paths below: `P` = `pipeline/src/main/java/com/pocketfinancer/pipeli
 | K | `sms/src/main/java/com/pocketfinancer/sms/SmsReceiver.kt`, `SmsReader.kt`, source identity; `D/repository/SmsIngestionRepository.kt`, `P/{SmsParserWorker,SmsWorkController,AutomaticProcessingPreferences}.kt` | Preserve opt-in realtime intake, opaque WorkManager payloads, encrypted durable outbox, reconciliation, claims/cancellation and source metadata. Unify with manual/historical intake without moving model work into receiver. Keep receiver/worker/ingestion/recovery tests. |
 | S | `P/PipelineService.kt`, `P/sms/DefaultSmsV5ProcessingCoordinator.kt`, `A/ui/{home/HomeSyncManager,onboarding/OnboardingService}.kt`, `P/SmsFilterPipeline.kt`; filter-injected Home/Transactions ViewModels | One admission/outcome lookup -> narrow prefilter -> snapshot/analyzer/extractor route. Old filter rejects missing amount/account/verb and any OTP keyword (even a completed transaction); remove those rejection rules. Both historical/manual services call it, realtime/current coordinator do not. Remove duplicate callers only after shared boundary coverage, not by disabling filtering. |
 | S | `P/sms/SmsV5OperationSnapshotFactory.kt`, `D/repository/SmsProcessingStore.kt`, `D/db/dao/{SmsProcessingDao,TransactionDao}.kt` | Preserve durable state/atomic uniqueness; add a pre-model source/outcome lookup for all entrypoints. Factory currently generates a fresh operation and stable-event UUID for ordinary calls; coordinator's settled lookup is operation-specific. Existing outbox suppression/atomic save is useful but **does not prove all-entrypoint zero-call replay**. Retain explicit owner retry distinction and test concurrent/restart/replay states. |
-| K/S | `D/repository/{SmsReviewRepository,SmsReviewGrounding,GroundedAccountResolver,CurrencyScaleRegistry}.kt`, `A/ui/review/*`, `P/sms/SmsExtractor{Contracts,Validator,Normalizer}.kt`, `UnicodeScalarSpan.kt` | Keep exact money, source-backed independently valid fields, account reuse/create, transactional confirmation/rollback and no second save. Simplify v4/v5-specific UI/repository branches into one current Review. Missing counterparty alone cannot require Review. Duplicate resolution must not silently merge separate payments. |
+| K/S | `D/repository/{SmsReviewRepository,SmsReviewGrounding,GroundedAccountResolver,CurrencyScaleRegistry}.kt`, `A/ui/review/*`, `P/sms/SmsExtractor{Contracts,Validator,Normalizer}.kt`, `UnicodeScalarSpan.kt` | Keep exact money, source-backed independently valid fields, account reuse/create, transactional confirmation/rollback and no second save. Preserve the unfinished Review UI identified in section 2; consolidate backend v4/v5 branches without discarding or silently replacing the owner's page work. Missing counterparty alone cannot require Review. Duplicate resolution must not silently merge separate payments. |
 | K | `D/db/{AppDatabase,entity/SmsProcessingEntities,entity/TransactionEntity}.kt`, `D/repository/SmsProcessingStore.kt`, transaction revisions and protected key initialization | Preserve SQLCipher/Keystore protection, ownership fencing, durable receipts, atomic ledger/gate/result writes and history. Keep `data/schemas/com.pocketfinancer.data.db.AppDatabase/{6,7,8}.json` and migration tests until a separately identified disposable DB reset or migration decision; code cleanup is not permission to erase old Review evidence or keys. |
 | K/S | `P/sms/DirectSmsExtractor.kt`, `I/{SlmRuntime,SlmRuntimeCoordinator,LlamaEngine,DirectCandidateSelector,NonThinkingOutputGuard,CandidateSelectorRuntimeProfile}.kt`, `inference/src/main/cpp/{llama_jni.cpp,CMakeLists.txt}` | Keep serialized lease/native access, stop/cancel/output bounds, one direct non-thinking call, cache/provenance and context settings. Rename selector transport types if useful, but do **not** delete `DirectCandidateSelector` wholesale: current direct extractor uses it. Native/transport/timeout tests remain. |
 | S -> R | `P/sms/{DefaultSmsProcessingCoordinator,DefaultSmsV4ProcessingCoordinator,SmsOperationSnapshotFactory,SmsV4OperationSnapshotFactory,SmsV4ProcessingJson,GroundedSelectorValidator,SemanticReconstructor,SmsTriageEvaluator,NativeSmsV3Assets,NativeSmsV4Assets,NativeSmsV5Assets,NativeSmsV6Assets}.kt`; `pipeline/src/main/assets/sms_processing/` (including `native-integration-v3` through `native-integration-v6`) | One current coordinator/snapshot/asset verifier; extract shared binding types currently named V3, preserve current config/6 grammar snapshot and required schemas. Remove legacy original-config execution/review-only/candidate routes and old bundles only after `retryReview`, DI, tests and packaged-resource references migrate. Keep old snapshot readable; explicit current-config retry replaces execution of old adapters. |
@@ -364,7 +394,7 @@ are under `PocketFinancer/`; other paths are repository-relative.
 | --- | --- | --- |
 | K/S | `PocketFinancer/Services/AlertIngestionService.swift`, `Intents/ImportTransactionAlertIntent.swift`, `Features/Transactions/ManualAlertImportView.swift`, `App/AppRootView.swift` | Keep evidence-first App Intent boundary, pending unavailable-model behavior and bounded foreground recovery. Add shared narrow prefilter before inference. Ingestion currently creates a new alert and flags content/time heuristics for Review, not reliable same-source outcome reuse; distinguish reliable connector identity from heuristics, do not turn identical bodies into identity. |
 | S | `S/{SmsV4ProcessingCoordinator,SmsV4OperationSnapshotFactory,FoundationSmsExtractor,SmsV4ProcessingJSON}.swift` | Starting point for one direct Foundation Models flow. Retain fresh local session, execution gate, greedy/512-token settings and strict host validation; evolve review-only posted routing to approved automatic save only with grounded fields, unique account and duplicate safety. Preserve unavailable/truncated/error reviewability. Python SDK lane must reproduce Swift request/transport, not replace it with a Swift evaluator. |
-| K/S | `S/{SmsExtractorContracts,SmsExtractorValidator,SmsExtractorNormalizer,SmsReviewProjection,GroundedAccountResolver,CurrencyProfileRegistry,UnicodeScalarSpan,StructuralSmsAnalyzer}.swift`; `Features/Transactions/{GroundedReviewCorrectionView,EvidenceSelectionTextView,ReviewCorrectionView,TransactionDetailView}.swift` | Keep scalar/source grounding, exact currency money, owner correction and valid partial fields; simplify candidate-only UI/forms and disallow mandatory optional-counterparty checks. Add atomic account/alias confirm and subsequent automatic routing tests rather than assume Android's behavior exists on iOS. |
+| K/S | `S/{SmsExtractorContracts,SmsExtractorValidator,SmsExtractorNormalizer,SmsReviewProjection,GroundedAccountResolver,CurrencyProfileRegistry,UnicodeScalarSpan,StructuralSmsAnalyzer}.swift`; `Features/Transactions/{GroundedReviewCorrectionView,EvidenceSelectionTextView,ReviewCorrectionView,TransactionDetailView}.swift` | Keep scalar/source grounding, exact currency money, owner correction and valid partial fields. Preserve unfinished native Review UI; backend/candidate cleanup must not silently remove or replace it. Disallow mandatory optional-counterparty checks. Add atomic account/alias confirm and subsequent automatic routing tests rather than assume Android's behavior exists on iOS. |
 | K/S | `PocketFinancer/Data/{SmsProcessingStore,SmsProcessingModels,PocketFinancerSchema,AppDatabase,SecureStoreFilePolicy}.swift`, revision/feedback records | Keep evidence/recovery/fencing, atomic correction history, file protection and schema reading. No deletion/migration of human corrections to discard version adapters. Simplify current operation contracts only after preserving/read-testing persisted Review and ledger state. |
 | S -> R | `S/{SmsProcessingCoordinator,SmsOperationSnapshotFactory,DirectCandidateSelector,GroundedSelectorValidator,SemanticReconstructor,SmsTriageEvaluator,AutomaticPersistenceGate,NativeSmsV3Assets,NativeSmsV4Assets}.swift`; `Resources/{SmsProcessing,NativeSmsV3.bundle,NativeSmsV4.bundle}` | Consolidate verifier/binding types, currency, current direct extractor assets into one bundle. Old original-config retry and diagnostics reference candidate selector; V4 asset verification reuses V3 binding types. Move those consumers/shared types before deleting obsolete executors/bundles. Remove candidate-only tests/resources only after current tests replace integrity/grounding coverage. |
 | S -> R | `Services/FoundationModel{TransactionParser,ExtractionContract}.swift`, `Domain/{AlertFilter,EvidenceValidator,ParsedAlertDraft,AlertDateParser,AmountParser}.swift`, `Data/{DeterministicFilterRun,ExtractionRun,StructuredGenerationSnapshot}.swift` | Retire obsolete extraction generation/filter rules and diagnostic re-computation; preserve needed model availability, current diagnostics, exact-money/grounding utilities and old stored records until references are migrated. `AlertProcessingDetailView.swift` still re-runs `AlertFilter` for display: do not present that as proof the active v4 ingress filtered. |
@@ -406,17 +436,24 @@ main-based rewrite:
 | Android | #42 `54a8aa7ab9c0c4bc4c640c5534d7e637d27eecfd` | Incremental three #45 doc commits plus #48 pointer. #40 already contained; no dependency PR content mixed in. |
 | iOS | #8 `050010e78afff3712750c67e206833df11170415` | Incremental #9 `AGENTS.md` guidance plus #12 pointer and retained rename. Explicitly blocked on test failure and current-flow gaps. |
 
-Refresh main/PR refs again at implementation time. Proposed integration candidates
-are #8 (intelligence), #42 (Android), #8 (iOS), updated with normal forward commits
-and main-based coordination docs after approval. Do not merge predecessors just
-to flatten the graph or rewrite their history. These are broad, inherited diffs,
-not small cleanup PRs; owner acceptance of this preservation strategy is required
-before retargeting/superseding anything. Native handoff PRs remain docs-only.
-After a preservation baseline is accepted into main, bounded implementation uses
-short-lived `codex/<type>-...` branches from refreshed main with focused PRs to
-main. If implementation must precede baseline acceptance, get explicit approval
-for the dependent branch/PR arrangement rather than silently changing that rule.
-No integration branch was created and no merge was performed during this audit.
+These feature tips are **starting versions to preserve, not versions approved
+for merge**. Refresh main/PR refs before implementation. After explicit scope and
+branch/review-arrangement approval, make bounded fixes and cleanup on separate
+short-lived working branches that retain the useful feature work and combined
+guidance, including the unfinished Review UI; leave `main` and the original
+feature branches unchanged. Review/test each small change against its recorded
+starting version. Separately review the complete inherited diff against refreshed
+`main` and pass the agreed checks before proposing integration. **Do not merge
+the large feature PRs unchanged merely to establish a baseline**, or merge their
+predecessors just to flatten the graph. This does not require finishing every
+cleanup item before any integration; it requires an explicitly agreed scope and
+acceptance gates for what enters `main`. Any pre-merge dependent branch/PR setup
+needs explicit approval rather than silently overriding repo branch rules.
+Once the preservation baseline is accepted into `main`, normal focused PRs use
+short-lived `codex/<type>-...` branches from refreshed main. Retargeting,
+superseding, merging and PR closure remain separately gated; no history rewrite
+is proposed. Native handoff PRs remain docs-only. No integration branch was
+created and no merge was performed during this audit or docs clarification.
 
 ### First small slice proposed for approval
 
@@ -450,9 +487,31 @@ prerequisite for the full flow, not a replacement for full Python evaluation.
   needs the retention decision below and tests for durable excluded outcomes,
   same-source retry distinction, cancellation and atomic settlement.
 
+### Verification sequence and owner annotation
+
+1. **Now, after scope approval:** preliminary filter tests, deterministic
+   Python/Kotlin/Swift parity, existing unit/build regressions and fake-runtime
+   stateful tests using invented cases. Evaluation tooling may be developed and
+   tested with supplied responses before the real dataset is ready. These checks
+   establish mechanics and specific regressions, not real-world quality.
+2. **Owner annotation later:** keep the workbench usable, including saved-message
+   sets, resume, protected-pool rules and durable human revisions. The owner labels
+   the private corpus there; do not require completion of annotation before the
+   first small filter slice, and do not reset annotation work to support cleanup.
+   Declare the labelled development and protected held-out cohorts ready only
+   after annotation/adjudication and provenance/split checks, not merely because
+   an export file exists.
+3. **Dataset-backed pipeline validation later:** use those ready cohorts with
+   the complete Python end-to-end evaluation and native parity/device acceptance
+   as applicable. Until then, record dataset-backed quality validation as
+   **pending owner annotation**, not passed, abandoned, or replaced by synthetic
+   tests/the 203-row regression fixture. No release/quality claim follows from
+   preliminary checks.
+
 ### Full evaluation acceptance remains required
 
-The integration is incomplete until a single Python end-to-end runner exercises
+The integration's dataset-backed quality validation remains incomplete until a
+single Python end-to-end runner exercises
 all messages, local GGUF/harness and the official Mac Python SDK through platform
 adapters, with native-supplied-response parity for request/settings, filtering,
 strict parsing, grounding/money, accounts, duplicates and routing. Preserve run
@@ -484,7 +543,13 @@ quality/timing is not device latency/battery/background/storage acceptance.
 6. Inventory private archive/annotations/keys/backup dependencies with the owner
    before future migrations or resets. This audit opened no private dataset and
    approves **no reset artifacts**. Old version adapters may be removed only
-   without stranding evidence/labels or implicitly running old inference.
+   without stranding evidence/labels, unfinished Review UI or implicitly running
+   old inference.
+7. Dataset-backed quality evaluation is blocked on the owner's later workbench
+   annotation and cohort readiness. This does not block preliminary invented-case
+   tests, evaluation-tooling development or other separately approved work that
+   does not require real-data quality claims. Preserve the workbench and Review
+   UI while that dataset is prepared.
 
 ## 7. Work checklist and next bounded task
 
@@ -498,6 +563,9 @@ quality/timing is not device latency/battery/background/storage acceptance.
       documentation consolidation, and acceptance tests with the owner.
 - [ ] Implement the selected flow and Python evaluation in bounded, tested slices;
       align native platforms and remove superseded paths without deleting useful work.
+- [ ] Owner annotates the evaluation data in the preserved workbench; declare
+      development/held-out cohorts ready and run dataset-backed end-to-end quality
+      evaluation. This is later work, not a prerequisite for preliminary tests.
 - [ ] Complete docs/dependency cleanup, parity checks, and platform verification;
       reconcile PRs and retire this temporary plan.
 
@@ -509,59 +577,54 @@ in this same document as the approved slices land.
 
 ## 8. Session checkpoint
 
-Audit environment: sibling checkouts under `/home/ubuntu/pocket-financer`, generic
-Linux, **2026-11-05 UTC**. No WSL/Windows/Mac/model/device environment is implied.
-All three working trees were clean at entry, each with one registered worktree.
-All stay on `codex/docs-cleanup-handoff`, tracking the same-named origin branch;
-no feature/main checkout or history was modified. The plan was present locally.
+Docs clarification environment: sibling checkouts under
+`/home/ubuntu/pocket-financer`, generic Linux, **2026-11-07 UTC**. All three working
+trees were clean at entry and remain on `codex/docs-cleanup-handoff`; no feature
+checkout or `main` was modified. This is not WSL/Mac/device verification.
 
-| Repository | Refreshed `origin/main` | Handoff head at audit entry | Handoff PR (base `main`) |
-| --- | --- | --- | --- |
-| Intelligence | `78509644dad1` | `5c37cb961701` | [#11](https://github.com/pocket-financer/pocket-financer-intelligence/pull/11) |
-| Android | `a58fcad7903f` | `ca251056b829` (unchanged) | [#48](https://github.com/pocket-financer/pocket-financer-android/pull/48) |
-| iOS | `c79b7b574fc1` | `1343ab79d2c0` (unchanged) | [#12](https://github.com/pocket-financer/pocket-financer-ios/pull/12) |
+| Repository | Handoff head at clarification entry | Handoff PR (base `main`) |
+| --- | --- | --- |
+| Intelligence | `4450187e441b` (committed/pushed bounded audit) | [#11](https://github.com/pocket-financer/pocket-financer-intelligence/pull/11) |
+| Android | `ca251056b829` (unchanged) | [#48](https://github.com/pocket-financer/pocket-financer-android/pull/48) |
+| iOS | `1343ab79d2c0` (unchanged) | [#12](https://github.com/pocket-financer/pocket-financer-ios/pull/12) |
 
-Only `docs/CLEANUP_PLAN.md` changed in this audit, on the existing intelligence
-handoff branch. Audit commit subject: `docs: record cleanup audit and integration proposal`;
-use that branch's latest head for the committed checkpoint (not the old entry
-SHA). No implementation, deletion, reset, merge, PR closure, force-push, version
-change, training, model download or release occurred. Original private data,
-labels/corrections, provenance, keys and backups were not opened or changed.
+Only `docs/CLEANUP_PLAN.md` changes in this session. The owner clarified that
+unfinished SMS Review UI must remain present and that they will annotate the
+not-yet-ready evaluation dataset in the existing workbench later. Sections 1, 2,
+5 and 6 now make those preservation and sequencing requirements explicit. The
+integration paragraph also separates starting versions, small reviewed working
+changes and eventual complete main integration; no merge-first shortcut is
+approved. This clarification does **not** authorize runtime implementation,
+branch setup, deletion, resets or merges.
 
-Verification and evidence:
+Verification and limits:
 
-- `git status --porcelain=v1 --branch`, `remote -v`, `branch -avv`, and
-  `worktree list` checked in every repo before audit. All origins are the expected
-  `https://github.com/pocket-financer/pocket-financer-{intelligence,android,ios}.git`.
-- `git fetch --prune origin` succeeded in all three repos. Main and relevant PR
-  heads did not move from the recorded tips; API head SHAs matched fetched refs.
-  Two stale `codex/chore-rename-intelligence` remote-tracking aliases disappeared
-  on prune (Android/iOS); feature refs remain. This did not delete remote branches
-  or local feature branches. No unrelated work was overwritten.
-- Paginated GitHub open-PR/files/commits/reviews/comments, GraphQL review-thread
-  resolution, head check-runs/status and failed-run job steps/annotations checked.
-  Ancestry and patch equivalence verified as in section 4. `gh` is absent; used
-  existing credential-helper authentication in memory without printing or storing
-  secrets. Public audit snapshots are outside the repos, not a second plan.
-- `python3 scripts/check_repo_safety.py` passed (tracked pathnames only).
-  `git diff --check` / staged diff check and a local document structure/path/link
-  check cover this plan-only change; no code tests are claimed from them.
-- Normal intelligence gate remains **unavailable**, not passed: activation rejects
-  generic Linux as non-WSL2; `python3 -m ruff --version` and
-  `python3 -m pytest --version` report missing modules. No installation or
-  environment-policy bypass attempted. Java and `xcodebuild` are absent here;
-  Gradle/Xcode, inference, emulator/device and full code suites were not run.
-- Existing remote CI is recorded in section 4, not attributed to this audit's
-  future plan-only commit. iOS #8 remains failing (test exit 65); Android #46
-  remains failing (unit step exit 1); detailed job-log downloads return HTTP 401.
-  No failure cause was guessed, no check bypassed, no tests weakened.
+- Git status/head checked in each repo. Intelligence `git fetch origin` succeeded;
+  its remote handoff head matched `4450187` before this docs update. Android/iOS
+  file lists and Review UI commit history were inspected via refs, without
+  checking out or modifying the feature work. Android partial-evidence and
+  contrast commits were verified as ancestors of the recorded #42 tip.
+- Repository safety (tracked pathnames only), unstaged/staged `git diff --check`,
+  document headings/fences/local links, exact plan-only scope and named Review
+  source/commit preservation references are the checks for this docs-only change.
+  Normal model/native code suites are not a prerequisite or a claimed result.
+- The 2026-11-05 PR/ancestry/check audit remains in sections 3-4 and commit
+  `4450187`. **Live PR checks were not re-audited in this clarification.** The
+  recorded iOS #8 and Android #46 failures/log-access blocker must be refreshed,
+  not assumed resolved. Prior audit tools were missing Ruff/pytest and native
+  build tooling; no installation, bypass or runtime test is part of this update.
+- No private messages, annotations, source mappings, credentials, keys or backups
+  were opened or changed. No runtime code, UI, asset, data or release file was
+  changed; no new plan/document, integration branch, deletion, reset, merge,
+  closure, force-push, model download or release occurred.
 
-Publication boundary: only the normal fast-forward intelligence handoff update
-for PR #11 is in scope; the final audit response records its commit/push result.
-No other PR contents, base, state or release control was modified. Proposed
-integration baselines are section 6, not the working checkouts. Next action:
-**owner approval of sections 4-6**, then explicitly authorized preservation and
-small implementation slices. Refresh status/live PR state before any next action.
+Commit subject for this update: `docs: preserve review UI and stage evaluation`.
+Use the latest intelligence handoff head for this checkpoint; the final response
+records commit/push results. Only the normal fast-forward #11 plan update is in
+scope; other PRs remain unchanged. Next: owner approval of the remaining proposed
+scope/branch arrangement, then explicitly authorized small slices. Dataset-backed
+quality validation stays pending the owner's later annotation, without blocking
+preliminary invented-case tests. Refresh status/live PR state before acting.
 
 ## 9. Resume prompt
 
@@ -570,8 +633,11 @@ small implementation slices. Refresh status/live PR state before any next action
 > PR checks again. Ask for/observe the owner's approval of the proposed baseline,
 > dispositions, cleanup map and first slice before implementation or deletion.
 > The handoff checkouts are main-based, not implementation baselines. Preserve
-> useful feature work, original private data/human annotations and full stateful
-> Python evaluation, including Apple's official Python SDK on Mac. No resets,
+> useful feature work, unfinished SMS Review UI and the usable workbench. The
+> owner will annotate the evaluation dataset later: preliminary synthetic/unit
+> checks do not establish dataset-backed pipeline quality. Preserve original
+> private data/human annotations and full stateful Python evaluation, including
+> Apple's official Python SDK on Mac. No resets,
 > merges, closures, force pushes or releases without separate explicit approval.
 > Update this single plan with authorized work, exact verification and blockers;
 > do not create another planning/session document or redesign the approved flow.
