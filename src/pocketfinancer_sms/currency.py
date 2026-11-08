@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, DecimalException, InvalidOperation, localcontext
 
 from .types import CurrencyProvenance
 
@@ -100,10 +100,18 @@ def parse_money(
     if not value.is_finite() or value <= 0:
         raise ValueError("amount must be finite and greater than zero")
     scale = ISO_MINOR_UNITS[currency]
-    quantum = Decimal(1).scaleb(-scale)
-    if value.quantize(quantum) != value:
-        raise ValueError("amount has more precision than its currency permits")
-    minor_units = int(value * (10**scale))
-    if minor_units > MAX_SIGNED_64:
-        raise ValueError("amount exceeds signed 64-bit minor units")
+    try:
+        # Money is bounded before quantization, so an oversized untrusted number
+        # cannot overflow Decimal's precision and escape the validation boundary.
+        # Use an isolated context: caller precision must never round valid money.
+        with localcontext() as context:
+            context.prec = 64
+            quantum = Decimal(1).scaleb(-scale)
+            if value > Decimal(MAX_SIGNED_64).scaleb(-scale):
+                raise ValueError("amount exceeds signed 64-bit minor units")
+            if value.quantize(quantum) != value:
+                raise ValueError("amount has more precision than its currency permits")
+            minor_units = int(value * (10**scale))
+    except DecimalException as exc:
+        raise ValueError("amount is not valid decimal money") from exc
     return ParsedMoney(minor_units, currency, provenance)

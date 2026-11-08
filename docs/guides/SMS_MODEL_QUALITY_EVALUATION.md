@@ -19,6 +19,49 @@ protocols differ. Reports mark the comparison non-causal and keep runtime facts
 separate. WSL host latency is not Android device latency; macOS SDK latency is
 not iPhone app latency.
 
+## Stateful supplied-response mechanics runner
+
+`pocketfinancer_sms.stateful_evaluation.SyntheticPipelineRun` adds the first
+isolated end-to-end host mechanics lane. It accepts **invented messages only**
+and a counted `SuppliedRuntime` (strings or simulated exceptions), not a live
+model. `tests/sms_processing/test_stateful_evaluation.py` shows full sequences.
+
+The implemented flow is reliable source admission/replay -> conservative
+prefilter -> durable evidence/settings -> existing advisory analyzer and one
+supplied response -> existing strict parsing/grounding/exact money -> existing
+account/duplicate gates -> isolated ledger / no transaction / Review. A narrow
+`confirm_account` helper simulates an explicit owner action on an otherwise valid
+unknown-account Review; it atomically binds an alias and saves. It is not a model
+success, annotation, or a replacement for native Review correction UI.
+
+A fresh SQLite run refuses an existing file; resume requires identical settings,
+analyzer configuration and host-source hashes. Use a separate path for each
+comparison. Admission/create/claim/settlement use durable transactions. Reliable
+replay reuses pending/busy/settled state before analysis or model work. Missing
+identity never deduplicates text. Busy work is not stolen by opening another
+instance. After the old runner has actually stopped, explicit
+`recover_interrupted()` fences its unfinished attempts; replay then reports
+retryable state and only explicit `retry_of` creates another operation. Completed
+outcomes and parent operations are preserved. Supplied raw responses/attempts are
+durable; they must never be mistaken for labels.
+
+`mechanics_summary()` counts every admitted input (including excluded and replayed
+inputs), operations, model calls, reused inputs, transactions and remaining Review.
+No labelled scoring or quality denominator is claimed. Identity conflicts fail
+closed without overwriting evidence. The existing exact-time payment fingerprint
+is reused only as an interim mechanics gate; it does **not** settle different-alert
+duplicate windows or prove payment-detection quality. Native ready-work recovery
+may currently defer to visible Review rather than execute a stored snapshot.
+
+This lane does not yet unify GGUF/harness or Apple's official Python SDK adapters,
+match native request/settings end to end, provide full stage timings/scoring, or
+accept private cohorts. Those are subsequent bounded slices. The live extraction
+lanes below remain available unchanged; they are not the new stateful runner.
+Product excluded/none retention is still an owner decision; synthetic run storage
+is not permission to change native evidence retention. Dataset-backed quality is
+pending owner annotation and cohort readiness. No local application suites are run
+on the editing host; new tests require CI execution before claiming a pass.
+
 ## MacBook Air setup and first synthetic run
 
 Use a compatible Apple Silicon Mac with macOS 26 or later, Xcode 26 or later
