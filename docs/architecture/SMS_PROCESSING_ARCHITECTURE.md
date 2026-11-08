@@ -46,6 +46,31 @@ immutable source SMS + receipt time + configuration
              versioned routing and durable local state
 ```
 
+## Admission and replay (same-source-admission/1)
+
+Admission precedes the prefilter, settings changes, advisory analysis and model
+work. A reliable connector-scoped source ID identifies a message; identical text,
+amount, timestamps or content fingerprints alone do not. Compare immutable source
+evidence on an identity match: a mismatch is an integrity conflict, not a replay
+or permission to overwrite evidence. No source ID means distinct imports; possible
+payment duplication remains a separate post-extraction question.
+
+`admission.py` and the invented `golden/admission-v1.json` freeze these decisions:
+new source -> new work; ready -> resume its stored snapshot; in-flight -> report
+existing work with zero new calls; settled -> reuse outcome with zero calls;
+interrupted -> reuse its retryable outcome. Only explicit owner retry creates a
+new child operation, preserving the parent and source identity; retry cannot steal
+active work. Serialize lookup/create and enforce claim/settlement ownership in
+storage, not merely in UI or a process-local cache. Existing Review confirmation
+and ledger uniqueness remain final defenses. A replay after settings change must
+not silently create a current-settings extraction.
+
+This admission slice does not choose excluded/none retention. Production filter
+exclusion wiring that would change retention waits for owner approval. The Python
+invented-case runner may persist synthetic evidence/outcomes in an isolated run;
+that is not a native product retention policy. Current native model protocols,
+validation and settlement remain unchanged until their subsequent bounded slices.
+
 ## Routing policy
 
 The frozen `native-integration-v4` release is implemented in both native source

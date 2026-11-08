@@ -1,0 +1,16 @@
+{
+  "contract": "same-source-admission/1",
+  "provenance": "Invented state vectors; intelligence owns this file. Not private data or quality evidence.",
+  "cases": [
+    {"id": "first", "reliable_identity": true, "existing_state": null, "same_evidence": true, "owner_retry": false, "action": "new"},
+    {"id": "ready-resumes-frozen-settings", "reliable_identity": true, "existing_state": "ready", "same_evidence": true, "owner_retry": false, "action": "resume"},
+    {"id": "busy-zero-calls", "reliable_identity": true, "existing_state": "in_flight", "same_evidence": true, "owner_retry": false, "action": "in_flight"},
+    {"id": "settled-zero-calls", "reliable_identity": true, "existing_state": "settled", "same_evidence": true, "owner_retry": false, "action": "reuse"},
+    {"id": "interrupted-needs-owner-retry", "reliable_identity": true, "existing_state": "interrupted", "same_evidence": true, "owner_retry": false, "action": "reuse"},
+    {"id": "identity-collision", "reliable_identity": true, "existing_state": "settled", "same_evidence": false, "owner_retry": false, "action": "conflict"},
+    {"id": "identical-body-not-identity", "reliable_identity": false, "existing_state": "settled", "same_evidence": true, "owner_retry": false, "action": "new"},
+    {"id": "owner-retry-new-child", "reliable_identity": true, "existing_state": "settled", "same_evidence": true, "owner_retry": true, "action": "retry"},
+    {"id": "owner-retry-interruption", "reliable_identity": true, "existing_state": "interrupted", "same_evidence": true, "owner_retry": true, "action": "retry"},
+    {"id": "retry-cannot-steal-owner", "reliable_identity": true, "existing_state": "in_flight", "same_evidence": true, "owner_retry": true, "action": "in_flight"}
+  ]
+}
