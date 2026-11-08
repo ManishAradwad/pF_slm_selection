@@ -1,5 +1,10 @@
 # Documentation map
 
+For the coordinated three-repository cleanup, start with
+[CLEANUP_PLAN.md](CLEANUP_PLAN.md). It is the single active cleanup plan and session
+checkpoint, including useful unmerged PRs. The older roadmaps and experiment
+references below are context pending consolidation, not competing worklists.
+
 The repository contains historical model-selection work and a newer fine-tuning
 pipeline. The root `README.md` is the human onboarding page, `AGENTS.md` contains
 tool-neutral repository policy, and this page indexes durable technical evidence.
@@ -8,7 +13,7 @@ No agent-specific file is a separate source of truth.
 Development workflow: [repository instructions](../AGENTS.md) and
 [contribution guide](../CONTRIBUTING.md).
 
-## Read in this order
+## Existing references (pending cleanup audit)
 
 1. [Model-improvement roadmap](architecture/MODEL_IMPROVEMENT_ROADMAP.md) - the
    product objective, today's direct fine-tuning path, and later architecture work.

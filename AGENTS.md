@@ -5,6 +5,17 @@ tools. It is intentionally independent of any editor, coding agent, or model
 provider. Read this file before changing code, data builders, evaluation behavior,
 or experiment documentation.
 
+## Coordinated cleanup handoff
+
+For cross-repository cleanup, read [docs/CLEANUP_PLAN.md](docs/CLEANUP_PLAN.md)
+first. It records the owner's approved target, open-PR inventory, preservation
+boundaries, and next bounded task. That target supersedes older roadmap/product
+choices and blanket historical-code retention requirements for audited cleanup;
+privacy, Git, and release safeguards remain. Existing behavior is not a completion
+claim. Verify branches and PR state: the handoff branches are main-based, while
+useful implementation work remains on the feature branches recorded in the plan.
+Update that single plan rather than creating another session document.
+
 ## Authority and source of truth
 
 PocketFinancer Android defines the product behavior. The current locked profile is
