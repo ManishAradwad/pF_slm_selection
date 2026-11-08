@@ -1,7 +1,7 @@
 # Cross-repository cleanup plan and handoff
 
-Status: **three dependent pilot drafts published; Python CI passed, native CI in progress, policy-design work pending**
-Last updated: **2026-11-07** (pilot baseline/live PR refresh: **2026-11-07**)
+Status: **three reviewed dependent admission drafts published; Python CI passed, native CI in progress**
+Last updated: **2026-11-08** (live pilot heads/final CI refreshed; implementation checkpoint in section 11)
 
 This is the single temporary work plan for `pocket-financer-intelligence`,
 `pocket-financer-android`, and `pocket-financer-ios`. It records the owner's
@@ -569,21 +569,24 @@ quality/timing is not device latency/battery/background/storage acceptance.
 - [x] Owner authorizes publication on the proposed dependent bases; create three focused draft PRs.
 - [x] Observe successful intelligence CI on exact pilot head `4688d2e`.
 - [x] Correct the CI-trigger assessment: existing native `workflow_dispatch` supports pilot branches.
-- [ ] Observe the dispatched native CI results; no local test/build suites on this host.
+- [x] Observe final dispatched pilot CI: Android passed; iOS format/build passed but tests failed (section 11). No local suites.
 - [ ] Resolve retention/admission decisions before separately authorized wiring or deletion.
 - [ ] Review the proposed integration branches, PR dispositions, reset scope,
       documentation consolidation, and acceptance tests with the owner.
-- [ ] Implement the selected flow and Python evaluation in bounded, tested slices;
-      align native platforms and remove superseded paths without deleting useful work.
+- [ ] Implement the selected flow and Python evaluation in bounded, reviewed slices;
+      full implementation now authorized; first admission changes written (section 11),
+      checks/remaining native alignment pending.
 - [ ] Owner annotates the evaluation data in the preserved workbench; declare
       development/held-out cohorts ready and run dataset-backed end-to-end quality
       evaluation. This is later work, not a prerequisite for preliminary tests.
 - [ ] Complete docs/dependency cleanup, parity checks, and platform verification;
       reconcile PRs and retire this temporary plan.
 
-The bounded audit deliverables remain in sections 4-6. The newly authorized pure
-pilot and its remaining gates are recorded in section 10. The broader cleanup,
-intake wiring, resets, merges, PR closure and deletion remain unapproved. Record
+The bounded audit deliverables remain in sections 4-6. The completed pure
+pilot is recorded historically in section 10. Section 11 supersedes its narrow
+implementation authority: intake/pipeline implementation is now approved in
+bounded slices. Resets, merges, PR closure/retargeting, retention changes and broad
+deletion remain unapproved. Record
 exact selected baseline/destination commits and native-test evidence in this same
 document as approved slices progress.
 
@@ -640,18 +643,18 @@ preliminary invented-case tests. Refresh status/live PR state before acting.
 
 ## 9. Resume prompt
 
-> Read all three repositories' AGENTS.md files and this CLEANUP_PLAN.md. Sections
-> 4-6 retain the bounded audit; section 10 records the explicitly authorized pure
-> prefilter pilot, current commits and remaining gates. Reuse existing pilot
-> branches/worktrees without discarding work. Verify the published draft heads,
-> dependent bases and checks; do not infer executed native parity from source review or
-> fixture byte equality. No test/build suites or native tooling installation on
-> this host. Preserve useful feature work, unfinished Review UI, the annotation
-> workbench, private evidence/labels/provenance, keys and backups. Dataset-backed
-> quality remains pending owner annotation and cohort readiness. Wiring requires
-> separately bounded approval and retention/admission decisions. No resets,
-> merges, closures, force pushes, model/data publication or releases. Update this
-> single plan; do not create another planning/session document.
+> Read all three repositories' AGENTS.md files, pf-development and this exact
+> canonical plan. Section 11 records explicit full-pipeline implementation
+> authority, actual admission/replay changes, checks and remaining decisions.
+> Sections 4-6 are preservation/audit context; section 10 is the finished pilot,
+> not the current project. Verify live heads/checks, continue bounded dependent
+> branches without merging inherited stacks. No local application suites or native
+> tooling installation. Preserve Review UI, annotation/workbench and original
+> evidence/labels/provenance/keys/backups. Use invented cases and supplied responses;
+> dataset-backed quality waits for owner annotation. Do not silently choose
+> excluded/none retention or different-alert duplicate windows. No resets, merges,
+> closures/retargeting, force pushes, publication or releases. Update this single
+> plan; do not create another planning/session document.
 
 ## 10. Authorized pure prefilter pilot outcome
 
@@ -805,3 +808,160 @@ source-outcome/admission work with fake-runtime zero-call/replay/retry/cancellat
 atomic-settlement coverage. That implementation slice is **not started**. Do not
 retain the old Android terminal filter ahead of a future common boundary. No
 merge, old-PR closure/retarget, reset, model/data publication or release occurred.
+
+## 11. Authorized pipeline implementation: first admission/replay slice
+
+### Current authority and verified baseline
+
+The owner explicitly authorizes implementing the complete SMS processing pipeline,
+not another prefilter pilot or planning-only exercise. Focused implementation,
+bounded children/independent review, commits, pushes and dependent draft PRs are
+approved. Stop at PRs: no merge, old-PR close/retarget, reset, broad deletion,
+retention/product-policy change, model/data publication or release is authorized.
+This supersedes earlier setup-only/pilot-only implementation statements. Preserve
+unfinished Review UI, the workbench, original evidence, labels/corrections,
+provenance, keys and backups. Private data was not opened.
+
+Fresh fetches and live GitHub PR metadata confirmed the three pilot heads and
+preservation bases remain exactly those in section 10. Existing PRs are unchanged.
+New isolated `codex/feat-sms-admission` branches start at those pilot heads and
+will target `codex/feat-prefilter-pilot`; no feature stack was merged as a baseline.
+
+Final pilot workflow evidence, refreshed rather than inferred from old status:
+
+| Pilot head | Final existing workflow result |
+| --- | --- |
+| Intelligence `4688d2eabc8f278ca8bd3906da622dc28894ca47` | Run [42408114432](https://github.com/pocket-financer/pocket-financer-intelligence/actions/runs/42408114432) **success**: Python safety/static checks/shell checks/unit tests. |
+| Android `2f19cc29e7c4d7ff1f6a90b499268761068aa232` | Run [42408589642](https://github.com/pocket-financer/pocket-financer-android/actions/runs/42408589642) **success**: all debug unit tests, lint, full debug APK. |
+| iOS `fe336182eb87f689eadee9000d7ad76767968851` | Run [42408592877](https://github.com/pocket-financer/pocket-financer-ios/actions/runs/42408592877) **failure**: format/Release build succeeded; unit/UI smoke step failed. Individual failing/passing tests not established. |
+
+The owner directed not to spend implementation time repairing outdated inherited
+CI failures. No tests/checks were disabled or weakened. Prior pilot results are
+not results for the new admission code. No local application suites, native
+formatter/compiler/tool installation, model execution or dataset evaluation ran.
+
+### Written code and honest scope
+
+Shared `same-source-admission/1` semantics and invented state vectors were settled
+in intelligence before native implementation: trustworthy connector-scoped identity,
+immutable evidence conflict checking, ready frozen-snapshot resume, zero-call
+busy/outcome reuse, and explicit parent-linked owner retry. Native ready execution
+may temporarily use visible retryable recovery instead of decoding frozen snapshots;
+never silently capture current settings on ordinary replay.
+
+- **Intelligence:** `admission.py`, `stateful_evaluation.py`, invented admission
+  vectors and focused tests. Isolated SQLite supplied-response runner exercises
+  admission -> existing conservative prefilter -> durable evidence/settings ->
+  advisory analyzer -> one supplied response -> existing strict extraction,
+  grounding/exact money/account gates -> isolated ledger / none / Review.
+  Explicit simulated unknown-account confirmation atomically binds an alias/saves;
+  later known-account messages can auto-save. Fresh/resume, source/config bindings,
+  concurrent admission, replay, busy/interruption/explicit retry, rollback and
+  all-input mechanics counters have source tests. Synthetic stored responses are
+  not labels. Existing GGUF/harness and official Apple Python SDK lanes remain
+  intact, not yet integrated into this runner. No real-data quality claim.
+- **Android:** production `PipelineService` uses transactional source lookup,
+  integrity check, snapshot/create/claim and typed reused/busy/conflict outcomes
+  through `SmsProcessingStore`/DAO. Only actual provider IDs authorize external
+  same-source reuse; body/time fallback is not promoted to identity. V5 uses the
+  pre-acquired claim; explicit retries preserve lineage and cannot steal active
+  work. Existing ready/expired snapshots recover visibly without re-extraction.
+  Parent removed obsolete terminal `SmsFilterPipeline` calls from Home recent
+  scan and onboarding history, so missing regex matches/numeric senders/OTP words
+  no longer drop those inputs ahead of the pipeline. Existing pre-boundary ledger
+  metadata/fingerprint bridges remain a separate gap, not complete uniform intake.
+- **iOS:** production service reuses operations for the same durable `InboxAlert.id`
+  before settings/attempt increments/resnapshot. A nonblocking store-specific
+  admission lock serializes the new selection/create/initial-claim paths. Existing
+  settled Review/outcomes and live claims are reused; ready/expired work is visibly
+  retryable, not silently re-extracted. Explicit owner retry links the latest
+  parent. Trusted external connector identity across separate deliveries is
+  **not implemented**; existing callers lack genuine source IDs and still import
+  distinct alerts. No content/time heuristic is relabelled reliable. This bounded
+  fallback is not full cross-process settlement/erasure CAS or complete identity
+  parity. Review-only posted routing and existing `none` erasure are unchanged.
+
+Both native slices add intended-behavior fake-runtime/storage tests. Native fixture
+execution/parity, Kotlin/Swift compilation and new tests are **not yet verified**.
+Current code/diff review is not native acceptance. No Review UI or annotation file,
+protected data, schema, release automation or frozen inference asset was changed.
+
+### Decisions, remaining work and delivery gate
+
+1. **Owner retention decision pending.** Recommendation presented: persist a
+   body-free identity/outcome marker for excluded/valid-none sources until explicit
+   owner deletion/reset of processing history. Not approved and not implemented.
+   Native terminal conservative-prefilter wiring/tombstones therefore remain
+   deferred; existing retention is untouched. Synthetic run storage does not
+   establish product retention policy.
+2. Different-alert duplicate context/window and owner resolution policy remain
+   unspecified. Existing exact-time fingerprints are interim mechanics, not a
+   complete payment duplicate policy. Amount alone never establishes identity.
+3. Next independent implementation work: trusted native intake identities where
+   available, remove pre-boundary heuristic suppression, frozen-ready resume,
+   settle terminal exclusions after the retention decision, then align one-call
+   extraction/request/settings, strict validation and automatic settlement (iOS
+   still review-only). Extend the Python runner with platform adapters, full
+   timings/scoring/checkpoints and native supplied-response parity as those stages
+   settle; preserve the official Mac Python SDK architecture and GGUF/harness.
+4. Dataset-backed quality remains pending later owner annotation/cohort readiness.
+   Invented mechanics and simulated owner confirmations are not quality evidence.
+
+All implementation/review agents and parent use configured OpenAI
+`gpt-6.1-sol` through the OAuth route; no provider fallback or fast/priority route.
+An iOS writer timed out with a verified clean worktree, then completed on one
+bounded resume. Initial generic-reviewer permission/read failures produced no
+approval. The owner fixed the permission configuration and directed continuation;
+two fresh project-specific independent reviews then completed successfully.
+
+Review found six Python issues (settlement race, confirmation fingerprint,
+superseded ready parent execution, incomplete source binding, oversized decimal,
+and malformed-Unicode capture) and three Android issues (ledger conflict could
+poison admission evidence, incomplete ledger integrity, original-v2/v4 retry
+claim gap). All nine findings were fixed with invented regressions and
+independently closed by follow-up source reviews. Parent also added the two
+suggested Python test-strengthening assertions (ambient Decimal precision and
+durable attempt counts); exact-head Python CI passed. Native source review
+identified no additional iOS blocker; that is not compiler,
+SwiftData or executed native acceptance. Agent scratch artifacts are outside Git.
+Parent source/whitespace inspection is not substituted for independent review.
+
+The reviewed iOS slice is committed and pushed as draft
+[#14](https://github.com/pocket-financer/pocket-financer-ios/pull/14), base
+`codex/feat-prefilter-pilot`: implementation `6773b889ab41c31ab7d06fd035b221bbfe8ac7d2`,
+formatting follow-ups `b7d3d0d24bf03ab409bf053738ce520d34c56047` and
+`f7883c31896909fb87092ecd5f550181c4eb5261` (current head). Existing CI found new
+formatting errors at the first two heads; source-only formatting fixes were pushed
+without running tooling here. Current-head run
+[42440898265](https://github.com/pocket-financer/pocket-financer-ios/actions/runs/42440898265)
+is in progress. No inherited tests were disabled or weakened.
+
+### Current delivery ledger
+
+| Repository | Dependent draft / exact published head | Review and checks |
+| --- | --- | --- |
+| Intelligence | [#13](https://github.com/pocket-financer/pocket-financer-intelligence/pull/13), `2e73e4e2366cbc2c1942c3f2a87ed6325d432dd5` | All six findings independently closed by fix-round source review. Existing CI runs [42441026832](https://github.com/pocket-financer/pocket-financer-intelligence/actions/runs/42441026832) and [42441023421](https://github.com/pocket-financer/pocket-financer-intelligence/actions/runs/42441023421) **passed** on this exact head: safety, both Ruff gates, shell checks and full pytest including the new mechanics regressions. |
+| Android | [#50](https://github.com/pocket-financer/pocket-financer-android/pull/50), `2f772f4103370b9c91aa860ba1bb9708522c1be6` | All three findings independently closed by fix-round source review, including original-v2/v4 atomic retry claims. Eleven further invented regressions added. Existing CI [42441502751](https://github.com/pocket-financer/pocket-financer-android/actions/runs/42441502751) manually dispatched on this exact head; in progress, native compilation/tests/lint/APK not yet passed. |
+| iOS | [#14](https://github.com/pocket-financer/pocket-financer-ios/pull/14), `f7883c31896909fb87092ecd5f550181c4eb5261` | Independent source review: no additional iOS blocker. Current CI [42440898265](https://github.com/pocket-financer/pocket-financer-ios/actions/runs/42440898265) passed formatting and Release build; unit/UI test step still running. |
+
+All three published drafts target `codex/feat-prefilter-pilot`. Parent verified live
+head/base/draft metadata and clean published worktrees. Parent `git diff --check`
+passed; no local application suite or native tooling ran. Existing checks were
+used without trigger changes or test weakening. Missing checks are pending, not
+passes; native source review is not executed parity. Original feature/pilot
+branches remain unchanged; no merge/closure/retarget/reset/release occurred.
+
+The single existing plan is updated on its docs handoff branch/PR #11; its exact
+final commit is recorded in delivery rather than self-referenced here. This is
+not a new plan or session diary. Parent alone committed/pushed/published all
+application changes; all three admission worktrees are clean.
+
+Next bounded work: observe the linked native checks and fix only introduced
+source/compile/regression issues, not unrelated outdated inherited tests. Then
+continue native reliable intake identity and stored-ready resume, eliminate
+pre-boundary heuristic suppression, and align extraction/settings/validation and
+settlement. Terminal exclusions/none markers remain gated on the owner retention
+decision, not on more implementation authorization. No new duplicate window is
+chosen. Keep the Python runner progressing toward native-supplied-response parity
+and platform adapters; later quality evaluation waits for annotation. Do not
+restart the pilot or represent this admission slice as the completed pipeline.
