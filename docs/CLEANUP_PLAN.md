@@ -1,7 +1,7 @@
 # Cross-repository cleanup plan and handoff
 
-Status: **admission tests passed in Python/Android/iOS; native suites remain blocked by a settings-harness error and an inherited iOS assertion**
-Last updated: **2026-11-08** (native CI logs and inherited iOS failure verified; follow-up in section 11)
+Status: **reviewed Android manual/history identity draft published; exact-head unit/lint/APK CI passed; realtime/recovery and iOS follow-ups remain**
+Last updated: **2026-11-08** (manual/history identity alignment in section 12; prior admission evidence in section 11)
 
 This is the single temporary work plan for `pocket-financer-intelligence`,
 `pocket-financer-android`, and `pocket-financer-ios`. It records the owner's
@@ -644,7 +644,7 @@ preliminary invented-case tests. Refresh status/live PR state before acting.
 ## 9. Resume prompt
 
 > Read all three repositories' AGENTS.md files, pf-development and this exact
-> canonical plan. Section 11 records explicit full-pipeline implementation
+> canonical plan. Sections 11-12 record explicit full-pipeline implementation
 > authority, actual admission/replay changes, checks and remaining decisions.
 > Sections 4-6 are preservation/audit context; section 10 is the finished pilot,
 > not the current project. Verify live heads/checks, continue bounded dependent
@@ -1026,3 +1026,107 @@ not on more implementation authorization. No new duplicate window is chosen.
 Keep the Python runner progressing toward native-supplied-response parity and
 platform adapters; later quality evaluation waits for annotation. Do not restart
 the pilot or represent this admission slice as the completed pipeline.
+
+## 12. Android manual/history identity alignment
+
+### Bounded scope and baseline
+
+The owner's continuation request authorizes the next bounded implementation under
+section 11, not a retention or duplicate-policy change. A fresh fetch and live
+PR metadata matched Android #50 at `a22363956e707eba29d9a879128768c0cab2b783`.
+New isolated branch `codex/fix-sms-intake-identity` starts at that exact head and
+targets `codex/feat-sms-admission` in dependent draft
+[#51](https://github.com/pocket-financer/pocket-financer-android/pull/51).
+Published commit: `5f0d17398605a9ff24a30a2a6a1fbc9e1984c019`,
+`fix: require verified source identity in SMS discovery`. No inherited stack is merged. Original
+feature, pilot, admission and handoff branches remain intact.
+
+The parent owns this eight-file Android slice: `HomeSyncManager.kt`,
+`OnboardingService.kt`, `SmsProcessingStore.kt`, `PipelineService.kt`, their
+existing admission/service/Home tests and new `HomeSmsIntakeBoundaryTest.kt`.
+Only this existing plan changes in intelligence. Python's settled
+`same-source-admission/1` remains the semantic authority; Kotlin stays native.
+
+### Implemented behavior and acceptance
+
+- Manual/history discovery replaces `preserveSourceMetadataIfExists` with
+  `PipelineService.hasVerifiedSavedSource`. Its read-only Room query requires
+  provider identity, unchanged source/ledger evidence and no unsettled work.
+  It shares admission's evidence predicates, never inserts source evidence,
+  promotes legacy metadata or deletes queued candidates. Unknown/conflicting
+  inputs continue to normal admission. Adaptive history widening and legitimate
+  already-saved counters remain intact; discovery does not consult settings,
+  capture snapshots, acquire model residency or invoke inference.
+- Manual execution removes its separate ledger shortcut and always reaches
+  transactional normal admission. Final claims/validation/atomic uniqueness
+  remain authoritative; a read-only discovery result is not settlement.
+- Home queue merging requires reliable identity plus unchanged evidence.
+  Provider-less deliveries and conflicting evidence keep separate opaque queue
+  IDs; fingerprints cannot merge them or lend another attempt's status.
+  Exact provider-backed replays preserve their existing item and attempt.
+- Source timestamp now survives queue construction and manual handoff separately
+  from received date. This prevents a provider `date_sent` / received-date
+  difference from becoming a false evidence conflict after shortcut removal.
+- Scan coverage uses exact scanned queue IDs, including newly allocated IDs,
+  not a collapsed set of source fingerprints/provider identities. Progress
+  projection keeps saved/failed variants counted and stale-scan updates fenced.
+  Invented tests cover read-only lookup, conflicting/absent/provider-less IDs,
+  active retry children, source-time round trips, queue attempt preservation,
+  recent-scan cancellation and durable progress/attention/coverage bounds.
+
+A bounded read-only scout traced stored-ready and realtime gaps. A separate fresh
+independent review found one P2: new distinct queue IDs were missing from the old
+identity-key progress tracking. The parent corrected it and added regressions;
+independent fix-round review closed that finding and found no additional blocker. Parent/scout/reviewer use configured OpenAI
+`gpt-6.1-sol` over OAuth with no provider fallback or priority route.
+
+### Verification, preservation and next task
+
+Parent verified the eight-file published diff, exact head/base/draft metadata,
+clean isolated worktree, preserved ancestry and `git diff --check`. Existing
+non-release CI [42513146657](https://github.com/pocket-financer/pocket-financer-android/actions/runs/42513146657)
+was manually dispatched on exact head
+`5f0d17398605a9ff24a30a2a6a1fbc9e1984c019` and **passed all debug unit tests,
+Android lint and full debug APK build**. Uploaded JUnit XML confirms **615 tests,
+zero failures/errors/skips**: data 115, pipeline 152, app 226, SMS 24, inference 55,
+hardware 43. Changed/new classes passed: admission 20/20, pipeline service 21/21,
+Home state 51/51, real recent-scan/fake-boundary 2/2. This includes all fourteen
+new invented regressions and stronger assertions replacing the old
+fingerprint-bridge expectation.
+
+No application tests/builds, native tooling/formatter installation, model calls,
+private data or dataset evaluation ran locally. Parent used standard-library XML
+inspection to count the downloaded CI reports, not application execution.
+The settings coroutine error from baseline run `42510824045` did not recur on
+this exact new head. No settings source/test repair or root-cause fix is claimed;
+old heads are not retrospectively validated. Full historical-import integration,
+native supplied-response parity, device acceptance and real-data quality remain
+pending. Existing PR #51's description records the final gates; no CI trigger or
+release workflow was changed.
+
+No Review UI, annotation/workbench, original evidence/labels/provenance/keys/backups,
+schema, retention, frozen inference asset/protocol, CI trigger, dependency or
+release file changes. Android partial Review `f6079ff` and contrast `cc1eb79`
+remain ancestors. No reset, file deletion, merge, retarget/closure, force push,
+model/data publication or release is performed.
+
+The application worktree is clean and published; only the canonical plan's
+existing handoff branch/PR #11 receives this checkpoint. Its final docs commit is
+recorded in delivery rather than self-referenced here. No session diary or second
+plan is created.
+
+This is not uniform intake or complete recovery. Realtime
+`SmsIngestionRepository.admit` still suppresses/enriches by fingerprints and can
+establish conflicting evidence before common admission; its worker also loses
+the durable local identity when reconstructing a provider-less `SmsMessage`.
+Next bounded implementation should carry an explicit durable admitted-source
+reference through worker-to-pipeline replay and remove the realtime heuristic
+suppression with immutable-evidence conflict tests. Do not invent external IDs.
+
+Stored-ready execution remains a separate bounded seam: add a strict V5/V6
+persisted-snapshot decoder with row/source/release/runtime bindings and pristine
+ready-state claims, then align startup recovery (which currently interrupts old
+ready work before outbox reconciliation). Never call current-settings `create`
+to resume old work. Malformed/unsupported or previously executing work must stay
+visibly recoverable. Terminal exclusions/none retention and different-alert
+duplicate windows remain owner-gated; real-data quality waits for annotation.
