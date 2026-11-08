@@ -1,7 +1,7 @@
 # Cross-repository cleanup plan and handoff
 
-Status: **three reviewed dependent admission drafts published; Python CI passed, native CI in progress**
-Last updated: **2026-11-08** (live pilot heads/final CI refreshed; implementation checkpoint in section 11)
+Status: **admission tests passed in Python/Android/iOS; native suites remain blocked by a settings-harness error and an inherited iOS assertion**
+Last updated: **2026-11-08** (native CI logs and inherited iOS failure verified; follow-up in section 11)
 
 This is the single temporary work plan for `pocket-financer-intelligence`,
 `pocket-financer-android`, and `pocket-financer-ios`. It records the owner's
@@ -760,9 +760,9 @@ model runtime or native tooling was executed or installed.
 | Gate / evidence | Actual state |
 | --- | --- |
 | Pilot Python safety, both Ruff gates including `src`, full pytest | **Passed in existing GitHub Actions** for exact head `4688d2eabc8f278ca8bd3906da622dc28894ca47`: push run [42408109003](https://github.com/pocket-financer/pocket-financer-intelligence/actions/runs/42408109003) and PR run [42408114432](https://github.com/pocket-financer/pocket-financer-intelligence/actions/runs/42408114432). Prefilter tests are included in full pytest; no separate targeted invocation or local suite was run. |
-| Android focused pipeline/full unit tests, lint, debug APK | **In progress.** Existing `ci.yml` supports `workflow_dispatch` on the pilot branch. Run [42408589642](https://github.com/pocket-financer/pocket-financer-android/actions/runs/42408589642) targets exact head `2f19cc29e7c4d7ff1f6a90b499268761068aa232`; all debug unit tests (including pipeline) are running, with lint and debug APK build pending. No separate focused invocation or local suite was run. |
-| iOS format, Release build, unit/UI smoke tests | **In progress.** Existing `ci.yml` supports `workflow_dispatch` on the pilot branch. Run [42408592877](https://github.com/pocket-financer/pocket-financer-ios/actions/runs/42408592877) targets exact head `fe336182eb87f689eadee9000d7ad76767968851` on the configured Mac runner. Formatting and Release build passed; unit/UI smoke tests are running. #13's separate title check is not native acceptance. |
-| Native supplied-vector parity | **Pending**. Byte equality/source review does not establish native execution. |
+| Android focused pipeline/full unit tests, lint, debug APK | **Passed.** Existing manually dispatched run [42408589642](https://github.com/pocket-financer/pocket-financer-android/actions/runs/42408589642) on exact pilot head `2f19cc29e7c4d7ff1f6a90b499268761068aa232` completed all debug unit tests (including pipeline), lint and debug APK build. No separate focused invocation or local suite was run. |
+| iOS format, Release build, unit/UI smoke tests | **Overall failure.** Existing manually dispatched run [42408592877](https://github.com/pocket-financer/pocket-financer-ios/actions/runs/42408592877) on exact pilot head `fe336182eb87f689eadee9000d7ad76767968851` passed formatting and Release build, but failed `ModelSelfTestServiceTests.testMismatchedEvidenceOutputFailsClosed`. The same failure persists at the admission head; section 11 records direct log evidence. #13's separate title check is not native acceptance. |
+| Native supplied-vector parity | Pilot fixture execution is supported by Android's full unit pass and iOS's passing `ConservativeSmsPrefilterTests` at the admission head. Full pipeline supplied-response parity remains **pending**; byte equality/source review alone does not establish it. |
 | Real-data recall / end-to-end pipeline quality | **Pending owner annotation/cohort readiness**, not established by invented vectors. |
 
 Live baseline results remain intelligence #8 Python checks successful and Android
@@ -881,10 +881,15 @@ never silently capture current settings on ordinary replay.
   fallback is not full cross-process settlement/erasure CAS or complete identity
   parity. Review-only posted routing and existing `none` erasure are unchanged.
 
-Both native slices add intended-behavior fake-runtime/storage tests. Native fixture
-execution/parity, Kotlin/Swift compilation and new tests are **not yet verified**.
-Current code/diff review is not native acceptance. No Review UI or annotation file,
-protected data, schema, release automation or frozen inference asset was changed.
+Both native slices add intended-behavior fake-runtime/storage tests. Corrected
+Android CI executed all 16 admission tests, all 18 pipeline service tests and all
+4 original-retry tests successfully; the overall suite still fails in a settings
+coroutine test, with lint/APK skipped. iOS CI compiled the Release app and executed
+all twelve new admission tests successfully; its overall suite still has one
+verified inherited failure.
+Full native supplied-response parity and device acceptance remain pending.
+No Review UI or annotation file, protected data, schema, release automation or
+frozen inference asset was changed.
 
 ### Decisions, remaining work and delivery gate
 
@@ -934,15 +939,17 @@ formatting follow-ups `b7d3d0d24bf03ab409bf053738ce520d34c56047` and
 formatting errors at the first two heads; source-only formatting fixes were pushed
 without running tooling here. Current-head run
 [42440898265](https://github.com/pocket-financer/pocket-financer-ios/actions/runs/42440898265)
-is in progress. No inherited tests were disabled or weakened.
+completed with successful formatting and Release build, all twelve new admission
+tests passing, and one inherited self-test assertion failure. No inherited tests
+were disabled or weakened; exact evidence is below.
 
 ### Current delivery ledger
 
 | Repository | Dependent draft / exact published head | Review and checks |
 | --- | --- | --- |
 | Intelligence | [#13](https://github.com/pocket-financer/pocket-financer-intelligence/pull/13), `2e73e4e2366cbc2c1942c3f2a87ed6325d432dd5` | All six findings independently closed by fix-round source review. Existing CI runs [42441026832](https://github.com/pocket-financer/pocket-financer-intelligence/actions/runs/42441026832) and [42441023421](https://github.com/pocket-financer/pocket-financer-intelligence/actions/runs/42441023421) **passed** on this exact head: safety, both Ruff gates, shell checks and full pytest including the new mechanics regressions. |
-| Android | [#50](https://github.com/pocket-financer/pocket-financer-android/pull/50), `2f772f4103370b9c91aa860ba1bb9708522c1be6` | All three findings independently closed by fix-round source review, including original-v2/v4 atomic retry claims. Eleven further invented regressions added. Existing CI [42441502751](https://github.com/pocket-financer/pocket-financer-android/actions/runs/42441502751) manually dispatched on this exact head; in progress, native compilation/tests/lint/APK not yet passed. |
-| iOS | [#14](https://github.com/pocket-financer/pocket-financer-ios/pull/14), `f7883c31896909fb87092ecd5f550181c4eb5261` | Independent source review: no additional iOS blocker. Current CI [42440898265](https://github.com/pocket-financer/pocket-financer-ios/actions/runs/42440898265) passed formatting and Release build; unit/UI test step still running. |
+| Android | [#50](https://github.com/pocket-financer/pocket-financer-android/pull/50), `a22363956e707eba29d9a879128768c0cab2b783` | Original three findings independently closed. One-line JUnit return-type fix independently reviewed and pushed. CI [42510824045](https://github.com/pocket-financer/pocket-financer-android/actions/runs/42510824045) at this exact head passed all 16 admission, 18 service and 4 original-retry tests. Data/pipeline/SMS/inference/hardware modules passed; app has one settings coroutine-harness failure. Overall CI failed; lint/APK skipped, not passed. |
+| iOS | [#14](https://github.com/pocket-financer/pocket-financer-ios/pull/14), `f7883c31896909fb87092ecd5f550181c4eb5261` | CI [42440898265](https://github.com/pocket-financer/pocket-financer-ios/actions/runs/42440898265): formatting and Release build passed; all 22 ingestion tests (including twelve new admission tests) passed; 120/121 unit tests and all 5 UI tests passed. Overall failure is the same self-test assertion as the pilot head; not a green suite. |
 
 All three published drafts target `codex/feat-prefilter-pilot`. Parent verified live
 head/base/draft metadata and clean published worktrees. Parent `git diff --check`
@@ -956,12 +963,66 @@ final commit is recorded in delivery rather than self-referenced here. This is
 not a new plan or session diary. Parent alone committed/pushed/published all
 application changes; all three admission worktrees are clean.
 
-Next bounded work: observe the linked native checks and fix only introduced
-source/compile/regression issues, not unrelated outdated inherited tests. Then
-continue native reliable intake identity and stored-ready resume, eliminate
-pre-boundary heuristic suppression, and align extraction/settings/validation and
-settlement. Terminal exclusions/none markers remain gated on the owner retention
-decision, not on more implementation authorization. No new duplicate window is
-chosen. Keep the Python runner progressing toward native-supplied-response parity
-and platform adapters; later quality evaluation waits for annotation. Do not
-restart the pilot or represent this admission slice as the completed pipeline.
+### Native CI follow-up and introduced-failure correction
+
+Live fetch/PR metadata confirmed the three admission drafts remain open on their
+recorded dependent bases; original feature/pilot branches and handoff checkouts
+were clean. No baseline merge, PR retarget/closure or workflow edit occurred.
+The parent and one fresh read-only reviewer used configured OpenAI
+`gpt-6.1-sol` through the existing OAuth route.
+
+- **Android introduced failure:** job logs and uploaded JUnit XML for run
+  `42441502751` report `SmsProcessingAdmissionTest > initializationError`:
+  `ready snapshot becomes visible retryable recovery instead of current settings resnapshot()`
+  `should be void`. Its final `assertFailsWith` returns the caught exception, so
+  Kotlin inferred a non-void expression-bodied test method. Commit
+  `a22363956e707eba29d9a879128768c0cab2b783` explicitly declares `: Unit`.
+  Every assertion and the production code remain unchanged. Fresh independent
+  review accepted the fix and found no similar signature problem in the other
+  admission/service/original-retry tests. Corrected run `42510824045` uses the
+  existing non-release workflow without trigger changes. Uploaded JUnit XML
+  confirms all 16 admission tests, 18 pipeline service tests and 4 original-retry
+  tests passed. Module totals: data 111/111, pipeline 149/149, SMS 24/24,
+  inference 55/55, hardware 43/43, app 218/219. Overall CI failed in
+  `SettingsViewModelTest.notification health reflects global and channel disablement`
+  at line 274 with `UncaughtExceptionsBeforeTest`; the suppressed exception says
+  `Dispatchers.Main` was accessed while the test dispatcher was unset. Both the
+  settings source and its tests are unchanged by the admission slice. That is
+  not proof of inherited origin or a root-cause diagnosis, so attribution remains
+  unresolved. Lint and debug APK steps were skipped. No settings repair, test
+  weakening, blind rerun or full-suite pass is claimed.
+- **iOS inherited failure:** direct job logs are now readable. Run `42440898265`
+  reports exactly one failing unit test,
+  `ModelSelfTestServiceTests.testMismatchedEvidenceOutputFailsClosed` at line 62:
+  actual `extractor_account_reference_invalid`, expected
+  `extractor_evidence_mismatch`. Pilot run `42408592877` reports the same test,
+  line, actual and expected values at unchanged pilot head `fe33618`.
+  Admission commits do not modify that test or the self-test service. All twelve
+  new admission tests passed, including lock contention, replay, evidence
+  conflicts, saved-ready deferral and parent-linked retry. The shared prefilter
+  fixture test and all five UI smoke tests also passed at the admission head.
+  This identifies inherited failure, not its deeper validator root cause; no
+  repair, disabled test, changed assertion or full-suite pass is claimed.
+
+Only the one Android test signature and this existing plan changed in this
+follow-up. Parent inspected the diff and `git diff --check`; no application tests,
+builds, compiler/formatter tools, private data or model evaluation ran locally.
+CI log/XML inspection and a standard-library XML count established the results
+above; no application code was run to count them. Existing draft descriptions
+were refreshed through GitHub's REST API because this host's `gh pr edit` hits
+an obsolete Projects Classic GraphQL field. Bases/heads/draft status remain intact.
+
+Next bounded work: continue native reliable intake identity and stored-ready
+resume, eliminate pre-boundary heuristic suppression, and align extraction/settings/
+validation and settlement. Keep the unresolved Android settings-harness failure,
+its missing lint/APK gates and the inherited iOS self-test failure visible; do not
+repair unrelated old tests or claim full native acceptance. If source inspection
+links the settings failure to new code, fix that introduced issue in a bounded
+reviewed follow-up. In particular, Android Home recent scan and onboarding
+still call `preserveSourceMetadataIfExists`, and Home queue merging still bridges
+provider-less messages by fingerprints; these are not reliable source admission.
+Terminal exclusions/none markers remain gated on the owner retention decision,
+not on more implementation authorization. No new duplicate window is chosen.
+Keep the Python runner progressing toward native-supplied-response parity and
+platform adapters; later quality evaluation waits for annotation. Do not restart
+the pilot or represent this admission slice as the completed pipeline.
